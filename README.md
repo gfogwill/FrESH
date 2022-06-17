@@ -1,7 +1,7 @@
 IceNucleiCounter
 ==============================
 
-Th
+This project is to control the cooling unit, read the camara and get the Ice Nuclei concentration
 
 Project Organization
 ------------
