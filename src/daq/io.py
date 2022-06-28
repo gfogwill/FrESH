@@ -23,9 +23,8 @@ class Daq:
         except ULException as e:
             print('\n', e)
 
-    def set_reference_voltage(self):
-        self.ao.a_out(channel=1, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=9)
-        self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=17*10e-3)
+    def set_starting_temp(self, t):
+        self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=t*10e-3)
 
     def set_temperature(self, t_target):
         v_aout = t_target * 10.0e-3
