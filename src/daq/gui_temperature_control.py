@@ -6,7 +6,7 @@ matplotlib.use('Qt5Agg')
 
 from PyQt5 import QtCore, QtWidgets
 
-from src.daq import io
+from src.daq import mccdaq
 
 
 class MainWindow(QtWidgets.QMainWindow):
