@@ -11,6 +11,8 @@ from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import QTimer, pyqtSlot, Qt
 from PyQt5.QtWidgets import *
 
+from src import paths
+
 from src.daq import mccdaq
 from src.gui.video import VideoThread
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
@@ -54,22 +56,6 @@ class Window(QWidget):
 
         self.UI()
 
-    @pyqtSlot(np.ndarray)
-    def update_image(self, cv_img):
-        """Updates the image_label with a new opencv image"""
-        qt_img = self.convert_cv_qt(cv_img)
-        self.image_label.setPixmap(qt_img)
-
-    def convert_cv_qt(self, cv_img):
-        """Convert from an opencv image to QPixmap"""
-        rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
-        h, w, ch = rgb_image.shape
-        bytes_per_line = ch * w
-        convert_to_Qt_format = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
-        p = convert_to_Qt_format.scaled(self.display_width, self.display_height, Qt.KeepAspectRatio)
-
-        return QPixmap.fromImage(p)
-
     def UI(self):
         self.setStyleSheet("background-color:white;font-size:12pt;font-family:Times;")
 
@@ -88,7 +74,7 @@ class Window(QWidget):
         mainLayout.addLayout(videoLayout)
 
         self.image_label = QLabel(self)
-        self.image_label.resize(self.display_width, self.display_height)
+        # self.image_label.resize(self.display_width, self.display_height)
         videoLayout.addWidget(self.image_label)
         # create the video capture thread
         self.thread = VideoThread()
@@ -97,11 +83,14 @@ class Window(QWidget):
         # start the thread
         self.thread.start()
 
-        setTempWidget = QHBoxLayout()
+        self.graphWidget = pg.PlotWidget(axisItems={'bottom': TimeAxisItem(orientation='bottom')})
+        self.graphWidget.showGrid(x=True, y=True, alpha=0.2)
+
         self.temp_set_label = QLabel("Set temperature :")
         self.temp_set = QLineEdit('17')
         self.temp_set_btn = QPushButton("Set", self)
         self.temp_set_btn.clicked.connect(self.set_temp)
+        setTempWidget = QHBoxLayout()
         setTempWidget.addWidget(self.temp_set)
         setTempWidget.addWidget(self.temp_set_btn)
 
@@ -124,12 +113,8 @@ class Window(QWidget):
         self.btn_clear_plot = QPushButton("Clear plot", self)
         self.btn_clear_plot.clicked.connect(self.clear_plot)
 
-        self.graphWidget = pg.PlotWidget(axisItems={'bottom': TimeAxisItem(orientation='bottom')})
-        self.graphWidget.showGrid(x=True, y=True, alpha=0.2)
-
         bottomFormLayout.setContentsMargins(10, 10, 10, 10)
         bottomFormLayout.addRow(self.temp_set_label, setTempWidget)
-
         bottomFormLayout.addRow(self.btn_connect)
         bottomFormLayout.addRow(self.btn_clear_plot)
         bottomFormLayout.addRow(self.btn_exit)
@@ -142,7 +127,7 @@ class Window(QWidget):
 
         self.timer = QTimer()
         self.timer.setInterval(100)
-        self.timer.timeout.connect(self.draw)
+        self.timer.timeout.connect(self.update_temp_plot)
         
         self.show()
 
@@ -181,8 +166,8 @@ class Window(QWidget):
 
         self.bath_temp.append((t, self.daq.get_bath_temp(samples=20, interval=1e-3)))
         self.setpoint.append((t, self.daq.get_setpoint_temp(samples=20, interval=1e-3)))
-        self.adam0.append((t, float(self.adam.GetAReading(ch=0)[1:])))
-        self.adam1.append((t, float(self.adam.GetAReading(ch=1)[1:])))
+        self.adam0.append((t, self.adam.GetTemp(ch=0)))
+        self.adam1.append((t, self.adam.GetTemp(ch=1)))
 
         self.thread.setpoint_temp_text = f'{(self.setpoint[-1][1]):.2f}'
         self.thread.bath_temp_text = f'{(self.bath_temp[-1][1]):.2f}'
@@ -192,7 +177,7 @@ class Window(QWidget):
         self.setpoint_value.setText(f'{(self.setpoint[-1][1] / 100 * 1e3):.3f} mV')
         self.bath_temp_value.setText(f'{(self.bath_temp[-1][1] / 100 * 1e3):.3f} mV')
 
-    def draw(self):
+    def update_temp_plot(self):
         self.read_sensors_data()
 
         pen = pg.mkPen(color='red', width=1)
@@ -218,6 +203,22 @@ class Window(QWidget):
 
         self.graphWidget.clear()
 
+    @pyqtSlot(np.ndarray)
+    def update_image(self, cv_img):
+        """Updates the image_label with a new opencv image"""
+        qt_img = self.convert_cv_qt(cv_img)
+        self.image_label.setPixmap(qt_img)
+
+    def convert_cv_qt(self, cv_img):
+        """Convert from an opencv image to QPixmap"""
+        rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb_image.shape
+        bytes_per_line = ch * w
+        convert_to_Qt_format = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
+        p = convert_to_Qt_format.scaled(self.display_width, self.display_height, Qt.KeepAspectRatio)
+
+        return QPixmap.fromImage(p)
+
 
 def main():
     App = QApplication(sys.argv)
@@ -226,6 +227,7 @@ def main():
 
 
 if __name__ == '__main__':
+    filename = paths.project_dir / 'myfirstlog.log'
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logging.basicConfig(level=logging.INFO, format=log_fmt)
+    logging.basicConfig(filename=filename, level=logging.INFO, format=log_fmt)
     main()
