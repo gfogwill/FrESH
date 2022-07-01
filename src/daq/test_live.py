@@ -37,7 +37,7 @@ class Window(QWidget):
         self.setWindowTitle("Lauda temperature control")
         self.setGeometry(50, 50, 1200, 660)
 
-        self.disply_width = 640
+        self.display_width = 640
         self.display_height = 480
 
         self.timer = None
@@ -68,7 +68,7 @@ class Window(QWidget):
         h, w, ch = rgb_image.shape
         bytes_per_line = ch * w
         convert_to_Qt_format = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
-        p = convert_to_Qt_format.scaled(self.disply_width, self.display_height, Qt.KeepAspectRatio)
+        p = convert_to_Qt_format.scaled(self.display_width, self.display_height, Qt.KeepAspectRatio)
         return QPixmap.fromImage(p)
 
     def UI(self):
@@ -90,7 +90,7 @@ class Window(QWidget):
         # temperatureLayout.addLayout(videoLayout)
 
         self.image_label = QLabel(self)
-        self.image_label.resize(self.disply_width, self.display_height)
+        self.image_label.resize(self.display_width, self.display_height)
         videoLayout.addWidget(self.image_label)
         # create the video capture thread
         self.thread = VideoThread()
@@ -156,7 +156,7 @@ class Window(QWidget):
     def connect_system(self):
         print("Connecting System")
 
-        # Connecto to ADAM-4015
+        # Connect to ADAM-4015
         ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
         conn = ADAMConnection(ini['SERIAL'])
         self.adam = ADAM4015(conn, 0x24)
@@ -186,7 +186,6 @@ class Window(QWidget):
         self.thread.bath_temp_text = f'{(self.bath_temp[-1][1]):.2f}'
         self.thread.ADAMCH0_temp_text = f'{(self.adam0[-1][1]):.2f}'
         self.thread.ADAMCH1_temp_text = f'{(self.adam1[-1][1]):.2f}'
-
 
         self.setpoint_value.setText(f'{(self.setpoint[-1][1] / 100 * 1e3):.3f} mV')
         self.bath_temp_value.setText(f'{(self.bath_temp[-1][1] / 100 * 1e3):.3f} mV')
@@ -222,6 +221,7 @@ def main():
     App = QApplication(sys.argv)
     window = Window()
     sys.exit(App.exec_())
+
 
 if __name__ == '__main__':
     main()
