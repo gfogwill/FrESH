@@ -1,22 +1,20 @@
 import sys
 import time
-
-import pyqtgraph as pg
 import cv2
-
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import QTimer, pyqtSlot, Qt
-from PyQt5 import QtGui
-from PyQt5.QtGui import QPixmap
-
-from src.daq import mccdaq
-
-from src.daq.ADAMlib import ADAMConnection, ADAM4015
-from src.daq.IniLoader import IniLoader
+import logging
 
 import numpy as np
+import pyqtgraph as pg
 
+from PyQt5 import QtGui
+from PyQt5.QtGui import QPixmap
+from PyQt5.QtCore import QTimer, pyqtSlot, Qt
+from PyQt5.QtWidgets import *
+
+from src.daq import mccdaq
 from src.gui.video import VideoThread
+from src.daq.ADAMlib import ADAMConnection, ADAM4015
+from src.daq.IniLoader import IniLoader
 
 
 class TimeAxisItem(pg.AxisItem):
@@ -69,6 +67,7 @@ class Window(QWidget):
         bytes_per_line = ch * w
         convert_to_Qt_format = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
         p = convert_to_Qt_format.scaled(self.display_width, self.display_height, Qt.KeepAspectRatio)
+
         return QPixmap.fromImage(p)
 
     def UI(self):
@@ -87,7 +86,6 @@ class Window(QWidget):
 
         mainLayout.addLayout(temperatureLayout)
         mainLayout.addLayout(videoLayout)
-        # temperatureLayout.addLayout(videoLayout)
 
         self.image_label = QLabel(self)
         self.image_label.resize(self.display_width, self.display_height)
@@ -150,11 +148,11 @@ class Window(QWidget):
 
     def set_temp(self):
         t = float(self.temp_set.text())
-        print(f'Setting temperature to: {t}')
+        logging.info(f'Setting temperature to: {t}')
         self.daq.set_temperature(t)
 
     def connect_system(self):
-        print("Connecting System")
+        logging.info("Connecting System")
 
         # Connect to ADAM-4015
         ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
@@ -170,7 +168,11 @@ class Window(QWidget):
 
     def exit(self):
         self.timer.stop()
-        self.daq.daq_device.release()
+        try:
+            self.daq.daq_device.release()
+        except AttributeError:
+            logging.error("DAQ device not initialized")
+
         self.thread.stop()
         sys.exit()
 
@@ -224,4 +226,6 @@ def main():
 
 
 if __name__ == '__main__':
+    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    logging.basicConfig(level=logging.INFO, format=log_fmt)
     main()
