@@ -1,6 +1,7 @@
 from uldaq import get_daq_device_inventory, DaqDevice, InterfaceType, AiInputMode, Range, AOutFlag, AInFlag, ULException
 
 import time
+import logging
 
 
 class Daq:
@@ -21,7 +22,7 @@ class Daq:
             self.ai.info = self.ai.get_info()
 
         except ULException as e:
-            print('\n', e)
+            logging.error(f"\n{e}")
 
     def set_starting_temp(self, t):
         self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=t*10e-3)
@@ -29,7 +30,7 @@ class Daq:
     def set_temperature(self, t_target):
         v_aout = t_target * 10.0e-3
 
-        print(f'Value to be set in AOUT0: {v_aout}')
+        logging.debug(f"Value to be set in AOUT0: {v_aout}")
         self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
         # Check if setpoint is correct
@@ -39,7 +40,7 @@ class Daq:
         while t_diff > 0.01:
             v_aout = (t_target + t_diff) * 10.0e-3
 
-            print(f'Value to be set in AOUT0: {v_aout}')
+            logging.debug(f'Value to be set in AOUT0: {v_aout}')
             self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
             # Check if setpoint is correct
