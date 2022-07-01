@@ -211,7 +211,8 @@ class ADAM4017(ADAM):
 
         cmd = "%%%.2X%.2X%s06%s%s" % (self.ibase, self.ibase, rng, self.checksum, fmat)
         res = self.conn.send_command(cmd)
-        if self.DEBUG: print("Scale init returned:%s" % res)
+        if self.DEBUG:
+            print("Scale init returned:%s" % res)
         sleep(self.shortsleep)  # some sleep required
 
         rng = None
@@ -404,8 +405,10 @@ class ADAM4015(ADAM):
 
         cmd = "%%00%.2X%s06%s%s" % (self.ibase, rng, self.checksum, fmat)
         res = self.send_command(cmd)
+
         if self.DEBUG:
             print("Scale init returned:%s" % res)
+
         sleep(self.shortsleep)  # some sleep required
 
         self.eqs = {}
@@ -475,11 +478,4 @@ class ADAM4015(ADAM):
 
 
 if __name__ == '__main__':
-    from src.daq.IniLoader import IniLoader
-
-    ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
-
-    conn = ADAMConnection(ini['SERIAL'])
-
-    ain = ADAM4015(conn, 0x24)
-    ain.GetAReading(ch=1)
+    print("Import me!")
