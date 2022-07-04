@@ -155,11 +155,10 @@ class ADAM4015(ADAM):
 
         rng = '00'  # self.input_range_dict[str(sc)]
 
-        cmd = "%%00%.2X%s06%s%s" % (self.ibase, rng, self.checksum, fmat)
+        cmd = "%%%.2X%.2X%s06%s%s" % (self.ibase, self.ibase, rng, self.checksum, fmat)
         res = self.send_command(cmd)
 
-        if self.DEBUG:
-            print("Scale init returned:%s" % res)
+        logging.debug("Scale init returned:%s" % res)
 
         sleep(self.shortsleep)  # some sleep required
 
@@ -174,6 +173,7 @@ class ADAM4015(ADAM):
         self.enabled = chs_to_enable[:]
         self.enabled.sort()  # added 2008-01-18
         self.SetMultiplexing(self.enabled)
+        self.rawreadings = []  # raw (not in units) from ADAM
 
     def SetMultiplexing(self, chs_to_enable):
         """
@@ -196,9 +196,12 @@ class ADAM4015(ADAM):
         self.enabled = chs_to_enable
         sleep(self.shortsleep)
 
-    def GetAReading(self, ch=0):
+    def GetLatestRawReadings(self):
+        return self.rawreadings
+
+    def GetTemp(self, ch=0):
         """
-        Return voltage reading of channel ch
+        Return temperature in ºC reading of channel ch
         """
         if not 0 <= ch <= 7:
             logging.error("Illegal ADAM Analog Input ch:%d" % ch)
@@ -206,8 +209,9 @@ class ADAM4015(ADAM):
 
         cmd = "#00%d" % ch
         resp = self.conn.send_command(cmd)
+        logging.debug(f"ADAM response for command {cmd}: {resp}")
 
-        return resp
+        return float(resp[1:])
 
     def ReadChRanges(self):
         """
