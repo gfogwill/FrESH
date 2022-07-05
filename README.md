@@ -4,11 +4,10 @@ IceNucleiCounter
 This project is to control the cooling unit, read the camara and get the Ice Nuclei concentration
 
 
-## Getting Started
+# Installation
 
 These instructions will give you a copy of the project up and running on
 your local machine for development and testing purposes. 
-
 
 ### Prerequisites
 
@@ -17,8 +16,7 @@ Requirements for the software and other tools to build, test and push
 - [uldaq](https://github.com/mccdaq/uldaq)
 
 
-
-## Installation
+## Getting Started
 
 Clone the repository
 
@@ -42,7 +40,6 @@ Every time you start a new session you need to activate the virtual environment.
 ```console
 $ source venv/bin/activate
 ```
-
 
 ## Using the code
 
