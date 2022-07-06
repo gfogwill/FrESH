@@ -22,7 +22,7 @@ Clone the repository
 
 ```console
 $ git clone https://gitlab.fmi.fi/perezfo/icenucleicounter
-$ cd dmps
+$ cd icenucleicounter
 ```
 
 Now let's install the requirements. But before we do that, we **strongly**
