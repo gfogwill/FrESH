@@ -215,6 +215,17 @@ class ADAM4015(ADAM):
 
         return float(resp[1:])
 
+    def GetAllTemps(self):
+        """
+        Return temperature in ºC reading of all channels
+        """
+
+        cmd = "#00"
+        resp = self.conn.send_command(cmd)
+        logging.debug(f"ADAM response for command {cmd}: {resp}")
+
+        return [float(resp[1+i:i+7]) for i in range(0, len(resp)-1, 7)]
+
     def ReadChRanges(self):
         """
         Get channel ranges to be used in fromHex()
