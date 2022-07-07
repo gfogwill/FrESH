@@ -129,9 +129,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
         logging.info("Connecting System")
 
         # Connect to ADAM-4015
-        #ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
-        #conn = ADAMConnection(ini['SERIAL'])
-        #self.adam = ADAM4015(conn, 0x0A, chs_to_enable=[0, 1])
+        ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
+        conn = ADAMConnection(ini['SERIAL'])
+        self.adam = ADAM4015(conn, 0x0A, chs_to_enable=[0, 1])
 
         # Connect MC-DAQ (USB-1808) and set the initial temperature
         self.daq = mccdaq.Daq()
@@ -166,7 +166,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
                          f'{sp:.2f},'
                          f'{bt:.2f},'
                          f'{s0:.2f},'
-                         f'{s1:2f}\n')
+                         f'{s1:.2f}\n')
 
     def exit(self):
         self.timer.stop()
@@ -208,8 +208,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.line1 = self.graphWidget.plot(*zip(*self.bath_temp), name="Bath temp.", pen=pen)
         self.line2 = self.graphWidget.plot(*zip(*self.setpoint), name="Setpoint temp.", pen=pen2)
 
-        #self.line3 = self.graphWidget.plot(*zip(*self.adam0), name="ADAM_0", pen=pen3)
-        #self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
+        self.line3 = self.graphWidget.plot(*zip(*self.adam0), name="ADAM_0", pen=pen3)
+        self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
 
     def set_temp(self):
         t = float(self.temp_set.text())

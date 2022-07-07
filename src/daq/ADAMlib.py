@@ -157,8 +157,10 @@ class ADAM4015(ADAM):
 
         cmd = "%%%.2X%.2X%s06%s%s" % (self.ibase, self.ibase, rng, self.checksum, fmat)
         res = self.send_command(cmd)
-
         logging.debug("Scale init returned:%s" % res)
+
+        if res.__len__() == 0:
+            logging.error("Couldn't connect to ADAM")
 
         sleep(self.shortsleep)  # some sleep required
 
