@@ -69,12 +69,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.thread = None
         self.image_label = None
 
-        if save_exp:
-            self.setup_saving_dir(exp_description)
-
-        # Setup video widget
-        self.createVideoWidget()
-
         # Connect buttons
         self.button_set_temp = self.findChild(QtWidgets.QPushButton, 'setTempButton')  # Find the button
         self.button_set_temp.clicked.connect(self.set_temp)
@@ -92,10 +86,17 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.graphWidget.setAxisItems(axisItems={'bottom': TimeAxisItem(orientation='bottom')})
 
         self.timer = QTimer()
-        self.timer.setInterval(1)
+        self.timer.setInterval(1000)
         self.timer.timeout.connect(self.update_temp_plot)
 
+        if save_exp:
+            self.setup_saving_dir(exp_description)
+
         self.show()
+
+    def save_pic(self):
+        fo = self.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.png", time.localtime())
+        self.image_label.pixmap().save(str(fo))
 
     def setup_saving_dir(self, exp_description):
         log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -106,6 +107,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         date_str = time.strftime('%Y%m%d%H%M', time.localtime())
         self.experiment_path = paths.raw_data_path / date_str
         os.mkdir(self.experiment_path)
+        os.mkdir(self.experiment_path / 'pics')
 
         logging.basicConfig(level=logging.INFO,
                             format=log_fmt,
@@ -125,30 +127,37 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         logging.info(f'Experiment description:\n\n{exp_description}\n\n')
 
+        self.timer2 = QTimer()
+        self.timer2.setInterval(10000)
+        self.timer2.timeout.connect(self.save_pic)
+
     def connect_system(self):
         logging.info("Connecting System")
 
         # Connect to ADAM-4015
         ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
         conn = ADAMConnection(ini['SERIAL'])
-        self.adam = ADAM4015(conn, 0x0A, chs_to_enable=[0, 1])
+        self.adam = ADAM4015(conn, 0x00, chs_to_enable=[0, 1])
 
         # Connect MC-DAQ (USB-1808) and set the initial temperature
         self.daq = mccdaq.Daq()
         self.daq.set_starting_temp(float(self.temp_set.text()))
 
+        # Setup video widget
+        self.createVideoWidget()
+
         logging.info("Systems connected")
 
         # Start the timer
         self.timer.start()
+        self.timer2.start()
 
     def read_sensors_data(self):
         t = time.time()
 
         bt = self.daq.get_bath_temp()
         sp = self.daq.get_setpoint_temp()
-        s0 = self.adam.GetTemp(ch=0)
-        s1 = self.adam.GetTemp(ch=1)
+        s0, s1 = self.adam.GetAllTemps()
 
         self.bath_temp.append((t, bt))
         self.setpoint.append((t, sp))
