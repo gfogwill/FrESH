@@ -4,6 +4,7 @@ import sys
 import time
 import cv2
 import logging
+import os
 
 import numpy as np
 import pyqtgraph as pg
@@ -45,11 +46,13 @@ def convert_cv_qt(cv_img):
     return QPixmap.fromImage(p)
 
 
-class Ui(QtWidgets.QMainWindow):
-    def __init__(self, *args, **kwargs):
-        super(Ui, self).__init__(*args, **kwargs)
+class ExperimentUi(QtWidgets.QMainWindow):
+    def __init__(self, save_exp=False, exp_description=None, *args, **kwargs):
+        super(ExperimentUi, self).__init__(*args, **kwargs)
 
-        uic.loadUi('test.ui', self)
+        uic.loadUi('experiment.ui', self)
+
+        self.save_exp = save_exp
 
         self.bath_temp = []
         self.setpoint = []
@@ -65,9 +68,6 @@ class Ui(QtWidgets.QMainWindow):
         self.adam = None
         self.thread = None
         self.image_label = None
-
-        # Setup video widget
-        self.createVideoWidget()
 
         # Connect buttons
         self.button_set_temp = self.findChild(QtWidgets.QPushButton, 'setTempButton')  # Find the button
@@ -86,48 +86,103 @@ class Ui(QtWidgets.QMainWindow):
         self.graphWidget.setAxisItems(axisItems={'bottom': TimeAxisItem(orientation='bottom')})
 
         self.timer = QTimer()
-        self.timer.setInterval(1)
+        self.timer.setInterval(1000)
         self.timer.timeout.connect(self.update_temp_plot)
 
+        if save_exp:
+            self.setup_saving_dir(exp_description)
+
         self.show()
+
+    def save_pic(self):
+        fo = self.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.png", time.localtime())
+        self.image_label.pixmap().save(str(fo))
+
+    def setup_saving_dir(self, exp_description):
+        log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
+        for handler in logging.root.handlers[:]:
+            logging.root.removeHandler(handler)
+
+        date_str = time.strftime('%Y%m%d%H%M', time.localtime())
+        self.experiment_path = paths.raw_data_path / date_str
+        os.mkdir(self.experiment_path)
+        os.mkdir(self.experiment_path / 'pics')
+
+        logging.basicConfig(level=logging.INFO,
+                            format=log_fmt,
+                            filename=self.experiment_path / f'EX{date_str}.log',
+                            filemode='w')
+
+        logging.info(f"Experiment directory created: {self.experiment_path}")
+
+        with open(self.experiment_path / "sensors_data.csv", "a") as fo:
+            fo.write(f'datetime, '
+                     f'setpoint [ºC], '
+                     f'bath temp [ºC], '
+                     f'RTD0 [ºC], '
+                     f'RTD1 [ºC]\n')
+
+        logging.info(f'Sensors data file created: {self.experiment_path / "sensors_data.csv"}')
+
+        logging.info(f'Experiment description:\n\n{exp_description}\n\n')
+
+        self.timer2 = QTimer()
+        self.timer2.setInterval(10000)
+        self.timer2.timeout.connect(self.save_pic)
 
     def connect_system(self):
         logging.info("Connecting System")
 
         # Connect to ADAM-4015
-        #ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
-        #conn = ADAMConnection(ini['SERIAL'])
-        #self.adam = ADAM4015(conn, 0x0A, chs_to_enable=[0, 1])
+        ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
+        conn = ADAMConnection(ini['SERIAL'])
+        self.adam = ADAM4015(conn, 0x00, chs_to_enable=[0, 1])
 
         # Connect MC-DAQ (USB-1808) and set the initial temperature
         self.daq = mccdaq.Daq()
         self.daq.set_starting_temp(float(self.temp_set.text()))
 
+        # Setup video widget
+        self.createVideoWidget()
+
+        logging.info("Systems connected")
+
         # Start the timer
         self.timer.start()
+        self.timer2.start()
 
     def read_sensors_data(self):
         t = time.time()
 
-        self.bath_temp.append((t, self.daq.get_bath_temp(samples=self.samplesHorizontalSlider.value(), interval=self.intervalHorizontalSlider.value()*1e-3)))
-        self.setpoint.append((t, self.daq.get_setpoint_temp(samples=self.samplesHorizontalSlider.value(), interval=self.intervalHorizontalSlider.value()*1e-3)))
-        #self.adam0.append((t, self.adam.GetTemp(ch=0)))
-        #self.adam1.append((t, self.adam.GetTemp(ch=1)))
+        bt = self.daq.get_bath_temp()
+        sp = self.daq.get_setpoint_temp()
+        s0, s1 = self.adam.GetAllTemps()
 
-        self.thread.setpoint_temp_text = f'{(self.setpoint[-1][1]):.2f}'
-        self.thread.bath_temp_text = f'{(self.bath_temp[-1][1]):.2f}'
-        #self.thread.ADAMCH0_temp_text = f'{(self.adam0[-1][1]):.2f}'
-        #self.thread.ADAMCH1_temp_text = f'{(self.adam1[-1][1]):.2f}'
+        self.bath_temp.append((t, bt))
+        self.setpoint.append((t, sp))
+        self.adam0.append((t, s0))
+        self.adam1.append((t, s1))
 
-        self.setpoint_value.setText(f'{(self.setpoint[-1][1] / 100 * 1e3):.3f} mV')
-        self.bath_temp_value.setText(f'{(self.bath_temp[-1][1] / 100 * 1e3):.3f} mV')
+        self.thread.setpoint_temp_text = f'{sp:.2f}'
+        self.thread.bath_temp_text = f'{bt:.2f}'
+        self.thread.ADAMCH0_temp_text = f'{s0:.2f}'
+        self.thread.ADAMCH1_temp_text = f'{s1:.2f}'
+
+        if self.save_exp:
+            with open(self.experiment_path / "sensors_data.csv", "a") as fo:
+                fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
+                         f'{sp:.2f},'
+                         f'{bt:.2f},'
+                         f'{s0:.2f},'
+                         f'{s1:.2f}\n')
 
     def exit(self):
         self.timer.stop()
         try:
             self.daq.daq_device.release()
         except AttributeError:
-            logging.error("DAQ device not initialized")
+            logging.warning("DAQ device not initialized")
 
         self.thread.stop()
         sys.exit()
@@ -149,14 +204,12 @@ class Ui(QtWidgets.QMainWindow):
         self.thread.start()
 
     def update_temp_plot(self):
-
         self.read_sensors_data()
 
         pen = pg.mkPen(color='red', width=1)
         pen2 = pg.mkPen(color='green', width=1)
         pen3 = pg.mkPen(color='blue', width=1)
         pen4 = pg.mkPen(color='orange', width=1)
-
         self.graphWidget.setLabel('left', 'Bath temp [ºC]', color='red', size=30)
         self.graphWidget.setLabel('right', 'Setpoint temp [ºC]', color='green', size=30)
         self.graphWidget.setLabel('bottom', 'Time', size=30)
@@ -164,8 +217,8 @@ class Ui(QtWidgets.QMainWindow):
         self.line1 = self.graphWidget.plot(*zip(*self.bath_temp), name="Bath temp.", pen=pen)
         self.line2 = self.graphWidget.plot(*zip(*self.setpoint), name="Setpoint temp.", pen=pen2)
 
-        #self.line3 = self.graphWidget.plot(*zip(*self.adam0), name="ADAM_0", pen=pen3)
-        #self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
+        self.line3 = self.graphWidget.plot(*zip(*self.adam0), name="ADAM_0", pen=pen3)
+        self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
 
     def set_temp(self):
         t = float(self.temp_set.text())
@@ -181,7 +234,7 @@ class Ui(QtWidgets.QMainWindow):
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
-    window = Ui()
+    window = ExperimentUi()
     window.show()
     sys.exit(app.exec_())
 

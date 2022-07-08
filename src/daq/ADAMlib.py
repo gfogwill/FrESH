@@ -157,8 +157,10 @@ class ADAM4015(ADAM):
 
         cmd = "%%%.2X%.2X%s06%s%s" % (self.ibase, self.ibase, rng, self.checksum, fmat)
         res = self.send_command(cmd)
-
         logging.debug("Scale init returned:%s" % res)
+
+        if res.__len__() == 0:
+            logging.error("Couldn't connect to ADAM")
 
         sleep(self.shortsleep)  # some sleep required
 
@@ -212,6 +214,17 @@ class ADAM4015(ADAM):
         logging.debug(f"ADAM response for command {cmd}: {resp}")
 
         return float(resp[1:])
+
+    def GetAllTemps(self):
+        """
+        Return temperature in ºC reading of all channels
+        """
+
+        cmd = "#00"
+        resp = self.conn.send_command(cmd)
+        logging.debug(f"ADAM response for command {cmd}: {resp}")
+
+        return [float(resp[1+i:i+7]) for i in range(0, len(resp)-1, 7)]
 
     def ReadChRanges(self):
         """
