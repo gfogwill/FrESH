@@ -19,8 +19,12 @@ class MainUi(QtWidgets.QMainWindow):
 
     def start_experiment(self):
         self.hide()
-        self.ExperimentUi = ExperimentUi(save_exp=self.saveCheckBox.isChecked(),
-                                         exp_description=self.descriptionPlainTextEdit.toPlainText())
+        exp_metadata = {'station_name': self.stationComboBox.currentText(),
+                        'save_exp': self.saveCheckBox.isChecked(),
+                        'exp_description': self.descriptionPlainTextEdit.toPlainText(),
+                        'picture_saving_interval': self.pictureIntervalSpinBox.value()}
+
+        self.ExperimentUi = ExperimentUi(exp_metadata=exp_metadata)
         self.ExperimentUi.show()
 
 

@@ -31,7 +31,7 @@
     <property name="geometry">
      <rect>
       <x>70</x>
-      <y>370</y>
+      <y>400</y>
       <width>92</width>
       <height>23</height>
      </rect>
@@ -79,9 +79,9 @@
     <property name="geometry">
      <rect>
       <x>70</x>
-      <y>170</y>
-      <width>281</width>
-      <height>151</height>
+      <y>120</y>
+      <width>351</width>
+      <height>91</height>
      </rect>
     </property>
    </widget>
@@ -89,13 +89,39 @@
     <property name="geometry">
      <rect>
       <x>70</x>
-      <y>150</y>
+      <y>100</y>
       <width>171</width>
       <height>17</height>
      </rect>
     </property>
     <property name="text">
      <string>Experiment description</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_2">
+    <property name="geometry">
+     <rect>
+      <x>80</x>
+      <y>250</y>
+      <width>161</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Picture interval [s]</string>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="pictureIntervalSpinBox">
+    <property name="geometry">
+     <rect>
+      <x>80</x>
+      <y>270</y>
+      <width>48</width>
+      <height>26</height>
+     </rect>
+    </property>
+    <property name="minimum">
+     <number>1</number>
     </property>
    </widget>
   </widget>

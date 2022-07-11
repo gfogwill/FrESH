@@ -47,16 +47,16 @@ def convert_cv_qt(cv_img):
 
 
 class ExperimentUi(QtWidgets.QMainWindow):
-    def __init__(self, save_exp=False, exp_description=None, *args, **kwargs):
+    def __init__(self, exp_metadata, *args, **kwargs):
         super(ExperimentUi, self).__init__(*args, **kwargs)
 
         uic.loadUi('experiment.ui', self)
 
-        self.save_exp = save_exp
+        self.save_exp = exp_metadata.save_exp
 
         self.bath_temp = []
         self.setpoint = []
-        self.adam0 = []
+        self.adam0 = [] 
         self.adam1 = []
 
         self.line1 = None
@@ -90,7 +90,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.timer.timeout.connect(self.update_temp_plot)
 
         if save_exp:
-            self.setup_saving_dir(exp_description)
+            self.setup_saving(exp_metadata)
 
         self.show()
 
@@ -98,7 +98,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         fo = self.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.png", time.localtime())
         self.image_label.pixmap().save(str(fo))
 
-    def setup_saving_dir(self, exp_description):
+    def setup_saving(self, exp_metadata):
         log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
         for handler in logging.root.handlers[:]:
@@ -125,10 +125,10 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         logging.info(f'Sensors data file created: {self.experiment_path / "sensors_data.csv"}')
 
-        logging.info(f'Experiment description:\n\n{exp_description}\n\n')
+        logging.info(f'Experiment description:\n\n{exp_metadata.exp_description}\n\n')
 
         self.timer2 = QTimer()
-        self.timer2.setInterval(10000)
+        self.timer2.setInterval(exp_metadata.picture_saving_interval * 1000)
         self.timer2.timeout.connect(self.save_pic)
 
     def connect_system(self):

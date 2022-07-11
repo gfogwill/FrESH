@@ -26,7 +26,7 @@ def plot_detected_circles(img, circles):
 
         for n, i in enumerate(circles):
             # outer circle
-            ## cv2.circle(image, center_coordinates, radius, color, thickness)
+            # cv2.circle(image, center_coordinates, radius, color, thickness)
             cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 0), 2)
 
             # inner circle
@@ -51,7 +51,7 @@ def get_grayscales(image, circles, mask=True):
 
         if mask:
             # create a mask
-            ## https://stackoverflow.com/questions/50697179/opencv-and-python-how-croped-circle-area-only
+            # https://stackoverflow.com/questions/50697179/opencv-and-python-how-croped-circle-area-only
 
             m = np.full((img.shape[0], img.shape[1]), 0, dtype=np.uint8)
             # create circle mask, center, radius, fill color, size of the border
