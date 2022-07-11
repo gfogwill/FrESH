@@ -89,7 +89,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.timer.setInterval(1000)
         self.timer.timeout.connect(self.update_temp_plot)
 
-        if save_exp:
+        if self.save_exp:
             self.setup_saving(exp_metadata)
 
         self.show()
