@@ -206,6 +206,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         self.graphWidget.clear()
 
+        self.graphWidget.enableAutoRange(axis='y')
+        self.graphWidget.setAutoVisible(y=True)
+
     def createVideoWidget(self):
         self.image_label = self.findChild(QtWidgets.QLabel, 'videoLabel')
         self.thread = VideoThread()
