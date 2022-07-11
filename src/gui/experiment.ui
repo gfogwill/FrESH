@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>931</width>
-    <height>876</height>
+    <width>726</width>
+    <height>655</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -24,17 +24,17 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>530</y>
-      <width>891</width>
-      <height>251</height>
+      <y>300</y>
+      <width>681</width>
+      <height>301</height>
      </rect>
     </property>
    </widget>
    <widget class="QLineEdit" name="temp_set">
     <property name="geometry">
      <rect>
-      <x>680</x>
-      <y>270</y>
+      <x>350</x>
+      <y>40</y>
       <width>113</width>
       <height>21</height>
      </rect>
@@ -46,7 +46,7 @@
    <widget class="QPushButton" name="connectButton">
     <property name="geometry">
      <rect>
-      <x>660</x>
+      <x>350</x>
       <y>10</y>
       <width>241</width>
       <height>25</height>
@@ -59,8 +59,8 @@
    <widget class="QPushButton" name="exitButton">
     <property name="geometry">
      <rect>
-      <x>780</x>
-      <y>460</y>
+      <x>370</x>
+      <y>190</y>
       <width>89</width>
       <height>25</height>
      </rect>
@@ -72,8 +72,8 @@
    <widget class="QPushButton" name="clearPlotButton">
     <property name="geometry">
      <rect>
-      <x>780</x>
-      <y>420</y>
+      <x>370</x>
+      <y>150</y>
       <width>89</width>
       <height>25</height>
      </rect>
@@ -82,26 +82,13 @@
      <string>Clear Plot</string>
     </property>
    </widget>
-   <widget class="QLabel" name="videoLabel">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>10</y>
-      <width>640</width>
-      <height>480</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-   </widget>
    <widget class="QFrame" name="frameVideo">
     <property name="geometry">
      <rect>
       <x>10</x>
       <y>10</y>
-      <width>640</width>
-      <height>480</height>
+      <width>320</width>
+      <height>240</height>
      </rect>
     </property>
     <property name="frameShape">
@@ -110,12 +97,25 @@
     <property name="frameShadow">
      <enum>QFrame::Raised</enum>
     </property>
+    <widget class="QLabel" name="videoLabel">
+     <property name="geometry">
+      <rect>
+       <x>0</x>
+       <y>0</y>
+       <width>320</width>
+       <height>240</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
    </widget>
    <widget class="QPushButton" name="setTempButton">
     <property name="geometry">
      <rect>
-      <x>810</x>
-      <y>270</y>
+      <x>470</x>
+      <y>40</y>
       <width>101</width>
       <height>21</height>
      </rect>
@@ -125,25 +125,15 @@
     </property>
    </widget>
    <zorder>frameVideo</zorder>
-   <zorder>videoLabel</zorder>
    <zorder>graphWidget</zorder>
    <zorder>temp_set</zorder>
    <zorder>connectButton</zorder>
    <zorder>exitButton</zorder>
    <zorder>clearPlotButton</zorder>
    <zorder>setTempButton</zorder>
+   <zorder>frame</zorder>
+   <zorder>frame_2</zorder>
   </widget>
-  <widget class="QMenuBar" name="menubar">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>931</width>
-     <height>22</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <customwidgets>
   <customwidget>

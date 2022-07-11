@@ -9,7 +9,8 @@ import os
 import numpy as np
 import pyqtgraph as pg
 
-from PyQt5 import QtGui, QtWidgets, uic
+import PyQt5
+from PyQt5 import QtGui, QtWidgets, uic, QtCore
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import QTimer, pyqtSlot, Qt
 from PyQt5.QtWidgets import *
@@ -23,6 +24,12 @@ from src.daq.IniLoader import IniLoader
 
 VIDEO_DISPLAY_WIDTH = 640
 VIDEO_DISPLAY_HEIGHT = 480
+
+if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
+    PyQt5.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
+
+if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
+    PyQt5.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
 
 
 class TimeAxisItem(pg.AxisItem):
