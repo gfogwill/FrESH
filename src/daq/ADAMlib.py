@@ -161,6 +161,7 @@ class ADAM4015(ADAM):
 
         if res.__len__() == 0:
             logging.error("Couldn't connect to ADAM")
+            sys.exit()
 
         sleep(self.shortsleep)  # some sleep required
 

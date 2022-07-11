@@ -52,11 +52,11 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         uic.loadUi('experiment.ui', self)
 
-        self.save_exp = exp_metadata.save_exp
+        self.save_exp = exp_metadata['save_exp']
 
         self.bath_temp = []
         self.setpoint = []
-        self.adam0 = [] 
+        self.adam0 = []
         self.adam1 = []
 
         self.line1 = None
@@ -124,12 +124,13 @@ class ExperimentUi(QtWidgets.QMainWindow):
                      f'RTD1 [ºC]\n')
 
         logging.info(f'Sensors data file created: {self.experiment_path / "sensors_data.csv"}')
-
-        logging.info(f'Experiment description:\n\n{exp_metadata.exp_description}\n\n')
+        desc = exp_metadata['exp_description']
+        logging.info(f'Experiment description:\n\n{desc}\n\n')
 
         self.timer2 = QTimer()
-        self.timer2.setInterval(exp_metadata.picture_saving_interval * 1000)
+        self.timer2.setInterval(exp_metadata['picture_saving_interval'] * 1000)
         self.timer2.timeout.connect(self.save_pic)
+        self.timer2.start()
 
     def connect_system(self):
         logging.info("Connecting System")
@@ -150,7 +151,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         # Start the timer
         self.timer.start()
-        self.timer2.start()
 
     def read_sensors_data(self):
         t = time.time()
@@ -184,7 +184,11 @@ class ExperimentUi(QtWidgets.QMainWindow):
         except AttributeError:
             logging.warning("DAQ device not initialized")
 
-        self.thread.stop()
+        try:
+            self.thread.stop()
+        except AttributeError:
+            logging.warning("Camera not initialized")
+
         sys.exit()
 
     def clear_plot(self):
