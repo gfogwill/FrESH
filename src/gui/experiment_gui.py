@@ -22,6 +22,9 @@ from src.gui.video import VideoThread
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq.IniLoader import IniLoader
 
+VIDEO_DISPLAY_WIDTH = 320
+VIDEO_DISPLAY_HEIGHT = 240
+
 if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
     PyQt5.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 
@@ -39,14 +42,13 @@ class TimeAxisItem(pg.AxisItem):
         return [time.strftime("%H:%M:%S", time.localtime(value)) for value in values]
 
 
-def convert_cv_qt(cv_img_trst):
+def convert_cv_qt(cv_img):
     """Convert from an opencv image to QPixmap"""
-    rgb_image = cv2.cvtColor(cv_img_trst, cv2.COLOR_BGR2RGB)
+    rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
     h, w, ch = rgb_image.shape
     bytes_per_line = ch * w
     convert_to_Qt_format = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
-    p = convert_to_quQt_format.scaled(self.videoLabel.frameGeometry().width(), self.videoLabel.frameGeometry().height(),
-                                      Qt.KeepAspectRatio)
+    p = convert_to_Qt_format.scaled(VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT, Qt.KeepAspectRatio)
 
     return QPixmap.fromImage(p)
 
@@ -143,7 +145,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         # Connect to ADAM-4015
         ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
         conn = ADAMConnection(ini['SERIAL'])
-        self.adam = ADAM4015(conn, 0x00, chs_to_enable=[0, 1])
+        self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
 
         # Connect MC-DAQ (USB-1808) and set the initial temperature
         self.daq = mccdaq.Daq()

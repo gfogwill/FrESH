@@ -221,7 +221,7 @@ class ADAM4015(ADAM):
         Return temperature in ºC reading of all channels
         """
 
-        cmd = "#00"
+        cmd = "#%.2X" % self.ibase
         resp = self.conn.send_command(cmd)
         logging.debug(f"ADAM response for command {cmd}: {resp}")
 
