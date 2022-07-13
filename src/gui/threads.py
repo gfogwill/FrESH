@@ -2,6 +2,10 @@ import cv2
 import numpy as np
 from PyQt5.QtCore import QThread, pyqtSignal
 
+from src.daq.ADAMlib import ADAMConnection, ADAM4015
+from src.daq import mccdaq
+from src.daq.IniLoader import IniLoader
+
 
 def get_circles(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -29,6 +33,36 @@ def get_circles(img):
             cv2.circle(img, (i[0], i[1]), 1, (0, 0, 255), 2)
 
     return img
+
+
+class DataThread(QThread):
+    read_data_signal = pyqtSignal(object)
+
+    def __init__(self):
+        super().__init__()
+        self._run_flag = True
+
+        # Connect to ADAM-4015
+        ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
+        conn = ADAMConnection(ini['SERIAL'])
+        self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
+
+        # Connect MC-DAQ (USB-1808) and set the initial temperature
+        self.daq = mccdaq.Daq()
+        self.daq.set_starting_temp(float(self.temp_set.text()))
+
+    def run(self):
+        while self._run_flag:
+            bt = self.daq.get_bath_temp()
+            sp = self.daq.get_setpoint_temp()
+            s0, s1 = self.adam.GetAllTemps()
+
+            data = {'bath_temp': bt,
+                    'setpoint_temp': sp,
+                    'adam0': s0,
+                    'adam1': s1}
+
+            self.read_data_signal.emit(data)
 
 
 class VideoThread(QThread):

@@ -17,10 +17,7 @@ from PyQt5.QtWidgets import *
 
 from src import paths
 
-from src.daq import mccdaq
-from src.gui.video import VideoThread
-from src.daq.ADAMlib import ADAMConnection, ADAM4015
-from src.daq.IniLoader import IniLoader
+from src.gui.threads import VideoThread, DataThread
 
 VIDEO_DISPLAY_WIDTH = 320
 VIDEO_DISPLAY_HEIGHT = 240
@@ -142,14 +139,11 @@ class ExperimentUi(QtWidgets.QMainWindow):
     def connect_system(self):
         logging.info("Connecting System")
 
-        # Connect to ADAM-4015
-        ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
-        conn = ADAMConnection(ini['SERIAL'])
-        self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
-
-        # Connect MC-DAQ (USB-1808) and set the initial temperature
-        self.daq = mccdaq.Daq()
-        self.daq.set_starting_temp(float(self.temp_set.text()))
+        self.data_thread = DataThread()
+        # connect its signal to the update_image slot
+        self.data_thread.read_data_signal.connect(self.read_sensors_data)
+        # start the thread
+        self.data_thread.start()
 
         # Setup video widget
         self.createVideoWidget()
@@ -159,12 +153,13 @@ class ExperimentUi(QtWidgets.QMainWindow):
         # Start the timer
         self.timer.start()
 
-    def read_sensors_data(self):
+    def read_sensors_data(self, data):
         t = time.time()
 
-        bt = self.daq.get_bath_temp()
-        sp = self.daq.get_setpoint_temp()
-        s0, s1 = self.adam.GetAllTemps()
+        bt = data['bath_temp']
+        sp = data['setpoint_temp']
+        s0 = data['adam0']
+        s1 = data['adam1']
 
         self.bath_temp.append((t, bt))
         self.setpoint.append((t, sp))
@@ -224,6 +219,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         pen2 = pg.mkPen(color='green', width=1)
         pen3 = pg.mkPen(color='blue', width=1)
         pen4 = pg.mkPen(color='orange', width=1)
+
         self.graphWidget.setLabel('left', 'Bath temp [ºC]', color='red', size=30)
         self.graphWidget.setLabel('right', 'Setpoint temp [ºC]', color='green', size=30)
         self.graphWidget.setLabel('bottom', 'Time', size=30)
