@@ -12,7 +12,7 @@ import pyqtgraph as pg
 import PyQt5
 from PyQt5 import QtGui, QtWidgets, uic, QtCore
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import QTimer, pyqtSlot, Qt, QObject, pyqtSignal, QThread
+from PyQt5.QtCore import QTimer, pyqtSlot, Qt
 from PyQt5.QtWidgets import *
 
 from src import paths
@@ -25,6 +25,12 @@ from src.daq.IniLoader import IniLoader
 VIDEO_DISPLAY_WIDTH = 320
 VIDEO_DISPLAY_HEIGHT = 240
 
+if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
+    PyQt5.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
+
+if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
+    PyQt5.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
+
 
 class TimeAxisItem(pg.AxisItem):
     def __init__(self, *args, **kwargs):
@@ -34,39 +40,6 @@ class TimeAxisItem(pg.AxisItem):
 
     def tickStrings(self, values, scale, spacing):
         return [time.strftime("%H:%M:%S", time.localtime(value)) for value in values]
-
-
-class Worker(QObject):
-    finished = pyqtSignal()
-    progress = pyqtSignal(int)
-
-    def run(self):
-        """Long-running task."""
-        t = time.time()
-
-        bt = self.daq.get_bath_temp()
-        sp = self.daq.get_setpoint_temp()
-        s0, s1 = self.adam.GetAllTemps()
-
-        self.bath_temp.append((t, bt))
-        self.setpoint.append((t, sp))
-        self.adam0.append((t, s0))
-        self.adam1.append((t, s1))
-
-        self.thread.setpoint_temp_text = f'{sp:.2f}'
-        self.thread.bath_temp_text = f'{bt:.2f}'
-        self.thread.ADAMCH0_temp_text = f'{s0:.2f}'
-        self.thread.ADAMCH1_temp_text = f'{s1:.2f}'
-
-        if self.save_exp:
-            with open(self.experiment_path / "sensors_data.csv", "a") as fo:
-                fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
-                         f'{sp:.2f},'
-                         f'{bt:.2f},'
-                         f'{s0:.2f},'
-                         f'{s1:.2f}\n')
-
-        self.finished.emit()
 
 
 def convert_cv_qt(cv_img):
@@ -114,8 +87,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.btn_exit.clicked.connect(self.exit)
 
         self.btn_clear_plot = self.findChild(QtWidgets.QPushButton, 'clearPlotButton')
-        # self.btn_clear_plot.clicked.connect(self.clear_plot)
-        self.btn_clear_plot.clicked.connect(self.read_sensors_data)
+        self.btn_clear_plot.clicked.connect(self.clear_plot)
 
         # Change xaxis in GraphWidget yo show time in format HH:MM:SS
         self.graphWidget.setAxisItems(axisItems={'bottom': TimeAxisItem(orientation='bottom')})
@@ -188,43 +160,29 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.timer.start()
 
     def read_sensors_data(self):
-        self.reading_thread = QThread()
-        # Step 3: Create a worker object
-        self.worker = Worker()
-        # Step 4: Move worker to the thread
-        self.worker.moveToThread(self.reading_thread)
-        # Step 5: Connect signals and slots
-        self.reading_thread.started.connect(self.worker.run)
-        self.worker.finished.connect(self.reading_thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.reading_thread.finished.connect(self.reading_thread.deleteLater)
-        # self.worker.progress.connect(self.reportProgress)
-        # Step 6: Start the thread
-        self.reading_thread.start()
+        t = time.time()
 
-        # t = time.time()
-        #
-        # bt = self.daq.get_bath_temp()
-        # sp = self.daq.get_setpoint_temp()
-        # s0, s1 = self.adam.GetAllTemps()
-        #
-        # self.bath_temp.append((t, bt))
-        # self.setpoint.append((t, sp))
-        # self.adam0.append((t, s0))
-        # self.adam1.append((t, s1))
-        #
-        # self.thread.setpoint_temp_text = f'{sp:.2f}'
-        # self.thread.bath_temp_text = f'{bt:.2f}'
-        # self.thread.ADAMCH0_temp_text = f'{s0:.2f}'
-        # self.thread.ADAMCH1_temp_text = f'{s1:.2f}'
-        #
-        # if self.save_exp:
-        #     with open(self.experiment_path / "sensors_data.csv", "a") as fo:
-        #         fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
-        #                  f'{sp:.2f},'
-        #                  f'{bt:.2f},'
-        #                  f'{s0:.2f},'
-        #                  f'{s1:.2f}\n')
+        bt = self.daq.get_bath_temp()
+        sp = self.daq.get_setpoint_temp()
+        s0, s1 = self.adam.GetAllTemps()
+
+        self.bath_temp.append((t, bt))
+        self.setpoint.append((t, sp))
+        self.adam0.append((t, s0))
+        self.adam1.append((t, s1))
+
+        self.thread.setpoint_temp_text = f'{sp:.2f}'
+        self.thread.bath_temp_text = f'{bt:.2f}'
+        self.thread.ADAMCH0_temp_text = f'{s0:.2f}'
+        self.thread.ADAMCH1_temp_text = f'{s1:.2f}'
+
+        if self.save_exp:
+            with open(self.experiment_path / "sensors_data.csv", "a") as fo:
+                fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
+                         f'{sp:.2f},'
+                         f'{bt:.2f},'
+                         f'{s0:.2f},'
+                         f'{s1:.2f}\n')
 
     def exit(self):
         self.timer.stop()
