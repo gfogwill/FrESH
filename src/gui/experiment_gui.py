@@ -12,21 +12,16 @@ import pyqtgraph as pg
 import PyQt5
 from PyQt5 import QtGui, QtWidgets, uic, QtCore
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import QTimer, pyqtSlot, Qt
+from PyQt5.QtCore import QTimer, pyqtSlot, Qt, QThread
 from PyQt5.QtWidgets import *
 
 from src import paths
 
-from src.gui.threads import VideoThread, DataThread
+from src.gui.threads import VideoThread, DataWorker
+from src.daq.IniLoader import IniLoader
 
 VIDEO_DISPLAY_WIDTH = 320
 VIDEO_DISPLAY_HEIGHT = 240
-
-if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
-    PyQt5.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
-
-if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
-    PyQt5.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
 
 
 class TimeAxisItem(pg.AxisItem):
@@ -63,14 +58,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.adam0 = []
         self.adam1 = []
 
-        self.line1 = None
-        self.line2 = None
-        self.line3 = None
-        self.line4 = None
-
         self.daq = None
         self.adam = None
-        self.thread = None
+        self.video_thread = None
         self.image_label = None
 
         # Connect buttons
@@ -84,23 +74,29 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.btn_exit.clicked.connect(self.exit)
 
         self.btn_clear_plot = self.findChild(QtWidgets.QPushButton, 'clearPlotButton')
-        self.btn_clear_plot.clicked.connect(self.clear_plot)
+        self.btn_clear_plot.clicked.connect(self.clear_data)
 
         # Change xaxis in GraphWidget yo show time in format HH:MM:SS
         self.graphWidget.setAxisItems(axisItems={'bottom': TimeAxisItem(orientation='bottom')})
 
-        self.timer = QTimer()
-        self.timer.setInterval(1000)
-        self.timer.timeout.connect(self.update_temp_plot)
+        pen = pg.mkPen(color='red', width=1)
+        pen2 = pg.mkPen(color='green', width=1)
+        pen3 = pg.mkPen(color='blue', width=1)
+        pen4 = pg.mkPen(color='orange', width=1)
+
+        self.graphWidget.setLabel('left', 'Bath temp [ºC]', color='red', size=30)
+        self.graphWidget.setLabel('right', 'Setpoint temp [ºC]', color='green', size=30)
+        self.graphWidget.setLabel('bottom', 'Time', size=30)
+
+        self.line1 = self.graphWidget.plot(*zip(*self.bath_temp), name="Bath temp.", pen=pen)
+        self.line2 = self.graphWidget.plot(*zip(*self.setpoint), name="Setpoint temp.", pen=pen2)
+        self.line3 = self.graphWidget.plot(*zip(*self.adam0), name="ADAM_0", pen=pen3)
+        self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
 
         if self.save_exp:
             self.setup_saving(exp_metadata)
 
         self.show()
-
-    def save_pic(self):
-        fo = self.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.png", time.localtime())
-        self.image_label.pixmap().save(str(fo))
 
     def setup_saving(self, exp_metadata):
         log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -131,19 +127,17 @@ class ExperimentUi(QtWidgets.QMainWindow):
         desc = exp_metadata['exp_description']
         logging.info(f'Experiment description:\n\n{desc}\n\n')
 
-        self.timer2 = QTimer()
-        self.timer2.setInterval(exp_metadata['picture_saving_interval'] * 1000)
-        self.timer2.timeout.connect(self.save_pic)
-        self.timer2.start()
+        self.pic_saving_timer = QTimer()
+        self.pic_saving_timer.setInterval(exp_metadata['picture_saving_interval'] * 1000)
+        self.pic_saving_timer.timeout.connect(self.save_pic)
 
     def connect_system(self):
         logging.info("Connecting System")
 
-        self.data_thread = DataThread()
-        # connect its signal to the update_image slot
-        self.data_thread.read_data_signal.connect(self.read_sensors_data)
-        # start the thread
-        self.data_thread.start()
+        # Setup thread for temperature I/O
+        self.data_worker = DataWorker(float(self.temp_set.text()))
+        self.data_worker.read_data_signal.connect(self.read_sensors_data)
+        self.data_worker.start()
 
         # Setup video widget
         self.createVideoWidget()
@@ -151,8 +145,10 @@ class ExperimentUi(QtWidgets.QMainWindow):
         logging.info("Systems connected")
 
         # Start the timer
-        self.timer.start()
+        if self.save_exp:
+            self.pic_saving_timer.start()
 
+    @pyqtSlot(object)
     def read_sensors_data(self, data):
         t = time.time()
 
@@ -166,10 +162,10 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.adam0.append((t, s0))
         self.adam1.append((t, s1))
 
-        self.thread.setpoint_temp_text = f'{sp:.2f}'
-        self.thread.bath_temp_text = f'{bt:.2f}'
-        self.thread.ADAMCH0_temp_text = f'{s0:.2f}'
-        self.thread.ADAMCH1_temp_text = f'{s1:.2f}'
+        self.video_thread.setpoint_temp_text = f'{sp:.2f}'
+        self.video_thread.bath_temp_text = f'{bt:.2f}'
+        self.video_thread.ADAMCH0_temp_text = f'{s0:.2f}'
+        self.video_thread.ADAMCH1_temp_text = f'{s1:.2f}'
 
         if self.save_exp:
             with open(self.experiment_path / "sensors_data.csv", "a") as fo:
@@ -179,61 +175,30 @@ class ExperimentUi(QtWidgets.QMainWindow):
                          f'{s0:.2f},'
                          f'{s1:.2f}\n')
 
-    def exit(self):
-        self.timer.stop()
-        try:
-            self.daq.daq_device.release()
-        except AttributeError:
-            logging.warning("DAQ device not initialized")
-
-        try:
-            self.thread.stop()
-        except AttributeError:
-            logging.warning("Camera not initialized")
-
-        sys.exit()
-
-    def clear_plot(self):
-        self.bath_temp = []
-        self.setpoint = []
-        self.adam0 = []
-        self.adam1 = []
-
-        self.graphWidget.clear()
-
-        self.graphWidget.enableAutoRange(axis='y')
-        self.graphWidget.setAutoVisible(y=True)
+        self.update_temp_plot()
 
     def createVideoWidget(self):
         self.image_label = self.findChild(QtWidgets.QLabel, 'videoLabel')
-        self.thread = VideoThread()
+        self.video_thread = VideoThread()
         # connect its signal to the update_image slot
-        self.thread.change_pixmap_signal.connect(self.update_image)
+        self.video_thread.change_pixmap_signal.connect(self.update_image)
         # start the thread
-        self.thread.start()
-
-    def update_temp_plot(self):
-        self.read_sensors_data()
-
-        pen = pg.mkPen(color='red', width=1)
-        pen2 = pg.mkPen(color='green', width=1)
-        pen3 = pg.mkPen(color='blue', width=1)
-        pen4 = pg.mkPen(color='orange', width=1)
-
-        self.graphWidget.setLabel('left', 'Bath temp [ºC]', color='red', size=30)
-        self.graphWidget.setLabel('right', 'Setpoint temp [ºC]', color='green', size=30)
-        self.graphWidget.setLabel('bottom', 'Time', size=30)
-
-        self.line1 = self.graphWidget.plot(*zip(*self.bath_temp), name="Bath temp.", pen=pen)
-        self.line2 = self.graphWidget.plot(*zip(*self.setpoint), name="Setpoint temp.", pen=pen2)
-
-        self.line3 = self.graphWidget.plot(*zip(*self.adam0), name="ADAM_0", pen=pen3)
-        self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
+        self.video_thread.start()
 
     def set_temp(self):
         t = float(self.temp_set.text())
         logging.info(f'Setting temperature to: {t}')
-        self.daq.set_temperature(t)
+        self.data_worker.daq.set_temperature(t)
+
+    def save_pic(self):
+        fo = self.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.png", time.localtime())
+        self.image_label.pixmap().save(str(fo))
+
+    def update_temp_plot(self):
+        self.line1.setData(*zip(*self.bath_temp))
+        self.line2.setData(*zip(*self.setpoint))
+        self.line3.setData(*zip(*self.adam0))
+        self.line4.setData(*zip(*self.adam1))
 
     @pyqtSlot(np.ndarray)
     def update_image(self, cv_img):
@@ -241,12 +206,33 @@ class ExperimentUi(QtWidgets.QMainWindow):
         qt_img = convert_cv_qt(cv_img)
         self.image_label.setPixmap(qt_img)
 
+    def clear_data(self):
+        self.bath_temp = []
+        self.setpoint = []
+        self.adam0 = []
+        self.adam1 = []
+
+    def exit(self):
+
+        try:
+            self.data_worker.daq.daq_device.release()
+
+        except AttributeError:
+            logging.warning("DAQ device not initialized")
+
+        try:
+            self.video_thread.stop()
+        except AttributeError:
+            logging.warning("Camera not initialized")
+
+        sys.exit()
+
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
     window = ExperimentUi()
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == '__main__':
