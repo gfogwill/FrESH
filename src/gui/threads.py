@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal, QObject, QTimer, QEventLoop
 
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq import mccdaq
@@ -35,13 +35,22 @@ def get_circles(img):
     return img
 
 
-class DataThread(QThread):
+class DataWorker(QThread):
+
     read_data_signal = pyqtSignal(object)
 
-    def __init__(self):
+    def __init__(self, init_temp=15):
         super().__init__()
-        self._run_flag = True
+        self.init_temp = init_temp
+        self.adam = None
+        self.daq = None
+        self.threadactive = True
 
+        self.dataCollectionTimer = QTimer()
+        self.dataCollectionTimer.moveToThread(self)
+        self.dataCollectionTimer.timeout.connect(self.read_temps)
+
+    def run(self):
         # Connect to ADAM-4015
         ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
         conn = ADAMConnection(ini['SERIAL'])
@@ -49,20 +58,23 @@ class DataThread(QThread):
 
         # Connect MC-DAQ (USB-1808) and set the initial temperature
         self.daq = mccdaq.Daq()
-        self.daq.set_starting_temp(float(self.temp_set.text()))
+        self.daq.set_starting_temp(self.init_temp)
 
-    def run(self):
-        while self._run_flag:
-            bt = self.daq.get_bath_temp()
-            sp = self.daq.get_setpoint_temp()
-            s0, s1 = self.adam.GetAllTemps()
+        self.dataCollectionTimer.start(1000)
+        loop = QEventLoop()
+        loop.exec_()
 
-            data = {'bath_temp': bt,
-                    'setpoint_temp': sp,
-                    'adam0': s0,
-                    'adam1': s1}
+    def read_temps(self):
+        bt = self.daq.get_bath_temp()
+        sp = self.daq.get_setpoint_temp()
+        s0, s1 = self.adam.GetAllTemps()
 
-            self.read_data_signal.emit(data)
+        data = {'bath_temp': bt,
+                'setpoint_temp': sp,
+                'adam0': s0,
+                'adam1': s1}
+
+        self.read_data_signal.emit(data)
 
 
 class VideoThread(QThread):
