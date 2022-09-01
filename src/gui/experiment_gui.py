@@ -63,6 +63,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.video_thread = None
         self.image_label = None
 
+        self.img = None
+
         # Connect buttons
         self.button_set_temp = self.findChild(QtWidgets.QPushButton, 'setTempButton')  # Find the button
         self.button_set_temp.clicked.connect(self.set_temp)
@@ -192,7 +194,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
     def save_pic(self):
         fo = self.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.png", time.localtime())
-        self.image_label.pixmap().save(str(fo))
+        cv2.imwrite(str(fo), self.img)
 
     def update_temp_plot(self):
         self.line1.setData(*zip(*self.bath_temp))
@@ -203,6 +205,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
     @pyqtSlot(np.ndarray)
     def update_image(self, cv_img):
         """Updates the image_label with a new opencv image"""
+        self.img = cv_img
         qt_img = convert_cv_qt(cv_img)
         self.image_label.setPixmap(qt_img)
 
