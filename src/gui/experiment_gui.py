@@ -142,7 +142,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.data_worker.start()
 
         # Setup video widget
-        self.createVideoWidget()
+        self.create_video_widget()
 
         logging.info("Systems connected")
 
@@ -179,7 +179,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         self.update_temp_plot()
 
-    def createVideoWidget(self):
+    def create_video_widget(self):
         self.image_label = self.findChild(QtWidgets.QLabel, 'videoLabel')
         self.video_thread = VideoThread()
         # connect its signal to the update_image slot
