@@ -16,11 +16,11 @@ from PyQt5.QtCore import QTimer, pyqtSlot, Qt
 from PyQt5.QtWidgets import *
 
 from src import paths
-
 from src.daq import mccdaq
-from src.gui.video import VideoThread
+from src.gui.video import VideoThread, VideoSettingsUi
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq.IniLoader import IniLoader
+
 
 VIDEO_DISPLAY_WIDTH = 320
 VIDEO_DISPLAY_HEIGHT = 240
@@ -73,7 +73,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         self.daq = None
         self.adam = None
-        self.thread = None
+        self.video_thread = None
         self.image_label = None
 
         # Connect buttons
@@ -89,6 +89,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.btn_clear_plot = self.findChild(QtWidgets.QPushButton, 'clearPlotButton')
         self.btn_clear_plot.clicked.connect(self.clear_plot)
 
+        self.btn_video_settings = self.findChild(QtWidgets.QPushButton, 'videoSettingsButton')
+        self.btn_video_settings.clicked.connect(self.video_settings)
+
         # Change xaxis in GraphWidget yo show time in format HH:MM:SS
         self.graphWidget.setAxisItems(axisItems={'bottom': TimeAxisItem(orientation='bottom')})
 
@@ -100,6 +103,10 @@ class ExperimentUi(QtWidgets.QMainWindow):
             self.setup_saving(exp_metadata)
 
         self.show()
+
+    def video_settings(self):
+        self.VideoSettingsUi = VideoSettingsUi(self.video_thread)
+        self.VideoSettingsUi.show()
 
     def save_pic(self):
         fo = self.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.png", time.localtime())
@@ -143,21 +150,22 @@ class ExperimentUi(QtWidgets.QMainWindow):
         logging.info("Connecting System")
 
         # Connect to ADAM-4015
-        ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
-        conn = ADAMConnection(ini['SERIAL'])
-        self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
+        # ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
+        # conn = ADAMConnection(ini['SERIAL'])
+        # self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
+        #
+        # # Connect MC-DAQ (USB-1808) and set the initial temperature
+        # self.daq = mccdaq.Daq()
+        # self.daq.set_starting_temp(float(self.temp_set.text()))
 
-        # Connect MC-DAQ (USB-1808) and set the initial temperature
-        self.daq = mccdaq.Daq()
-        self.daq.set_starting_temp(float(self.temp_set.text()))
+        # Start the timer
+        # self.timer.start()
 
         # Setup video widget
         self.createVideoWidget()
-
         logging.info("Systems connected")
 
-        # Start the timer
-        self.timer.start()
+
 
     def read_sensors_data(self):
         t = time.time()
@@ -171,10 +179,10 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.adam0.append((t, s0))
         self.adam1.append((t, s1))
 
-        self.thread.setpoint_temp_text = f'{sp:.2f}'
-        self.thread.bath_temp_text = f'{bt:.2f}'
-        self.thread.ADAMCH0_temp_text = f'{s0:.2f}'
-        self.thread.ADAMCH1_temp_text = f'{s1:.2f}'
+        self.video_thread.setpoint_temp_text = f'{sp:.2f}'
+        self.video_thread.bath_temp_text = f'{bt:.2f}'
+        self.video_thread.ADAMCH0_temp_text = f'{s0:.2f}'
+        self.video_thread.ADAMCH1_temp_text = f'{s1:.2f}'
 
         if self.save_exp:
             with open(self.experiment_path / "sensors_data.csv", "a") as fo:
@@ -192,7 +200,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
             logging.warning("DAQ device not initialized")
 
         try:
-            self.thread.stop()
+            self.video_thread.stop()
         except AttributeError:
             logging.warning("Camera not initialized")
 
@@ -211,11 +219,11 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
     def createVideoWidget(self):
         self.image_label = self.findChild(QtWidgets.QLabel, 'videoLabel')
-        self.thread = VideoThread()
+        self.video_thread = VideoThread()
         # connect its signal to the update_image slot
-        self.thread.change_pixmap_signal.connect(self.update_image)
+        self.video_thread.change_pixmap_signal.connect(self.update_image)
         # start the thread
-        self.thread.start()
+        self.video_thread.start()
 
     def update_temp_plot(self):
         self.read_sensors_data()

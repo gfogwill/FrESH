@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>700</width>
+    <width>1164</width>
     <height>608</height>
    </rect>
   </property>
@@ -124,6 +124,19 @@
      <string>Set temp.</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="videoSettingsButton">
+    <property name="geometry">
+     <rect>
+      <x>350</x>
+      <y>70</y>
+      <width>111</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Video Settings</string>
+    </property>
+   </widget>
    <zorder>frameVideo</zorder>
    <zorder>graphWidget</zorder>
    <zorder>temp_set</zorder>
@@ -131,8 +144,7 @@
    <zorder>exitButton</zorder>
    <zorder>clearPlotButton</zorder>
    <zorder>setTempButton</zorder>
-   <zorder>frame</zorder>
-   <zorder>frame_2</zorder>
+   <zorder>videoSettingsButton</zorder>
   </widget>
  </widget>
  <customwidgets>
