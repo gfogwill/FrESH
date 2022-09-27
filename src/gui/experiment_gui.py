@@ -99,9 +99,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         # Change xaxis in GraphWidget yo show time in format HH:MM:SS
         self.graphWidget.setAxisItems(axisItems={'bottom': TimeAxisItem(orientation='bottom')})
 
-        # self.timer = QTimer()
-        # self.timer.setInterval(1000)
-        # self.timer.timeout.connect(self.update_temp_plot)
         pen = pg.mkPen(color='red', width=1)
         pen2 = pg.mkPen(color='green', width=1)
         pen3 = pg.mkPen(color='blue', width=1)
@@ -182,18 +179,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.data_worker.read_data_signal.connect(self.read_sensors_data)
         self.data_worker.start()
 
-        # Connect to ADAM-4015
-        # ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
-        # conn = ADAMConnection(ini['SERIAL'])
-        # self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
-        # #
-        # # # Connect MC-DAQ (USB-1808) and set the initial temperature
-        # self.daq = mccdaq.Daq()
-        # self.daq.set_starting_temp(float(self.temp_set.text()))
-        #
-        # # Start the timer
-        # self.timer.start()
-
     @pyqtSlot(object)
     def read_sensors_data(self):
         t = time.time()
@@ -243,28 +228,11 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         sys.exit()
 
-
     def update_temp_plot(self):
         self.line1.setData(*zip(*self.bath_temp))
         self.line2.setData(*zip(*self.setpoint))
         self.line3.setData(*zip(*self.adam0))
         self.line4.setData(*zip(*self.adam1))
-        #
-        # self.read_sensors_data()
-        #
-        # pen = pg.mkPen(color='red', width=1)
-        # pen2 = pg.mkPen(color='green', width=1)
-        # pen3 = pg.mkPen(color='blue', width=1)
-        # pen4 = pg.mkPen(color='orange', width=1)
-        # self.graphWidget.setLabel('left', 'Bath temp [ºC]', color='red', size=30)
-        # self.graphWidget.setLabel('right', 'Setpoint temp [ºC]', color='green', size=30)
-        # self.graphWidget.setLabel('bottom', 'Time', size=30)
-        #
-        # self.line1 = self.graphWidget.plot(*zip(*self.bath_temp), name="Bath temp.", pen=pen)
-        # self.line2 = self.graphWidget.plot(*zip(*self.setpoint), name="Setpoint temp.", pen=pen2)
-        #
-        # self.line3 = self.graphWidget.plot(*zip(*self.adam0), name="ADAM_0", pen=pen3)
-        # self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
 
     def set_temp(self):
         t = float(self.temp_set.text())

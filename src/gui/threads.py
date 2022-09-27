@@ -127,7 +127,7 @@ class VideoThread(QThread):
 
         while self._run_flag:
             ret, cv_img = self.cap.read()
-
+            cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
             if ret:
                 cv2.putText(cv_img, f"     Bath temp: {self.bath_temp_text}",
                             (50, 50), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
