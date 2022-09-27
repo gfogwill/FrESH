@@ -88,11 +88,11 @@ class VideoThread(QThread):
 
     detect_circles = False
 
-    def __init__(self):
+    def __init__(self, camera_ID):
         super().__init__()
         self._run_flag = True
         # capture from webcam
-        self.cap = cv2.VideoCapture(3)
+        self.cap = cv2.VideoCapture(camera_ID)
 
     def run(self):
 

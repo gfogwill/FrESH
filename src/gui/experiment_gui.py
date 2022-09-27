@@ -23,8 +23,8 @@ from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq.IniLoader import IniLoader
 
 
-VIDEO_DISPLAY_WIDTH = 320
-VIDEO_DISPLAY_HEIGHT = 240
+VIDEO_DISPLAY_WIDTH = 640
+VIDEO_DISPLAY_HEIGHT = 480
 
 if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
     PyQt5.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
@@ -75,14 +75,17 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.daq = None
         self.adam = None
         self.video_thread = None
-        self.image_label = None
+        self.image_frame = None
 
         # Connect buttons
         self.button_set_temp = self.findChild(QtWidgets.QPushButton, 'setTempButton')  # Find the button
         self.button_set_temp.clicked.connect(self.set_temp)
 
-        self.btn_connect = self.findChild(QtWidgets.QPushButton, 'connectButton')
-        self.btn_connect.clicked.connect(self.connect_system)
+        self.btn_connect_video = self.findChild(QtWidgets.QPushButton, 'connectVideoButton')
+        self.btn_connect_video.clicked.connect(self.connect_video)
+
+        self.btn_connect_lauda = self.findChild(QtWidgets.QPushButton, 'connectLAUDAButton')
+        self.btn_connect_lauda.clicked.connect(self.connect_lauda)
 
         self.btn_exit = self.findChild(QtWidgets.QPushButton, 'exitButton')
         self.btn_exit.clicked.connect(self.exit)
@@ -103,7 +106,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         if self.save_exp:
             self.setup_saving(exp_metadata)
 
-        self.showMaximized()
+        self.show()
 
     def video_settings(self):
         self.VideoSettingsUi = VideoSettingsUi(self.video_thread)
@@ -111,7 +114,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
     def save_pic(self):
         fo = self.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.png", time.localtime())
-        self.image_label.pixmap().save(str(fo))
+        self.image_frame.pixmap().save(str(fo))
 
     def setup_saving(self, exp_metadata):
         log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -147,26 +150,31 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.timer2.timeout.connect(self.save_pic)
         self.timer2.start()
 
-    def connect_system(self):
-        logging.info("Connecting System")
-
-        # Connect to ADAM-4015
-        # ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
-        # conn = ADAMConnection(ini['SERIAL'])
-        # self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
-        #
-        # # Connect MC-DAQ (USB-1808) and set the initial temperature
-        # self.daq = mccdaq.Daq()
-        # self.daq.set_starting_temp(float(self.temp_set.text()))
-
-        # Start the timer
-        # self.timer.start()
+    def connect_video(self):
+        logging.info("Connecting Camera")
 
         # Setup video widget
-        self.createVideoWidget()
-        logging.info("Systems connected")
+        self.image_frame = self.findChild(QtWidgets.QLabel, 'videoLabel')
+        self.video_thread = VideoThread(self.cameraID.value())
+        # connect its signal to the update_image slot
+        self.video_thread.change_pixmap_signal.connect(self.update_image)
+        # start the thread
+        self.video_thread.start()
 
+        logging.info("Camera connected")
 
+    def connect_lauda(self):
+        # Connect to ADAM-4015
+        ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
+        conn = ADAMConnection(ini['SERIAL'])
+        self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
+        #
+        # # Connect MC-DAQ (USB-1808) and set the initial temperature
+        self.daq = mccdaq.Daq()
+        self.daq.set_starting_temp(float(self.temp_set.text()))
+
+        # Start the timer
+        self.timer.start()
 
     def read_sensors_data(self):
         t = time.time()
@@ -218,14 +226,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.graphWidget.enableAutoRange(axis='y')
         self.graphWidget.setAutoVisible(y=True)
 
-    def createVideoWidget(self):
-        self.image_label = self.findChild(QtWidgets.QLabel, 'videoLabel')
-        self.video_thread = VideoThread()
-        # connect its signal to the update_image slot
-        self.video_thread.change_pixmap_signal.connect(self.update_image)
-        # start the thread
-        self.video_thread.start()
-
     def update_temp_plot(self):
         self.read_sensors_data()
 
@@ -252,7 +252,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
     def update_image(self, cv_img):
         """Updates the image_label with a new opencv image"""
         qt_img = convert_cv_qt(cv_img)
-        self.image_label.setPixmap(qt_img)
+        self.image_frame.setPixmap(qt_img)
 
 
 def main():
