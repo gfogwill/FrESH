@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 from PyQt5 import QtWidgets, uic
-from PyQt5.QtCore import QThread, pyqtSignal
 
 
 def get_circles(img):
@@ -30,51 +29,6 @@ def get_circles(img):
             cv2.circle(img, (i[0], i[1]), 1, (0, 0, 255), 2)
 
     return img
-
-
-class VideoThread(QThread):
-    change_pixmap_signal = pyqtSignal(np.ndarray)
-
-    bath_temp_text = '-'
-    setpoint_temp_text = '-'
-    ADAMCH0_temp_text = '-'
-    ADAMCH1_temp_text = '-'
-
-    detect_circles = False
-
-    def __init__(self):
-        super().__init__()
-        self._run_flag = True
-        # capture from webcam
-        self.cap = cv2.VideoCapture(3)
-
-    def run(self):
-
-        while self._run_flag:
-            ret, cv_img = self.cap.read()
-
-            if ret:
-                cv2.putText(cv_img, f"     Bath temp: {self.bath_temp_text}",
-                            (50, 50), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-                cv2.putText(cv_img, f" Setpoint temp: {self.setpoint_temp_text}",
-                            (50, 70), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-                cv2.putText(cv_img, f"ADAM CH1 temp: {self.ADAMCH0_temp_text}",
-                            (50, 90), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-                cv2.putText(cv_img, f"ADAM CH2 temp: {self.ADAMCH1_temp_text}",
-                            (50, 110), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-
-                if get_circles:
-                    cv_img = get_circles(cv_img)
-
-                self.change_pixmap_signal.emit(cv_img)
-
-        # shut down capture system
-        self.cap.release()
-
-    def stop(self):
-        """Sets run flag to False and waits for thread to finish"""
-        self._run_flag = False
-        self.wait()
 
 
 class VideoSettingsUi(QtWidgets.QMainWindow):

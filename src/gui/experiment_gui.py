@@ -17,7 +17,8 @@ from PyQt5.QtWidgets import *
 
 from src import paths
 from src.daq import mccdaq
-from src.gui.video import VideoThread, VideoSettingsUi
+from src.gui.video import VideoSettingsUi
+from src.gui.threads import VideoThread
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq.IniLoader import IniLoader
 
@@ -102,7 +103,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         if self.save_exp:
             self.setup_saving(exp_metadata)
 
-        self.show()
+        self.showMaximized()
 
     def video_settings(self):
         self.VideoSettingsUi = VideoSettingsUi(self.video_thread)

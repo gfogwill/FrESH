@@ -5,6 +5,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, QObject, QTimer, QEventLoop
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq import mccdaq
 from src.daq.IniLoader import IniLoader
+from src.gui.video import get_circles
 
 
 def get_circles(img):
@@ -90,33 +91,31 @@ class VideoThread(QThread):
     def __init__(self):
         super().__init__()
         self._run_flag = True
+        # capture from webcam
+        self.cap = cv2.VideoCapture(3)
 
     def run(self):
-        # capture from webcam
-        cap = cv2.VideoCapture(0)
 
         while self._run_flag:
-            ret, cv_img = cap.read()
-
-            cv_img = cv_img[110:360, 150:520]
+            ret, cv_img = self.cap.read()
 
             if ret:
-                # cv2.putText(cv_img, f"     Bath temp: {self.bath_temp_text}",
-                #             (50, 50), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-                # cv2.putText(cv_img, f" Setpoint temp: {self.setpoint_temp_text}",
-                #             (50, 70), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-                # cv2.putText(cv_img, f"ADAM CH1 temp: {self.ADAMCH0_temp_text}",
-                #             (50, 90), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-                # cv2.putText(cv_img, f"ADAM CH2 temp: {self.ADAMCH1_temp_text}",
-                #             (50, 110), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+                cv2.putText(cv_img, f"     Bath temp: {self.bath_temp_text}",
+                            (50, 50), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+                cv2.putText(cv_img, f" Setpoint temp: {self.setpoint_temp_text}",
+                            (50, 70), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+                cv2.putText(cv_img, f"ADAM CH1 temp: {self.ADAMCH0_temp_text}",
+                            (50, 90), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+                cv2.putText(cv_img, f"ADAM CH2 temp: {self.ADAMCH1_temp_text}",
+                            (50, 110), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
 
-                #if get_circles:
-                #    cv_img = get_circles(cv_img)
+                if get_circles:
+                    cv_img = get_circles(cv_img)
 
                 self.change_pixmap_signal.emit(cv_img)
 
         # shut down capture system
-        cap.release()
+        self.cap.release()
 
     def stop(self):
         """Sets run flag to False and waits for thread to finish"""
