@@ -70,18 +70,18 @@ class VideoSettingsUi(QtWidgets.QMainWindow):
             self.video_thread.plot_circles = False
 
     def read_current_settings(self):
-        self.horizontalSlider_1.setValue(self.video_thread.cap.get(cv2.CAP_PROP_BRIGHTNESS))
-        self.horizontalSlider_2.setValue(self.video_thread.cap.get(cv2.CAP_PROP_CONTRAST))
-        self.horizontalSlider_3.setValue(self.video_thread.cap.get(cv2.CAP_PROP_SATURATION))
-        self.horizontalSlider_4.setValue(self.video_thread.cap.get(cv2.CAP_PROP_HUE))
-        self.horizontalSlider_5.setValue(self.video_thread.cap.get(cv2.CAP_PROP_GAMMA))
-        self.horizontalSlider_6.setValue(self.video_thread.cap.get(cv2.CAP_PROP_WB_TEMPERATURE))
-        self.horizontalSlider_7.setValue(self.video_thread.cap.get(cv2.CAP_PROP_SHARPNESS))
-        self.horizontalSlider_8.setValue(self.video_thread.cap.get(cv2.CAP_PROP_PAN)/1000.0)
-        self.horizontalSlider_9.setValue(self.video_thread.cap.get(cv2.CAP_PROP_TILT)/1000.0)
-        self.horizontalSlider_10.setValue(self.video_thread.cap.get(cv2.CAP_PROP_ZOOM))
-        self.horizontalSlider_11.setValue(self.video_thread.cap.get(cv2.CAP_PROP_AUTO_EXPOSURE))
-        self.horizontalSlider_12.setValue(self.video_thread.cap.get(cv2.CAP_PROP_EXPOSURE))
+        self.horizontalSlider_1.setValue(int(self.video_thread.cap.get(cv2.CAP_PROP_BRIGHTNESS)))
+        self.horizontalSlider_2.setValue(int(self.video_thread.cap.get(cv2.CAP_PROP_CONTRAST)))
+        self.horizontalSlider_3.setValue(int(self.video_thread.cap.get(cv2.CAP_PROP_SATURATION)))
+        self.horizontalSlider_4.setValue(int(self.video_thread.cap.get(cv2.CAP_PROP_HUE)))
+        self.horizontalSlider_5.setValue(int(self.video_thread.cap.get(cv2.CAP_PROP_GAMMA)))
+        self.horizontalSlider_6.setValue(int(self.video_thread.cap.get(cv2.CAP_PROP_WB_TEMPERATURE)))
+        self.horizontalSlider_7.setValue(int(self.video_thread.cap.get(cv2.CAP_PROP_SHARPNESS)))
+        self.horizontalSlider_8.setValue(int(self.video_thread.cap.get(cv2.CAP_PROP_PAN)/1000.0))
+        self.horizontalSlider_9.setValue(int(self.video_thread.cap.get(cv2.CAP_PROP_TILT)/1000.0))
+        self.horizontalSlider_10.setValue(int(self.video_thread.cap.get(cv2.CAP_PROP_ZOOM)))
+        self.horizontalSlider_11.setValue(int(self.video_thread.cap.get(cv2.CAP_PROP_AUTO_EXPOSURE)))
+        self.horizontalSlider_12.setValue(int(self.video_thread.cap.get(cv2.CAP_PROP_EXPOSURE)))
 
     def update_brightness_value(self, value):
         self.video_thread.cap.set(cv2.CAP_PROP_BRIGHTNESS, value)
