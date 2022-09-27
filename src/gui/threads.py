@@ -8,7 +8,7 @@ from src.daq.IniLoader import IniLoader
 from src.gui.video import get_circles
 
 
-def get_circles(img):
+def get_circles(img, plot_circles=False):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     img_blur = cv2.medianBlur(gray, 5)
 
@@ -23,7 +23,7 @@ def get_circles(img):
                                )
 
     # Draw detected circles
-    if circles is not None:
+    if circles is not None and plot_circles:
         circles = np.uint16(np.around(circles))
         for i in circles[0, :96]:
             # outer circle
@@ -91,6 +91,9 @@ class VideoThread(QThread):
     def __init__(self, camera_ID):
         super().__init__()
         self._run_flag = True
+
+        self.plot_circles = False
+
         # capture from webcam
         self.cap = cv2.VideoCapture(camera_ID)
 
@@ -110,7 +113,7 @@ class VideoThread(QThread):
                             (50, 110), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
 
                 if get_circles:
-                    cv_img = get_circles(cv_img)
+                    cv_img = get_circles(cv_img, self.plot_circles)
 
                 self.change_pixmap_signal.emit(cv_img)
 

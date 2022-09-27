@@ -55,12 +55,19 @@ class VideoSettingsUi(QtWidgets.QMainWindow):
         self.horizontalSlider_12.valueChanged['int'].connect(self.update_exposure)
 
         self.checkBox_auto_WB.toggled.connect(self.update_auto_WB)
+        self.checkBox_plotCircles.toggled.connect(self.update_plot_circles)
 
     def update_auto_WB(self):
         if self.checkBox_auto_WB.isChecked():
             self.video_thread.cap.set(cv2.CAP_PROP_AUTO_WB, 1)
         else:
             self.video_thread.cap.set(cv2.CAP_PROP_AUTO_WB, 0)
+
+    def update_plot_circles(self):
+        if self.checkBox_plotCircles.isChecked():
+            self.video_thread.plot_circles = True
+        else:
+            self.video_thread.plot_circles = False
 
     def read_current_settings(self):
         self.horizontalSlider_1.setValue(self.video_thread.cap.get(cv2.CAP_PROP_BRIGHTNESS))
