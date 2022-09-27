@@ -2,6 +2,9 @@ import cv2
 import numpy as np
 from PyQt5.QtCore import QThread, pyqtSignal, QObject, QTimer, QEventLoop
 
+from PyQt5 import QtTest
+
+
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq import mccdaq
 from src.daq.IniLoader import IniLoader
@@ -40,7 +43,7 @@ class DataWorker(QThread):
 
     read_data_signal = pyqtSignal(object)
 
-    def __init__(self, init_temp=15):
+    def __init__(self, init_temp=0):
         super().__init__()
         self.init_temp = init_temp
         self.adam = None
@@ -66,8 +69,8 @@ class DataWorker(QThread):
         loop.exec_()
 
     def read_temps(self):
-        bt = self.daq.get_bath_temp()
-        sp = self.daq.get_setpoint_temp()
+        bt = self.get_bath_temp()
+        sp = self.get_setpoint_temp()
         s0, s1 = self.adam.GetAllTemps()
 
         data = {'bath_temp': bt,
@@ -76,6 +79,29 @@ class DataWorker(QThread):
                 'adam1': s1}
 
         self.read_data_signal.emit(data)
+
+    def get_bath_temp(self, samples=100, interval=1):
+        tmp = []
+
+        for i in range(samples):
+            QtTest.QTest.qWait(interval)
+            # time.sleep(interval)
+            a_in = self.daq.read_bath_temp()
+
+            tmp.append(a_in)
+
+        return (sum(tmp) / len(tmp)) * 100
+
+    def get_setpoint_temp(self, samples=100, interval=1):
+        tmp = []
+
+        for i in range(samples):
+            QtTest.QTest.qWait(interval)
+            a_in = self.daq.read_setpoint_temp()
+
+            tmp.append(a_in)
+
+        return (sum(tmp) / len(tmp)) * 100
 
 
 class VideoThread(QThread):
