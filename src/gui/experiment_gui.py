@@ -98,7 +98,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         # Change xaxis in GraphWidget yo show time in format HH:MM:SS
         self.graphWidget.setAxisItems(axisItems={'bottom': TimeAxisItem(orientation='bottom')})
 
-        self.pic_interval = self.pictureIntervalSpinBox.value()
         self.saveCheckBox.stateChanged.connect(self.setup_saving)
 
         pen = pg.mkPen(color='red', width=1)
@@ -161,6 +160,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         logging.info(f'Experiment description:\n\n{self.exp_description}\n\n')
 
         self.timer2 = QTimer()
+        self.timer2.setInterval(self.pictureIntervalSpinBox.value() * 1000)
         self.timer2.timeout.connect(self.save_pic)
         self.timer2.start()
 
