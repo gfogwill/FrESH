@@ -3,34 +3,6 @@ import numpy as np
 from PyQt5 import QtWidgets, uic
 
 
-def get_circles(img):
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    img_blur = cv2.medianBlur(gray, 5)
-
-    circles = cv2.HoughCircles(img_blur,
-                               cv2.HOUGH_GRADIENT,
-                               1,
-                               img.shape[0] / 20,
-                               param1=30,
-                               param2=10,
-                               minRadius=10,
-                               maxRadius=15
-                               )
-
-    # Draw detected circles
-    if circles is not None:
-        circles = np.uint16(np.around(circles))
-        for i in circles[0, :96]:
-            # outer circle
-            # cv2.circle(image, center_coordinates, radius, color, thickness)
-            cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 0), 2)
-
-            # inner circle
-            cv2.circle(img, (i[0], i[1]), 1, (0, 0, 255), 2)
-
-    return img
-
-
 class VideoSettingsUi(QtWidgets.QMainWindow):
     def __init__(self, video_thread, *args, **kwargs):
         super(VideoSettingsUi, self).__init__(*args, **kwargs)

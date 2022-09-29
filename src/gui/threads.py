@@ -4,11 +4,10 @@ from PyQt5.QtCore import QThread, pyqtSignal, QObject, QTimer, QEventLoop
 
 from PyQt5 import QtTest
 
-
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq import mccdaq
 from src.daq.IniLoader import IniLoader
-from src.gui.video import get_circles
+# from src.gui.video import get_circles
 
 
 def get_circles(img, plot_circles=False):
