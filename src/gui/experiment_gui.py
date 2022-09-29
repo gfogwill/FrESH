@@ -201,7 +201,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.video_thread.ADAMCH0_temp_text = f'{s0:.2f}'
         self.video_thread.ADAMCH1_temp_text = f'{s1:.2f}'
 
-        if self.save_exp:
+        if self.saveCheckBox.isChecked():
             with open(self.experiment_path / "sensors_data.csv", "a") as fo:
                 fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
                          f'{sp:.2f},'
