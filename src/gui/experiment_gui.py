@@ -60,8 +60,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         uic.loadUi('experiment.ui', self)
 
-        self.save_exp = exp_metadata['save_exp']
-
+        self.exp_description = exp_metadata['exp_description']
         self.bath_temp = []
         self.setpoint = []
         self.adam0 = []
@@ -99,6 +98,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
         # Change xaxis in GraphWidget yo show time in format HH:MM:SS
         self.graphWidget.setAxisItems(axisItems={'bottom': TimeAxisItem(orientation='bottom')})
 
+        self.pic_interval = self.pictureIntervalSpinBox.value()
+        self.saveCheckBox.stateChanged.connect(self.setup_saving)
+
         pen = pg.mkPen(color='red', width=1)
         pen2 = pg.mkPen(color='green', width=1)
         pen3 = pg.mkPen(color='blue', width=1)
@@ -113,9 +115,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.line3 = self.graphWidget.plot(*zip(*self.adam0), name="ADAM_0", pen=pen3)
         self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
 
-        if self.save_exp:
-            self.setup_saving(exp_metadata)
-
         self.show()
 
     def video_settings(self):
@@ -124,9 +123,11 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
     def save_pic(self):
         fo = self.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.png", time.localtime())
-        self.image_frame.pixmap().save(str(fo))
+        ret, cv_img = self.video_thread.cap.read()
+        cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
+        cv2.imwrite(str(fo), cv_img)
 
-    def setup_saving(self, exp_metadata):
+    def setup_saving(self):
         log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
         for handler in logging.root.handlers[:]:
@@ -134,8 +135,12 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         date_str = time.strftime('%Y%m%d%H%M', time.localtime())
         self.experiment_path = paths.raw_data_path / date_str
-        os.mkdir(self.experiment_path)
-        os.mkdir(self.experiment_path / 'pics')
+
+        try:
+            os.mkdir(self.experiment_path)
+            os.mkdir(self.experiment_path / 'pics')
+        except FileExistsError:
+            logging.error(f"Experiment already exist: {self.experiment_path}")
 
         logging.basicConfig(level=logging.INFO,
                             format=log_fmt,
@@ -152,11 +157,10 @@ class ExperimentUi(QtWidgets.QMainWindow):
                      f'RTD1 [ºC]\n')
 
         logging.info(f'Sensors data file created: {self.experiment_path / "sensors_data.csv"}')
-        desc = exp_metadata['exp_description']
-        logging.info(f'Experiment description:\n\n{desc}\n\n')
+
+        logging.info(f'Experiment description:\n\n{self.exp_description}\n\n')
 
         self.timer2 = QTimer()
-        self.timer2.setInterval(exp_metadata['picture_saving_interval'] * 1000)
         self.timer2.timeout.connect(self.save_pic)
         self.timer2.start()
 
