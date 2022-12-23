@@ -79,9 +79,9 @@ class BaseInstrument(object):
         return data
 
     def read_all_available(self):
-        '''
+        """
         Read all available data, return string
-        '''
+        """
         data = ''
         while (self.sp.in_waiting > 0):
             data += (self.sp.read(self.sp.in_waiting)).decode('latin-1')
@@ -90,9 +90,9 @@ class BaseInstrument(object):
         return data
 
     def read_linedata(self):
-        '''
+        """
         Read one line of data terminated by EOLREAD, return array
-        '''
+        """
         eol = self.EOLREAD
         line = []
         while True:
@@ -103,9 +103,9 @@ class BaseInstrument(object):
                     return line
 
     def send_command(self, command, pausetime=-1, usereadline=False, bytemode=False):
-        '''
+        """
         Send command to serial port, read reply. Return stripped string.
-        '''
+        """
         data = self.LINEEND
         if pausetime < 0: pausetime = self.pausetime
 
