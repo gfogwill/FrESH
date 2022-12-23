@@ -221,7 +221,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         try:
             self.data_worker.daq.daq_device.release()
-
         except AttributeError:
             logging.warning("DAQ device not initialized")
 
