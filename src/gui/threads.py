@@ -80,7 +80,15 @@ class DataWorker(QThread):
 
         self.read_data_signal.emit(data)
 
-    def get_bath_temp(self, samples=100, interval=1):
+    def get_bath_temp(self, samples: int = 100, interval: int = 1) -> float:
+        """
+        Get the bath temperature by reading from the DAQ.
+
+        :param samples: number of samples to collect (defaults to 100)
+        :param interval: interval (in milliseconds) between samples (defaults to 1)
+        :return: the average bath temperature in degrees Celsius
+        """
+
         tmp = []
 
         for i in range(samples):
@@ -92,7 +100,19 @@ class DataWorker(QThread):
 
         return (sum(tmp) / len(tmp)) * 100
 
-    def get_setpoint_temp(self, samples=100, interval=1):
+    def get_setpoint_temp(self, samples: int = 100, interval: int = 1) -> float:
+        """
+        Get the setpoint temperature by reading from the DAQ.
+
+        :param samples: number of samples to collect (defaults to 100)
+        :param interval: interval (in milliseconds) between samples (defaults to 1)
+        :return: the average setpoint temperature in degrees Celsius
+
+        :Example:
+        >>>daq = SomeDAQ()
+        >>>setpoint_temp = daq.get_setpoint_temp(samples = 50, interval = 2)
+        >>>print(setpoint_temp)
+        """
         tmp = []
 
         for i in range(samples):
