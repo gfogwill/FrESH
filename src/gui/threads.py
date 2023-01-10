@@ -9,6 +9,7 @@ from src.daq import mccdaq
 from src.daq.IniLoader import IniLoader
 # from src.gui.video import get_circles
 
+
 #TODO: Move to other module
 def get_circles(img, plot_circles=False):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
