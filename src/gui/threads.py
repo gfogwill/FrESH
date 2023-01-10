@@ -9,7 +9,7 @@ from src.daq import mccdaq
 from src.daq.IniLoader import IniLoader
 # from src.gui.video import get_circles
 
-
+#TODO: Move to other module
 def get_circles(img, plot_circles=False):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     img_blur = cv2.medianBlur(gray, 5)
@@ -39,6 +39,7 @@ def get_circles(img, plot_circles=False):
 
 
 class DataWorker(QThread):
+    #TODO: Doc
 
     read_data_signal = pyqtSignal(object)
 
@@ -104,6 +105,8 @@ class DataWorker(QThread):
 
 
 class VideoThread(QThread):
+    # TODO: Doc
+
     change_pixmap_signal = pyqtSignal(np.ndarray)
 
     bath_temp_text = '-'
