@@ -93,7 +93,6 @@ class DataWorker(QThread):
 
         for i in range(samples):
             QtTest.QTest.qWait(interval)
-            # time.sleep(interval)
             a_in = self.daq.read_bath_temp()
 
             tmp.append(a_in)
