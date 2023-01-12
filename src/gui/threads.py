@@ -87,7 +87,7 @@ class DataWorker(QThread):
 
         :param samples: number of samples to collect (defaults to 100)
         :param interval: interval (in milliseconds) between samples (defaults to 1)
-        :return: the average bath temperature in degrees Celsius
+        :return: the average over samples of the bath temperature in degrees Celsius
         """
 
         tmp = []
