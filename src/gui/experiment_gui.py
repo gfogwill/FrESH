@@ -55,12 +55,12 @@ def convert_cv_qt(cv_img):
 
 
 class ExperimentUi(QtWidgets.QMainWindow):
-    def __init__(self, exp_metadata, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(ExperimentUi, self).__init__(*args, **kwargs)
 
         uic.loadUi('experiment.ui', self)
 
-        self.exp_description = exp_metadata['exp_description']
+        # self.exp_description = exp_metadata['exp_description']
         self.bath_temp = []
         self.setpoint = []
         self.adam0 = []
