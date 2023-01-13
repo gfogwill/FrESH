@@ -112,3 +112,24 @@ class Daq:
         a_in = self.ai.a_in(channel=4, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS, flags=AInFlag.DEFAULT)
 
         return a_in
+
+    def read_thermocouple1_temp(self):
+        """
+        Reads the temperature from channel 6 of the USB-1808 device.
+
+        Returns
+        -------
+        float
+            float value representing the temperature in degree Celsius.
+
+        Example
+        -------
+        read_setpoint_temp() -> 22.3
+        """
+
+        a_in = self.ai.a_in(channel=6,
+                            input_mode=AiInputMode.DIFFERENTIAL,
+                            analog_range=Range.BIP5VOLTS,
+                            flags=AInFlag.DEFAULT)
+
+        return (a_in-1.25)/5e-3
