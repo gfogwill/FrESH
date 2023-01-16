@@ -192,7 +192,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
         t = time.time()
 
         bt = self.data_worker.get_bath_temp()
+        print(bt)
         sp = self.data_worker.get_setpoint_temp()
+        print(sp)
         #t1 = self.data_worker.get_thermocouple1_temp()
         s0, s1 = self.data_worker.adam.GetAllTemps()
 
