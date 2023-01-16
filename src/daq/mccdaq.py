@@ -25,7 +25,8 @@ class Daq:
             self.ai = self.daq_device.get_ai_device()
             self.ai.info = self.ai.get_info()
 
-            self.ao.a_out(channel=1, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=3.3)
+            #self.ao.a_out(channel=1, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=3.3)
+            logging.info(f'MCCDAQ Connected!')
 
         except ULException as e:
             logging.error(f"\n{e}")

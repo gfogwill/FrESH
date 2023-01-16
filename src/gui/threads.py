@@ -78,8 +78,8 @@ class DataWorker(QThread):
         data = {'bath_temp': bt,
                 'setpoint_temp': sp,
                 'adam0': s0,
-                'adam1': s1,
-                'thermocouple1': t1}
+                'adam1': s1}#,
+                #'thermocouple1': t1}
 
         self.read_data_signal.emit(data)
 

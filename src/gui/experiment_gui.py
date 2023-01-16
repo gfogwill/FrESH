@@ -106,7 +106,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         pen2 = pg.mkPen(color='green', width=1)
         pen3 = pg.mkPen(color='blue', width=1)
         pen4 = pg.mkPen(color='orange', width=1)
-        pen5 = pg.mkPen(color='black', width=1)
+        # pen5 = pg.mkPen(color='black', width=1)
 
         self.graphWidget.setLabel('left', 'Bath temp [ºC]', color='red', size=30)
         self.graphWidget.setLabel('right', 'Setpoint temp [ºC]', color='green', size=30)
@@ -193,14 +193,14 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         bt = self.data_worker.get_bath_temp()
         sp = self.data_worker.get_setpoint_temp()
-        t1 = self.data_worker.get_thermocouple1_temp()
+        #t1 = self.data_worker.get_thermocouple1_temp()
         s0, s1 = self.data_worker.adam.GetAllTemps()
 
         self.bath_temp.append((t, bt))
         self.setpoint.append((t, sp))
         self.adam0.append((t, s0))
         self.adam1.append((t, s1))
-        self.thermocouple1.append((t, t1))
+        #self.thermocouple1.append((t, t1))
 
         # self.video_thread.setpoint_temp_text = f'{sp:.2f}'
         # self.video_thread.bath_temp_text = f'{bt:.2f}'
@@ -214,7 +214,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
                          f'{bt:.2f},'
                          f'{s0:.2f},'
                          f'{s1:.2f},'
-                         f'{t1:.2f}\n')
+                         f'{s1:.2f}\n')
 
         self.update_temp_plot()
 
@@ -223,7 +223,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.setpoint = []
         self.adam0 = []
         self.adam1 = []
-        self.thermocouple1 = []
+        # self.thermocouple1 = []
 
     def exit(self):
 
