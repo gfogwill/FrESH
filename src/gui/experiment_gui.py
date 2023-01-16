@@ -161,7 +161,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         logging.info(f'Sensors data file created: {self.experiment_path / "sensors_data.csv"}')
 
-        logging.info(f'Experiment description:\n\n{self.exp_description}\n\n')
+        # logging.info(f'Experiment description:\n\n{self.exp_description}\n\n')
 
         self.timer2 = QTimer()
         self.timer2.setInterval(self.pictureIntervalSpinBox.value() * 1000)
@@ -213,7 +213,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
                          f'{sp:.2f},'
                          f'{bt:.2f},'
                          f'{s0:.2f},'
-                         f'{s1:.2f}\n')
+                         f'{s1:.2f},'
+                         f'{t1:.2f}\n')
 
         self.update_temp_plot()
 
