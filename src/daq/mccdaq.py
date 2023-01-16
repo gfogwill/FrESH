@@ -21,6 +21,8 @@ class Daq:
             self.ai = self.daq_device.get_ai_device()
             self.ai.info = self.ai.get_info()
 
+            logging.info(f'MCCDAQ Connected!')
+
         except ULException as e:
             logging.error(f"\n{e}")
 
