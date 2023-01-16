@@ -66,7 +66,7 @@ class Daq:
         self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
         # Check if setpoint is correct
-        t_setpoint = self.get_setpoint_temp()
+        t_setpoint = self.read_setpoint_temp()
         t_diff = t_target - t_setpoint
 
         while t_diff > 0.01:
@@ -76,7 +76,7 @@ class Daq:
             self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
             # Check if setpoint is correct
-            t_setpoint = self.get_setpoint_temp()
+            t_setpoint = self.read_setpoint_temp()
             t_diff = t_target - t_setpoint
 
     def read_bath_temp(self):
