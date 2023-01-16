@@ -72,7 +72,7 @@ class DataWorker(QThread):
     def read_temps(self):
         bt = self.get_bath_temp()
         sp = self.get_setpoint_temp()
-        t1 = self.get_thermocouple1_temp()
+        #t1 = self.get_thermocouple1_temp()
         s0, s1 = self.adam.GetAllTemps()
 
         data = {'bath_temp': bt,
@@ -121,7 +121,7 @@ class DataWorker(QThread):
 
         return (sum(tmp) / len(tmp)) * 100
 
-    def get_setpoint_temp(self, samples: int = 100, interval: int = 1) -> float:
+    def get_setpoint_temp(self, samples: int = 100, interval: int = 10) -> float:
         """
         Get the setpoint temperature by reading from the DAQ.
 
