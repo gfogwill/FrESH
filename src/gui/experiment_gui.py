@@ -116,7 +116,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.line2 = self.graphWidget.plot(*zip(*self.setpoint), name="Setpoint temp.", pen=pen2)
         self.line3 = self.graphWidget.plot(*zip(*self.adam0), name="ADAM_0", pen=pen3)
         self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
-        self.line5 = self.graphWidget.plot(*zip(*self.thermocouple1), name="T1_1", pen=pen5)
+#        self.line5 = self.graphWidget.plot(*zip(*self.thermocouple1), name="T1_1", pen=pen5)
 
         self.show()
 
@@ -193,7 +193,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         bt = self.data_worker.get_bath_temp()
         sp = self.data_worker.get_setpoint_temp()
-        t1 = self.data_worker.get_t1_temp()
+        t1 = self.data_worker.get_thermocouple1_temp()
         s0, s1 = self.data_worker.adam.GetAllTemps()
 
         self.bath_temp.append((t, bt))
@@ -202,10 +202,10 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.adam1.append((t, s1))
         self.thermocouple1.append((t, t1))
 
-        self.video_thread.setpoint_temp_text = f'{sp:.2f}'
-        self.video_thread.bath_temp_text = f'{bt:.2f}'
-        self.video_thread.ADAMCH0_temp_text = f'{s0:.2f}'
-        self.video_thread.ADAMCH1_temp_text = f'{s1:.2f}'
+        # self.video_thread.setpoint_temp_text = f'{sp:.2f}'
+        # self.video_thread.bath_temp_text = f'{bt:.2f}'
+        # self.video_thread.ADAMCH0_temp_text = f'{s0:.2f}'
+        # self.video_thread.ADAMCH1_temp_text = f'{s1:.2f}'
 
         if self.saveCheckBox.isChecked():
             with open(self.experiment_path / "sensors_data.csv", "a") as fo:
@@ -244,7 +244,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.line2.setData(*zip(*self.setpoint))
         self.line3.setData(*zip(*self.adam0))
         self.line4.setData(*zip(*self.adam1))
-        self.line5.setData(*zip(*self.thermocouple1))
+#        self.line5.setData(*zip(*self.thermocouple1))
 
     def set_temp(self):
         t = float(self.temp_set.text())
