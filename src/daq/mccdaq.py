@@ -28,6 +28,9 @@ class Daq:
             self.ao.a_out(channel=1, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=5)
             logging.info(f'MCCDAQ Connected!')
 
+        except IndexError:
+            logging.error("No MCCDAQ device found. Check that the device is connected!")
+
         except ULException as e:
             logging.error(f"\n{e}")
 
