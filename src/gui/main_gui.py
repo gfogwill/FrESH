@@ -3,7 +3,7 @@ import sys
 import logging
 
 from PyQt5 import QtGui, QtWidgets, uic
-from experiment_gui import ExperimentUi
+from experiment_metadata import ExperimentMetadataUi
 
 from src import paths
 
@@ -24,8 +24,8 @@ class MainUi(QtWidgets.QMainWindow):
         # exp_metadata = {'station_name': self.stationComboBox.currentText(),
         #                 'exp_description': self.descriptionPlainTextEdit.toPlainText()}
 
-        self.ExperimentUi = ExperimentUi()
-        self.ExperimentUi.show()
+        self.ExperimentMetadataUi = ExperimentMetadataUi()
+        self.ExperimentMetadataUi.show()
 
 
 def main():
