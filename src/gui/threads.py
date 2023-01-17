@@ -72,26 +72,18 @@ class DataWorker(QThread):
     def read_temps(self):
         bt = self.get_bath_temp()
         sp = self.get_setpoint_temp()
-        #t1 = self.get_thermocouple1_temp()
+        t1 = self.get_thermocouple1_temp()
         s0, s1 = self.adam.GetAllTemps()
 
         data = {'bath_temp': bt,
                 'setpoint_temp': sp,
                 'adam0': s0,
-                'adam1': s1}#,
-                #'thermocouple1': t1}
+                'adam1': s1,
+                'thermocouple1': t1}
 
         self.read_data_signal.emit(data)
 
-    def get_bath_temp(self, samples: int = 100, interval: int = 1) -> float:
-        """
-        Get the bath temperature by reading from the DAQ.
-
-        :param samples: number of samples to collect (defaults to 100)
-        :param interval: interval (in milliseconds) between samples (defaults to 1)
-        :return: the average over samples of the bath temperature in degrees Celsius
-        """
-
+    def get_bath_temp(self, samples=40, interval=1):
         tmp = []
 
         for i in range(samples):
@@ -102,7 +94,7 @@ class DataWorker(QThread):
 
         return (sum(tmp) / len(tmp)) * 100
 
-    def get_thermocouple1_temp(self, samples: int = 100, interval: int = 1) -> float:
+    def get_thermocouple1_temp(self, samples=40, interval=1):
         """
         Get the bath temperature by reading from the DAQ.
 
@@ -119,9 +111,9 @@ class DataWorker(QThread):
 
             tmp.append(a_in)
 
-        return (sum(tmp) / len(tmp)) * 100
+        return (sum(tmp) / len(tmp))
 
-    def get_setpoint_temp(self, samples: int = 100, interval: int = 10) -> float:
+    def get_setpoint_temp(self, samples=40, interval=1):
         """
         Get the setpoint temperature by reading from the DAQ.
 
