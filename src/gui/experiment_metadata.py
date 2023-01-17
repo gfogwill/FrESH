@@ -29,7 +29,8 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
                                  start_time=self.textStartTime.toPlainText(),
                                  end_time=self.textEndTime.toPlainText(),
                                  temp=self.textTemp.toPlainText(),
-                                 press=self.textPress.toPlainText())
+                                 press=self.textPress.toPlainText(),
+                                 exp_description=self.textDescription.toPlainText())
 
     def start_experiment(self):
         self.read_metadata()
