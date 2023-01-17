@@ -106,7 +106,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         pen2 = pg.mkPen(color='green', width=1)
         pen3 = pg.mkPen(color='blue', width=1)
         pen4 = pg.mkPen(color='orange', width=1)
-        # pen5 = pg.mkPen(color='black', width=1)
+        pen5 = pg.mkPen(color='white', width=1)
 
         self.graphWidget.setLabel('left', 'Bath temp [ºC]', color='red', size=30)
         self.graphWidget.setLabel('right', 'Setpoint temp [ºC]', color='green', size=30)
@@ -116,7 +116,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.line2 = self.graphWidget.plot(*zip(*self.setpoint), name="Setpoint temp.", pen=pen2)
         self.line3 = self.graphWidget.plot(*zip(*self.adam0), name="ADAM_0", pen=pen3)
         self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
-#        self.line5 = self.graphWidget.plot(*zip(*self.thermocouple1), name="T1_1", pen=pen5)
+        self.line5 = self.graphWidget.plot(*zip(*self.thermocouple1), name="T1_1", pen=pen5)
 
         self.show()
 
@@ -192,17 +192,15 @@ class ExperimentUi(QtWidgets.QMainWindow):
         t = time.time()
 
         bt = self.data_worker.get_bath_temp()
-        print(bt)
         sp = self.data_worker.get_setpoint_temp()
-        print(sp)
-        #t1 = self.data_worker.get_thermocouple1_temp()
+        t1 = self.data_worker.get_thermocouple1_temp()
         s0, s1 = self.data_worker.adam.GetAllTemps()
 
         self.bath_temp.append((t, bt))
         self.setpoint.append((t, sp))
         self.adam0.append((t, s0))
         self.adam1.append((t, s1))
-        #self.thermocouple1.append((t, t1))
+        self.thermocouple1.append((t, t1))
 
         # self.video_thread.setpoint_temp_text = f'{sp:.2f}'
         # self.video_thread.bath_temp_text = f'{bt:.2f}'
@@ -225,7 +223,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.setpoint = []
         self.adam0 = []
         self.adam1 = []
-        # self.thermocouple1 = []
+        self.thermocouple1 = []
 
     def exit(self):
 
@@ -246,7 +244,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.line2.setData(*zip(*self.setpoint))
         self.line3.setData(*zip(*self.adam0))
         self.line4.setData(*zip(*self.adam1))
-#        self.line5.setData(*zip(*self.thermocouple1))
+        self.line5.setData(*zip(*self.thermocouple1))
 
     def set_temp(self):
         t = float(self.temp_set.text())
