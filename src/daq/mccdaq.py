@@ -94,7 +94,10 @@ class Daq:
         read_bath_temp() -> 20.5
         """
 
-        a_in = self.ai.a_in(channel=5, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS, flags=AInFlag.DEFAULT)
+        a_in = self.ai.a_in(channel=5,
+                            input_mode=AiInputMode.DIFFERENTIAL,
+                            analog_range=Range.BIP10VOLTS,
+                            flags=AInFlag.DEFAULT)
 
         return a_in
 
@@ -112,7 +115,10 @@ class Daq:
         read_setpoint_temp() -> 22.3
         """
 
-        a_in = self.ai.a_in(channel=4, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS, flags=AInFlag.DEFAULT)
+        a_in = self.ai.a_in(channel=4,
+                            input_mode=AiInputMode.DIFFERENTIAL,
+                            analog_range=Range.BIP10VOLTS,
+                            flags=AInFlag.DEFAULT)
 
         return a_in
 
