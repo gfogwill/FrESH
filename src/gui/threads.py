@@ -84,6 +84,22 @@ class DataWorker(QThread):
         self.read_data_signal.emit(data)
 
     def get_bath_temp(self, samples=40, interval=1):
+        """
+        Get the bath temperature by reading from the DAQ.
+
+        Parameters
+        ----------
+        samples : int, optional
+            number of samples to collect (defaults to 100)
+        interval : int, optional
+            interval (in milliseconds) between samples (defaults to 1)
+
+        Returns
+        -------
+        float
+            the average over samples of the bath temperature in degrees Celsius
+        """
+
         tmp = []
 
         for i in range(samples):
@@ -95,14 +111,6 @@ class DataWorker(QThread):
         return sum(tmp) / len(tmp)
 
     def get_thermocouple1_temp(self, samples=40, interval=1):
-        """
-        Get the bath temperature by reading from the DAQ.
-
-        :param samples: number of samples to collect (defaults to 100)
-        :param interval: interval (in milliseconds) between samples (defaults to 1)
-        :return: the average over samples of the bath temperature in degrees Celsius
-        """
-
         tmp = []
 
         for i in range(samples):
@@ -117,11 +125,20 @@ class DataWorker(QThread):
         """
         Get the setpoint temperature by reading from the DAQ.
 
-        :param samples: number of samples to collect (defaults to 100)
-        :param interval: interval (in milliseconds) between samples (defaults to 1)
-        :return: the average setpoint temperature in degrees Celsius
+        Parameters
+        ----------
+        samples : int, optional
+            number of samples to collect (defaults to 100)
+        interval : int, optional
+            interval (in milliseconds) between samples (defaults to 1)
 
-        :Example:
+        Returns
+        -------
+        float
+            the average setpoint temperature in degrees Celsius
+
+        Example
+        -------
         >>>daq = SomeDAQ()
         >>>setpoint_temp = daq.get_setpoint_temp(samples = 50, interval = 2)
         >>>print(setpoint_temp)
@@ -141,6 +158,7 @@ class VideoThread(QThread):
     """
     Subclass of QThread for capturing video from a webcam and emitting the frames as a numpy array.
     """
+
     change_pixmap_signal = pyqtSignal(np.ndarray)
     detect_circles = False
 
@@ -153,6 +171,7 @@ class VideoThread(QThread):
         camera_ID : int
             ID of the camera to capture video from.
         """
+
         super().__init__()
         self._run_flag = True
 
@@ -165,6 +184,7 @@ class VideoThread(QThread):
         """
         Run method for the thread. Continuously captures video frames and emits them via the change_pixmap_signal.
         """
+
         while self._run_flag:
             ret, cv_img = self.cap.read()
             cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
@@ -178,6 +198,9 @@ class VideoThread(QThread):
         self.cap.release()
 
     def stop(self):
-        """Sets run flag to False and waits for thread to finish"""
+        """
+        Sets run flag to False and waits for thread to finish
+        """
+
         self._run_flag = False
         self.wait()
