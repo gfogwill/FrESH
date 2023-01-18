@@ -70,7 +70,7 @@ class Daq:
         self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
         # Check if setpoint is correct
-        t_setpoint = self.read_setpoint_temp() / 10e-3
+        t_setpoint = self.read_setpoint_temp()
         t_diff = t_target - t_setpoint
 
         while abs(t_diff) > 0.01:
@@ -80,7 +80,7 @@ class Daq:
             self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
             # Check the new setpoint
-            t_setpoint = self.read_setpoint_temp() / 10e-3
+            t_setpoint = self.read_setpoint_temp()
             t_diff = t_target - t_setpoint
 
     def read_bath_temp(self):
@@ -123,7 +123,7 @@ class Daq:
                             analog_range=Range.BIP10VOLTS,
                             flags=AInFlag.DEFAULT)
 
-        return a_in
+        return a_in / 10e-3
 
     def read_thermocouple1_temp(self):
         """
