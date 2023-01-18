@@ -138,12 +138,21 @@ class DataWorker(QThread):
 
 
 class VideoThread(QThread):
-    # TODO: Doc
-
+    """
+    Subclass of QThread for capturing video from a webcam and emitting the frames as a numpy array.
+    """
     change_pixmap_signal = pyqtSignal(np.ndarray)
     detect_circles = False
 
     def __init__(self, camera_ID):
+        """
+        Initialize the video thread.
+
+        Parameters
+        ----------
+        camera_ID : int
+            ID of the camera to capture video from.
+        """
         super().__init__()
         self._run_flag = True
 
@@ -153,7 +162,9 @@ class VideoThread(QThread):
         self.cap = cv2.VideoCapture(camera_ID)
 
     def run(self):
-
+        """
+        Run method for the thread. Continuously captures video frames and emits them via the change_pixmap_signal.
+        """
         while self._run_flag:
             ret, cv_img = self.cap.read()
             cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
