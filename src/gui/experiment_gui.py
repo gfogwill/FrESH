@@ -158,7 +158,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
                      f'setpoint [ºC], '
                      f'bath temp [ºC], '
                      f'RTD0 [ºC], '
-                     f'RTD1 [ºC]\n')
+                     f'RTD1 [ºC],'
+                     f'thermocouple1\n')
 
         logging.info(f'Sensors data file created: {self.experiment_path / "sensors_data.csv"}')
 
@@ -210,7 +211,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
                          f'{bt:.2f},'
                          f'{s0:.2f},'
                          f'{s1:.2f},'
-                         f'{s1:.2f}\n')
+                         f'{t1:.2f}\n')
 
         self.update_temp_plot()
 
