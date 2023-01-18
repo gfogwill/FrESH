@@ -92,7 +92,7 @@ class DataWorker(QThread):
 
             tmp.append(a_in)
 
-        return (sum(tmp) / len(tmp)) * 100
+        return sum(tmp) / len(tmp)
 
     def get_thermocouple1_temp(self, samples=40, interval=1):
         """
@@ -111,7 +111,7 @@ class DataWorker(QThread):
 
             tmp.append(a_in)
 
-        return (sum(tmp) / len(tmp))
+        return sum(tmp) / len(tmp)
 
     def get_setpoint_temp(self, samples=40, interval=1):
         """
@@ -134,7 +134,7 @@ class DataWorker(QThread):
 
             tmp.append(a_in)
 
-        return (sum(tmp) / len(tmp)) * 100
+        return sum(tmp) / len(tmp)
 
 
 class VideoThread(QThread):
