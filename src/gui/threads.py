@@ -141,12 +141,6 @@ class VideoThread(QThread):
     # TODO: Doc
 
     change_pixmap_signal = pyqtSignal(np.ndarray)
-
-    # bath_temp_text = '-'
-    # setpoint_temp_text = '-'
-    # ADAMCH0_temp_text = '-'
-    # ADAMCH1_temp_text = '-'
-
     detect_circles = False
 
     def __init__(self, camera_ID):
