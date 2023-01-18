@@ -144,4 +144,4 @@ class Daq:
                             analog_range=Range.BIP5VOLTS,
                             flags=AInFlag.DEFAULT)
 
-        return (a_in-1.25)/5e-3
+        return (a_in - 1.25) / 5e-3
