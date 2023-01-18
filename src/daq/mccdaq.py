@@ -102,7 +102,7 @@ class Daq:
                             analog_range=Range.BIP10VOLTS,
                             flags=AInFlag.DEFAULT)
 
-        return a_in
+        return a_in / 10e-3
 
     def read_setpoint_temp(self):
         """
