@@ -21,9 +21,6 @@ class MainUi(QtWidgets.QMainWindow):
     def start_experiment(self):
         self.hide()
 
-        # exp_metadata = {'station_name': self.stationComboBox.currentText(),
-        #                 'exp_description': self.descriptionPlainTextEdit.toPlainText()}
-
         self.ExperimentMetadataUi = ExperimentMetadataUi()
         self.ExperimentMetadataUi.show()
 
