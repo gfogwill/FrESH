@@ -54,6 +54,9 @@ class Daq:
         """
         Sets the temperature on channel 0 of the USB-1808 device.
 
+        The method will iterate reading the setpoint and adjusting the output voltage until setpoint reaches the correct
+        value.
+
         Parameters
         ----------
         t_target : float
