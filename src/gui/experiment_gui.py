@@ -10,6 +10,7 @@ import json
 import numpy as np
 import pyqtgraph as pg
 
+
 import PyQt5
 from PyQt5 import QtGui, QtWidgets, uic, QtCore
 from PyQt5.QtGui import QPixmap
