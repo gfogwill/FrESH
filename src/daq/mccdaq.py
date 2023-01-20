@@ -48,6 +48,9 @@ class Daq:
         """
         Sets the temperature on channel 0 of the USB-1808 device.
 
+        The method will iterate reading the setpoint and adjusting the output voltage until setpoint reaches the correct
+        value.
+
         Parameters
         ----------
         t_target : float
@@ -67,13 +70,13 @@ class Daq:
         t_setpoint = self.read_setpoint_temp()
         t_diff = t_target - t_setpoint
 
-        while t_diff > 0.01:
+        while abs(t_diff) > 0.01:
             v_aout = (t_target + t_diff) * 10.0e-3
 
             logging.debug(f'Value to be set in AOUT0: {v_aout}')
             self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
-            # Check if setpoint is correct
+            # Check the new setpoint
             t_setpoint = self.read_setpoint_temp()
             t_diff = t_target - t_setpoint
 
@@ -91,9 +94,12 @@ class Daq:
         read_bath_temp() -> 20.5
         """
 
-        a_in = self.ai.a_in(channel=5, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS, flags=AInFlag.DEFAULT)
+        a_in = self.ai.a_in(channel=5,
+                            input_mode=AiInputMode.DIFFERENTIAL,
+                            analog_range=Range.BIP10VOLTS,
+                            flags=AInFlag.DEFAULT)
 
-        return a_in
+        return a_in / 10e-3
 
     def read_setpoint_temp(self):
         """
@@ -109,6 +115,9 @@ class Daq:
         read_setpoint_temp() -> 22.3
         """
 
-        a_in = self.ai.a_in(channel=4, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS, flags=AInFlag.DEFAULT)
+        a_in = self.ai.a_in(channel=4,
+                            input_mode=AiInputMode.DIFFERENTIAL,
+                            analog_range=Range.BIP10VOLTS,
+                            flags=AInFlag.DEFAULT)
 
-        return a_in
+        return a_in / 10e-3

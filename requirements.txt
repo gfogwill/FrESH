@@ -17,4 +17,3 @@ uldaq~=1.2.3
 pyqtgraph~=0.12.4
 numpy==1.23.0
 pyserial~=3.5
-
