@@ -129,10 +129,10 @@ class VideoThread(QThread):
 
     change_pixmap_signal = pyqtSignal(np.ndarray)
 
-    bath_temp_text = '-'
-    setpoint_temp_text = '-'
-    ADAMCH0_temp_text = '-'
-    ADAMCH1_temp_text = '-'
+    # bath_temp_text = '-'
+    # setpoint_temp_text = '-'
+    # ADAMCH0_temp_text = '-'
+    # ADAMCH1_temp_text = '-'
 
     detect_circles = False
 
@@ -151,14 +151,14 @@ class VideoThread(QThread):
             ret, cv_img = self.cap.read()
             cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
             if ret:
-                cv2.putText(cv_img, f"     Bath temp: {self.bath_temp_text}",
-                            (50, 50), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-                cv2.putText(cv_img, f" Setpoint temp: {self.setpoint_temp_text}",
-                            (50, 70), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-                cv2.putText(cv_img, f"ADAM CH1 temp: {self.ADAMCH0_temp_text}",
-                            (50, 90), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-                cv2.putText(cv_img, f"ADAM CH2 temp: {self.ADAMCH1_temp_text}",
-                            (50, 110), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+            #     cv2.putText(cv_img, f"     Bath temp: {self.bath_temp_text}",
+            #                 (50, 50), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+            #     cv2.putText(cv_img, f" Setpoint temp: {self.setpoint_temp_text}",
+            #                 (50, 70), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+            #     cv2.putText(cv_img, f"ADAM CH1 temp: {self.ADAMCH0_temp_text}",
+            #                 (50, 90), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+            #     cv2.putText(cv_img, f"ADAM CH2 temp: {self.ADAMCH1_temp_text}",
+            #                 (50, 110), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
 
                 if get_circles:
                     cv_img = get_circles(cv_img, self.plot_circles)

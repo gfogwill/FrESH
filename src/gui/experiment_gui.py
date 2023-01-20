@@ -196,10 +196,10 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.adam0.append((t, s0))
         self.adam1.append((t, s1))
 
-        self.video_thread.setpoint_temp_text = f'{sp:.2f}'
-        self.video_thread.bath_temp_text = f'{bt:.2f}'
-        self.video_thread.ADAMCH0_temp_text = f'{s0:.2f}'
-        self.video_thread.ADAMCH1_temp_text = f'{s1:.2f}'
+        # self.video_thread.setpoint_temp_text = f'{sp:.2f}'
+        # self.video_thread.bath_temp_text = f'{bt:.2f}'
+        # self.video_thread.ADAMCH0_temp_text = f'{s0:.2f}'
+        # self.video_thread.ADAMCH1_temp_text = f'{s1:.2f}'
 
         if self.saveCheckBox.isChecked():
             with open(self.experiment_path / "sensors_data.csv", "a") as fo:
