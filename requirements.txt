@@ -18,4 +18,4 @@ pyqtgraph~=0.12.4
 numpy==1.23.0
 pyserial~=3.5
 
-git+https://github.com/gfogwill/freezing_experiment_analyzer
+git+https://gitlab.fmi.fi/perezfo/freezing_detector

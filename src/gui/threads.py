@@ -10,35 +10,6 @@ from src.daq.IniLoader import IniLoader
 # from src.gui.video import get_circles
 
 
-#TODO: Move to other module
-def get_circles(img, plot_circles=False):
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    img_blur = cv2.medianBlur(gray, 5)
-
-    circles = cv2.HoughCircles(img_blur,
-                               cv2.HOUGH_GRADIENT,
-                               1,
-                               minDist=25,  # img.shape[0] / 20,
-                               param1=200,
-                               param2=10,
-                               minRadius=10,
-                               maxRadius=15,
-                               )
-
-    # Draw detected circles
-    if circles is not None and plot_circles:
-        circles = np.uint16(np.around(circles))
-        for i in circles[0, :96]:
-            # outer circle
-            # cv2.circle(image, center_coordinates, radius, color, thickness)
-            cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 0), 1)
-
-            # inner circle
-            #cv2.circle(img, (i[0], i[1]), 1, (0, 0, 255), 2)
-
-    return img
-
-
 class DataWorker(QThread):
     #TODO: Doc
 
@@ -186,11 +157,14 @@ class VideoThread(QThread):
         """
 
         while self._run_flag:
+
             ret, cv_img = self.cap.read()
             cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
+
             if ret:
                 if get_circles:
-                    cv_img = get_circles(cv_img, self.plot_circles)
+                    # cv_img = get_circles(cv_img, self.plot_circles)
+                    pass
 
                 self.change_pixmap_signal.emit(cv_img)
 
