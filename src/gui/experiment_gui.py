@@ -17,7 +17,7 @@ from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import QTimer, pyqtSlot, Qt
 from PyQt5.QtWidgets import *
 
-from src import paths
+from src import paths, __version__
 from src.daq import mccdaq
 from src.gui.video import VideoSettingsUi
 from src.gui.threads import VideoThread, DataWorker
@@ -148,6 +148,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
                             filename=self.experiment_path / f'EX{date_str}.log',
                             filemode='w')
 
+        logging.info(f"Software version: {__version__}")
         logging.info(f"Experiment directory created: {self.experiment_path}")
 
         with open(self.experiment_path / "sensors_data.csv", "a") as fo:
