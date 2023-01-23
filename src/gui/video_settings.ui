@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>498</width>
-    <height>410</height>
+    <width>928</width>
+    <height>470</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,7 @@
       <x>10</x>
       <y>10</y>
       <width>481</width>
-      <height>311</height>
+      <height>380</height>
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout_3">
@@ -397,8 +397,8 @@
    <widget class="QCheckBox" name="checkBox_plotCircles">
     <property name="geometry">
      <rect>
-      <x>180</x>
-      <y>350</y>
+      <x>150</x>
+      <y>410</y>
       <width>111</width>
       <height>23</height>
      </rect>
@@ -406,6 +406,103 @@
     <property name="text">
      <string>Plot circles</string>
     </property>
+   </widget>
+   <widget class="QWidget" name="gridLayoutWidget_2">
+    <property name="geometry">
+     <rect>
+      <x>530</x>
+      <y>30</y>
+      <width>371</width>
+      <height>211</height>
+     </rect>
+    </property>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="1" column="0">
+      <widget class="QLabel" name="label_2">
+       <property name="text">
+        <string>Param. 1</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QSlider" name="horizontalSlider_13">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Param. 2</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0">
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Min. dist.</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>Min. radius</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="2">
+      <widget class="QSpinBox" name="spinBox_13"/>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="label_5">
+       <property name="text">
+        <string>Max. radius</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QSlider" name="horizontalSlider_14">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QSlider" name="horizontalSlider_15">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QSlider" name="horizontalSlider_16">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QSlider" name="horizontalSlider_17">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="2">
+      <widget class="QSpinBox" name="spinBox_14"/>
+     </item>
+     <item row="2" column="2">
+      <widget class="QSpinBox" name="spinBox_15"/>
+     </item>
+     <item row="3" column="2">
+      <widget class="QSpinBox" name="spinBox_16"/>
+     </item>
+     <item row="4" column="2">
+      <widget class="QSpinBox" name="spinBox_17"/>
+     </item>
+    </layout>
    </widget>
   </widget>
  </widget>
@@ -418,12 +515,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>235</x>
-     <y>43</y>
+     <x>384</x>
+     <y>30</y>
     </hint>
     <hint type="destinationlabel">
-     <x>911</x>
-     <y>51</y>
+     <x>489</x>
+     <y>36</y>
     </hint>
    </hints>
   </connection>
@@ -434,12 +531,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>908</x>
-     <y>56</y>
+     <x>489</x>
+     <y>36</y>
     </hint>
     <hint type="destinationlabel">
-     <x>260</x>
-     <y>41</y>
+     <x>409</x>
+     <y>30</y>
     </hint>
    </hints>
   </connection>
@@ -450,12 +547,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>892</x>
-     <y>107</y>
+     <x>489</x>
+     <y>68</y>
     </hint>
     <hint type="destinationlabel">
-     <x>284</x>
-     <y>107</y>
+     <x>422</x>
+     <y>62</y>
     </hint>
    </hints>
   </connection>
@@ -466,12 +563,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>265</x>
-     <y>104</y>
+     <x>414</x>
+     <y>62</y>
     </hint>
     <hint type="destinationlabel">
-     <x>911</x>
-     <y>105</y>
+     <x>489</x>
+     <y>68</y>
     </hint>
    </hints>
   </connection>
@@ -482,12 +579,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>902</x>
-     <y>155</y>
+     <x>489</x>
+     <y>100</y>
     </hint>
     <hint type="destinationlabel">
-     <x>313</x>
-     <y>162</y>
+     <x>422</x>
+     <y>94</y>
     </hint>
    </hints>
   </connection>
@@ -498,12 +595,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>225</x>
-     <y>158</y>
+     <x>374</x>
+     <y>94</y>
     </hint>
     <hint type="destinationlabel">
-     <x>898</x>
-     <y>163</y>
+     <x>489</x>
+     <y>100</y>
     </hint>
    </hints>
   </connection>
@@ -514,12 +611,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>915</x>
-     <y>216</y>
+     <x>489</x>
+     <y>132</y>
     </hint>
     <hint type="destinationlabel">
-     <x>364</x>
-     <y>216</y>
+     <x>422</x>
+     <y>126</y>
     </hint>
    </hints>
   </connection>
@@ -530,12 +627,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>282</x>
-     <y>220</y>
+     <x>422</x>
+     <y>126</y>
     </hint>
     <hint type="destinationlabel">
-     <x>909</x>
-     <y>222</y>
+     <x>489</x>
+     <y>132</y>
     </hint>
    </hints>
   </connection>
@@ -546,12 +643,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>316</x>
-     <y>273</y>
+     <x>422</x>
+     <y>158</y>
     </hint>
     <hint type="destinationlabel">
-     <x>899</x>
-     <y>276</y>
+     <x>489</x>
+     <y>164</y>
     </hint>
    </hints>
   </connection>
@@ -562,12 +659,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>905</x>
-     <y>273</y>
+     <x>489</x>
+     <y>164</y>
     </hint>
     <hint type="destinationlabel">
-     <x>346</x>
-     <y>271</y>
+     <x>422</x>
+     <y>158</y>
     </hint>
    </hints>
   </connection>
@@ -578,12 +675,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>913</x>
-     <y>339</y>
+     <x>489</x>
+     <y>196</y>
     </hint>
     <hint type="destinationlabel">
-     <x>261</x>
-     <y>331</y>
+     <x>330</x>
+     <y>190</y>
     </hint>
    </hints>
   </connection>
@@ -594,12 +691,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>169</x>
-     <y>330</y>
+     <x>319</x>
+     <y>190</y>
     </hint>
     <hint type="destinationlabel">
-     <x>900</x>
-     <y>336</y>
+     <x>489</x>
+     <y>196</y>
     </hint>
    </hints>
   </connection>
@@ -610,12 +707,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>261</x>
-     <y>390</y>
+     <x>410</x>
+     <y>222</y>
     </hint>
     <hint type="destinationlabel">
-     <x>902</x>
-     <y>386</y>
+     <x>489</x>
+     <y>228</y>
     </hint>
    </hints>
   </connection>
@@ -626,12 +723,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>900</x>
-     <y>399</y>
+     <x>489</x>
+     <y>228</y>
     </hint>
     <hint type="destinationlabel">
-     <x>359</x>
-     <y>395</y>
+     <x>422</x>
+     <y>222</y>
     </hint>
    </hints>
   </connection>
@@ -642,12 +739,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>283</x>
-     <y>445</y>
+     <x>422</x>
+     <y>254</y>
     </hint>
     <hint type="destinationlabel">
-     <x>900</x>
-     <y>439</y>
+     <x>489</x>
+     <y>260</y>
     </hint>
    </hints>
   </connection>
@@ -658,12 +755,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>906</x>
-     <y>453</y>
+     <x>489</x>
+     <y>260</y>
     </hint>
     <hint type="destinationlabel">
-     <x>365</x>
-     <y>448</y>
+     <x>422</x>
+     <y>254</y>
     </hint>
    </hints>
   </connection>
@@ -674,12 +771,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>352</x>
-     <y>503</y>
+     <x>422</x>
+     <y>286</y>
     </hint>
     <hint type="destinationlabel">
-     <x>909</x>
-     <y>503</y>
+     <x>489</x>
+     <y>292</y>
     </hint>
    </hints>
   </connection>
@@ -690,12 +787,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>903</x>
-     <y>509</y>
+     <x>489</x>
+     <y>292</y>
     </hint>
     <hint type="destinationlabel">
-     <x>372</x>
-     <y>506</y>
+     <x>422</x>
+     <y>286</y>
     </hint>
    </hints>
   </connection>
@@ -706,12 +803,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>332</x>
-     <y>560</y>
+     <x>422</x>
+     <y>318</y>
     </hint>
     <hint type="destinationlabel">
-     <x>916</x>
-     <y>556</y>
+     <x>489</x>
+     <y>324</y>
     </hint>
    </hints>
   </connection>
@@ -722,12 +819,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>914</x>
-     <y>570</y>
+     <x>489</x>
+     <y>324</y>
     </hint>
     <hint type="destinationlabel">
-     <x>372</x>
-     <y>567</y>
+     <x>422</x>
+     <y>318</y>
     </hint>
    </hints>
   </connection>
@@ -738,12 +835,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>316</x>
-     <y>617</y>
+     <x>422</x>
+     <y>350</y>
     </hint>
     <hint type="destinationlabel">
-     <x>904</x>
-     <y>611</y>
+     <x>489</x>
+     <y>356</y>
     </hint>
    </hints>
   </connection>
@@ -754,12 +851,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>906</x>
-     <y>621</y>
+     <x>489</x>
+     <y>356</y>
     </hint>
     <hint type="destinationlabel">
-     <x>371</x>
-     <y>623</y>
+     <x>422</x>
+     <y>350</y>
     </hint>
    </hints>
   </connection>
@@ -770,12 +867,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>916</x>
-     <y>676</y>
+     <x>489</x>
+     <y>388</y>
     </hint>
     <hint type="destinationlabel">
-     <x>366</x>
-     <y>682</y>
+     <x>422</x>
+     <y>382</y>
     </hint>
    </hints>
   </connection>
@@ -786,12 +883,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>287</x>
-     <y>673</y>
+     <x>422</x>
+     <y>382</y>
     </hint>
     <hint type="destinationlabel">
-     <x>918</x>
-     <y>672</y>
+     <x>489</x>
+     <y>388</y>
     </hint>
    </hints>
   </connection>
@@ -802,12 +899,172 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>890</x>
-     <y>508</y>
+     <x>489</x>
+     <y>292</y>
     </hint>
     <hint type="destinationlabel">
-     <x>770</x>
-     <y>505</y>
+     <x>422</x>
+     <y>286</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>horizontalSlider_13</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>spinBox_13</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>768</x>
+     <y>56</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>867</x>
+     <y>58</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBox_13</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>horizontalSlider_13</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>878</x>
+     <y>48</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>817</x>
+     <y>56</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>horizontalSlider_14</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>spinBox_14</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>799</x>
+     <y>96</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>882</x>
+     <y>90</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBox_14</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>horizontalSlider_14</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>876</x>
+     <y>102</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>812</x>
+     <y>94</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>horizontalSlider_15</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>spinBox_15</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>799</x>
+     <y>131</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>876</x>
+     <y>136</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBox_15</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>horizontalSlider_15</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>871</x>
+     <y>138</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>778</x>
+     <y>132</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>horizontalSlider_16</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>spinBox_16</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>796</x>
+     <y>178</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>893</x>
+     <y>170</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBox_16</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>horizontalSlider_16</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>883</x>
+     <y>179</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>784</x>
+     <y>175</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>horizontalSlider_17</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>spinBox_17</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>787</x>
+     <y>214</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>880</x>
+     <y>210</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBox_17</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>horizontalSlider_17</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>858</x>
+     <y>214</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>786</x>
+     <y>210</y>
     </hint>
    </hints>
   </connection>
