@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>482</width>
-    <height>569</height>
+    <width>394</width>
+    <height>142</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,72 +17,14 @@
    <widget class="QPushButton" name="newExperimentButton">
     <property name="geometry">
      <rect>
-      <x>150</x>
-      <y>440</y>
+      <x>120</x>
+      <y>20</y>
       <width>141</width>
       <height>51</height>
      </rect>
     </property>
     <property name="text">
-     <string>Create experiment</string>
-    </property>
-   </widget>
-   <widget class="QComboBox" name="stationComboBox">
-    <property name="geometry">
-     <rect>
-      <x>70</x>
-      <y>40</y>
-      <width>86</width>
-      <height>25</height>
-     </rect>
-    </property>
-    <item>
-     <property name="text">
-      <string/>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Helsinki</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Utö</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Pallas</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Kuopio</string>
-     </property>
-    </item>
-   </widget>
-   <widget class="QPlainTextEdit" name="descriptionPlainTextEdit">
-    <property name="geometry">
-     <rect>
-      <x>70</x>
-      <y>120</y>
-      <width>351</width>
-      <height>91</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label">
-    <property name="geometry">
-     <rect>
-      <x>70</x>
-      <y>100</y>
-      <width>171</width>
-      <height>17</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Experiment description</string>
+     <string>New experiment</string>
     </property>
    </widget>
   </widget>
@@ -91,7 +33,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>482</width>
+     <width>394</width>
      <height>22</height>
     </rect>
    </property>

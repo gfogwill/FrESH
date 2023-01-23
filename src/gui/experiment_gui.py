@@ -5,9 +5,11 @@ import time
 import cv2
 import logging
 import os
+import json
 
 import numpy as np
 import pyqtgraph as pg
+
 
 import PyQt5
 from PyQt5 import QtGui, QtWidgets, uic, QtCore
@@ -60,7 +62,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         uic.loadUi('experiment.ui', self)
 
-        self.exp_description = exp_metadata['exp_description']
+        self.exp_metadata = exp_metadata
         self.bath_temp = []
         self.setpoint = []
         self.adam0 = []
@@ -157,7 +159,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         logging.info(f'Sensors data file created: {self.experiment_path / "sensors_data.csv"}')
 
-        logging.info(f'Experiment description:\n\n{self.exp_description}\n\n')
+        logging.info(f'Experiment metadata:\n\n{json.dumps(self.exp_metadata, indent=4)}\n\n')
 
         self.timer2 = QTimer()
         self.timer2.setInterval(self.pictureIntervalSpinBox.value() * 1000)
@@ -195,11 +197,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.setpoint.append((t, sp))
         self.adam0.append((t, s0))
         self.adam1.append((t, s1))
-
-        # self.video_thread.setpoint_temp_text = f'{sp:.2f}'
-        # self.video_thread.bath_temp_text = f'{bt:.2f}'
-        # self.video_thread.ADAMCH0_temp_text = f'{s0:.2f}'
-        # self.video_thread.ADAMCH1_temp_text = f'{s1:.2f}'
 
         if self.saveCheckBox.isChecked():
             with open(self.experiment_path / "sensors_data.csv", "a") as fo:

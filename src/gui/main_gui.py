@@ -3,7 +3,7 @@ import sys
 import logging
 
 from PyQt5 import QtGui, QtWidgets, uic
-from experiment_gui import ExperimentUi
+from experiment_metadata import ExperimentMetadataUi
 
 from src import paths
 
@@ -14,16 +14,15 @@ class MainUi(QtWidgets.QMainWindow):
 
         uic.loadUi('main.ui', self)
 
-        self.button_new_experiment = self.findChild(QtWidgets.QPushButton, 'newExperimentButton')  # Find the button
+        # Find and connect the button
+        self.button_new_experiment = self.findChild(QtWidgets.QPushButton, 'newExperimentButton')
         self.button_new_experiment.clicked.connect(self.start_experiment)
 
     def start_experiment(self):
         self.hide()
-        exp_metadata = {'station_name': self.stationComboBox.currentText(),
-                        'exp_description': self.descriptionPlainTextEdit.toPlainText()}
 
-        self.ExperimentUi = ExperimentUi(exp_metadata=exp_metadata)
-        self.ExperimentUi.show()
+        self.ExperimentMetadataUi = ExperimentMetadataUi()
+        self.ExperimentMetadataUi.show()
 
 
 def main():

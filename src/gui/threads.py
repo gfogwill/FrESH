@@ -10,35 +10,8 @@ from src.daq.IniLoader import IniLoader
 # from src.gui.video import get_circles
 
 
-def get_circles(img, plot_circles=False):
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    img_blur = cv2.medianBlur(gray, 5)
-
-    circles = cv2.HoughCircles(img_blur,
-                               cv2.HOUGH_GRADIENT,
-                               1,
-                               minDist=25,  # img.shape[0] / 20,
-                               param1=200,
-                               param2=10,
-                               minRadius=10,
-                               maxRadius=15,
-                               )
-
-    # Draw detected circles
-    if circles is not None and plot_circles:
-        circles = np.uint16(np.around(circles))
-        for i in circles[0, :96]:
-            # outer circle
-            # cv2.circle(image, center_coordinates, radius, color, thickness)
-            cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 0), 1)
-
-            # inner circle
-            #cv2.circle(img, (i[0], i[1]), 1, (0, 0, 255), 2)
-
-    return img
-
-
 class DataWorker(QThread):
+    #TODO: Doc
 
     read_data_signal = pyqtSignal(object)
 
@@ -79,19 +52,55 @@ class DataWorker(QThread):
 
         self.read_data_signal.emit(data)
 
-    def get_bath_temp(self, samples=100, interval=1):
+    def get_bath_temp(self, samples=40, interval=1):
+        """
+        Get the bath temperature by reading from the DAQ.
+
+        Parameters
+        ----------
+        samples : int, optional
+            number of samples to collect (defaults to 100)
+        interval : int, optional
+            interval (in milliseconds) between samples (defaults to 1)
+
+        Returns
+        -------
+        float
+            the average over samples of the bath temperature in degrees Celsius
+        """
+
         tmp = []
 
         for i in range(samples):
             QtTest.QTest.qWait(interval)
-            # time.sleep(interval)
             a_in = self.daq.read_bath_temp()
 
             tmp.append(a_in)
 
         return (sum(tmp) / len(tmp)) * 100
 
-    def get_setpoint_temp(self, samples=100, interval=1):
+    def get_setpoint_temp(self, samples: int = 100, interval: int = 1) -> float:
+        """
+        Get the setpoint temperature by reading from the DAQ.
+
+        Parameters
+        ----------
+        samples : int, optional
+            number of samples to collect (defaults to 100)
+        interval : int, optional
+            interval (in milliseconds) between samples (defaults to 1)
+
+        Returns
+        -------
+        float
+            the average setpoint temperature in degrees Celsius
+
+        Example
+        -------
+        >>>daq = SomeDAQ()
+        >>>setpoint_temp = daq.get_setpoint_temp(samples = 50, interval = 2)
+        >>>print(setpoint_temp)
+        """
         tmp = []
 
         for i in range(samples):
@@ -100,20 +109,27 @@ class DataWorker(QThread):
 
             tmp.append(a_in)
 
-        return (sum(tmp) / len(tmp)) * 100
+        return sum(tmp) / len(tmp)
 
 
 class VideoThread(QThread):
+    """
+    Subclass of QThread for capturing video from a webcam and emitting the frames as a numpy array.
+    """
+
     change_pixmap_signal = pyqtSignal(np.ndarray)
-
-    # bath_temp_text = '-'
-    # setpoint_temp_text = '-'
-    # ADAMCH0_temp_text = '-'
-    # ADAMCH1_temp_text = '-'
-
     detect_circles = False
 
     def __init__(self, camera_ID):
+        """
+        Initialize the video thread.
+
+        Parameters
+        ----------
+        camera_ID : int
+            ID of the camera to capture video from.
+        """
+
         super().__init__()
         self._run_flag = True
 
@@ -123,22 +139,19 @@ class VideoThread(QThread):
         self.cap = cv2.VideoCapture(camera_ID)
 
     def run(self):
+        """
+        Run method for the thread. Continuously captures video frames and emits them via the change_pixmap_signal.
+        """
 
         while self._run_flag:
+
             ret, cv_img = self.cap.read()
             cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
-            if ret:
-            #     cv2.putText(cv_img, f"     Bath temp: {self.bath_temp_text}",
-            #                 (50, 50), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-            #     cv2.putText(cv_img, f" Setpoint temp: {self.setpoint_temp_text}",
-            #                 (50, 70), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-            #     cv2.putText(cv_img, f"ADAM CH1 temp: {self.ADAMCH0_temp_text}",
-            #                 (50, 90), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-            #     cv2.putText(cv_img, f"ADAM CH2 temp: {self.ADAMCH1_temp_text}",
-            #                 (50, 110), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
 
+            if ret:
                 if get_circles:
-                    cv_img = get_circles(cv_img, self.plot_circles)
+                    # cv_img = get_circles(cv_img, self.plot_circles)
+                    pass
 
                 self.change_pixmap_signal.emit(cv_img)
 
@@ -146,6 +159,9 @@ class VideoThread(QThread):
         self.cap.release()
 
     def stop(self):
-        """Sets run flag to False and waits for thread to finish"""
+        """
+        Sets run flag to False and waits for thread to finish
+        """
+
         self._run_flag = False
         self.wait()
