@@ -52,7 +52,7 @@ class DataWorker(QThread):
 
         self.read_data_signal.emit(data)
 
-    def get_bath_temp(self, samples=40, interval=1):
+    def get_bath_temp(self, samples=100, interval=1):
         """
         Get the bath temperature by reading from the DAQ.
 
