@@ -77,7 +77,7 @@ class DataWorker(QThread):
 
             tmp.append(a_in)
 
-        return (sum(tmp) / len(tmp)) * 100
+        return sum(tmp) / len(tmp)
 
     def get_setpoint_temp(self, samples: int = 100, interval: int = 1) -> float:
         """
