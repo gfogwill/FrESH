@@ -21,8 +21,14 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
         # self.button_confirm.rejected.connect()
 
     def read_metadata(self):
+        stations_dict = {'Water background': 'WBG',
+                         'Helsinki': 'HEL',
+                         'Utö': 'UTO',
+                         'Kuopio': 'KUO',
+                         'Pallas': 'PAL'}
+
         self.exp_metadata = dict(type=self.comboBoxSampleType.currentText(),
-                                 station=self.comboBoxStation.currentText(),
+                                 station=stations_dict[self.comboBoxStation.currentText()],
                                  label=self.textLabel.toPlainText(),
                                  sampler_ID=self.textSamplerID.toPlainText(),
                                  air_volume=self.textAirVolume.toPlainText(),
@@ -30,7 +36,8 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
                                  end_time=self.textEndTime.toPlainText(),
                                  temp=self.textTemp.toPlainText(),
                                  press=self.textPress.toPlainText(),
-                                 exp_description=self.textDescription.toPlainText())
+                                 exp_description=self.textDescription.toPlainText(),
+                                 run=0)
 
     def start_experiment(self):
         self.read_metadata()
