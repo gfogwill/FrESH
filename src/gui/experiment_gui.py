@@ -179,14 +179,14 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         with open(self.experiment_path / "sensors_data.csv", "a") as fo:
             fo.write(f'datetime,'
-                     f'setpoint [ºC],'
-                     f'bath temp [ºC],'
-                     f'RTD0 [ºC],'
-                     f'RTD1 [ºC],'
+                     f'sp,'
+                     f'bt,'
+                     f'RTD0,'
+                     f'RTD1,'
                      f'TC1,'
-                     f'TC2'
-                     f'TC3'
-                     f'TC4'
+                     f'TC2,'
+                     f'TC3,'
+                     f'TC4,'
                      f'TC5'
                      f'\n')
 
@@ -197,7 +197,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.timer2 = QTimer()
         self.timer2.setInterval(self.pictureIntervalSpinBox.value() * 1000)
         self.timer2.timeout.connect(self.save_pic)
-        self.timer2.start()
+        #self.timer2.start()
 
     def connect_video(self):
         logging.info("Connecting Camera")

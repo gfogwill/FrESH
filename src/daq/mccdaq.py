@@ -3,6 +3,7 @@ from uldaq import create_float_buffer, ScanOption
 
 import time
 import logging
+import numpy as np
 
 
 class Daq:
@@ -29,14 +30,13 @@ class Daq:
 
             self.ao.a_out(channel=1, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=5)
 
-            self.data_buffer = create_float_buffer(7, 100)
+            self.data_buffer = create_float_buffer(7, 500)
 
             # self.ai.a_in_scan(0, 6, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS,
             #                   flags=AInFlag.DEFAULT, samples_per_channel=1, rate=1, options=ScanOption.SINGLEIO,
             #                   data=self.data_buffer)
 
             logging.info(f'MCCDAQ Connected!')
-
         except ULException as e:
             logging.error(f"\n{e}")
 
@@ -79,17 +79,17 @@ class Daq:
         self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
         # Check if setpoint is correct
-        t_setpoint = self.read_setpoint_temp()
+        t_setpoint = self.read_all_temp()[1]
         t_diff = t_target - t_setpoint
 
-        while abs(t_diff) > 0.01:
+        while abs(t_diff) > 0.001:
             v_aout = (t_target + t_diff) * 10.0e-3
 
             logging.debug(f'Value to be set in AOUT0: {v_aout}')
             self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
             # Check the new setpoint
-            t_setpoint = self.read_setpoint_temp()
+            t_setpoint = self.read_all_temp()[1]
             t_diff = t_target - t_setpoint
 
     def read_all_temp(self):
@@ -107,17 +107,25 @@ class Daq:
         """
 
         self.ai.a_in_scan(0, 6, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS,
-                          flags=AInFlag.DEFAULT, samples_per_channel=100, rate=1000, options=0, data=self.data_buffer)
+                          flags=AInFlag.DEFAULT, samples_per_channel=500, rate=1000, options=0, data=self.data_buffer)
 
-        tc1 = (self.data_buffer[0] - 1.25) / 5e-3
-        tc2 = (self.data_buffer[1] - 1.25) / 5e-3
-        tc3 = (self.data_buffer[2] - 1.25) / 5e-3
-        tc4 = (self.data_buffer[3] - 1.25) / 5e-3
-        tc5 = (self.data_buffer[6] - 1.25) / 5e-3
+        data = np.array(self.data_buffer[:]).reshape((500, 7)).transpose().mean(axis=1)
 
-        bt = self.data_buffer[5] / 10e-3
-        sp = self.data_buffer[4] / 10e-3
+        tc1 = (data[0] - 1.25) / 5e-3
+        tc2 = (data[1] - 1.25) / 5e-3
+        tc3 = (data[2] - 1.25) / 5e-3
+        tc4 = (data[3] - 1.25) / 5e-3
+        tc5 = (data[6] - 1.25) / 5e-3
+
+        bt = data[5] / 10e-3
+        sp = data[4] / 10e-3
 
         self.ai.scan_wait(0, -1)
 
         return bt, sp, tc1, tc2, tc3, tc4, tc5
+
+
+
+
+
+
