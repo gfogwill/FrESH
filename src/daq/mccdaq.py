@@ -107,7 +107,7 @@ class Daq:
         """
 
         self.ai.a_in_scan(0, 6, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS,
-                          flags=AInFlag.DEFAULT, samples_per_channel=10, rate=10, options=0, data=self.data_buffer)
+                          flags=AInFlag.DEFAULT, samples_per_channel=100, rate=1000, options=0, data=self.data_buffer)
 
         tc1 = (self.data_buffer[0] - 1.25) / 5e-3
         tc2 = (self.data_buffer[1] - 1.25) / 5e-3
@@ -115,8 +115,8 @@ class Daq:
         tc4 = (self.data_buffer[3] - 1.25) / 5e-3
         tc5 = (self.data_buffer[6] - 1.25) / 5e-3
 
-        bt = self.data_buffer[4] / 1e-3
-        sp = self.data_buffer[5] / 1e-3
+        bt = self.data_buffer[4] / 10e-3
+        sp = self.data_buffer[5] / 10e-3
 
         self.ai.scan_wait(0, -1)
 
