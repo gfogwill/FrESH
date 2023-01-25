@@ -31,8 +31,8 @@ class DataWorker(QThread):
     def run(self):
         # Connect to ADAM-4015
         ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
-        # conn = ADAMConnection(ini['SERIAL'])
-        # self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
+        conn = ADAMConnection(ini['SERIAL'])
+        self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
 
         # Connect MC-DAQ (USB-1808) and set the initial temperature
         self.daq = mccdaq.Daq()
@@ -45,7 +45,7 @@ class DataWorker(QThread):
     def read_temps(self):
         # bt = self.daq.data_buffer[4] / 10e-3 *0 # self.get_bath_temp()
         # sp = self.daq.data_buffer[5] / 10e-3 *0 # self.get_setpoint_temp()
-        s0, s1 = (0, 0)   # self.adam.GetAllTemps()
+        s0, s1 = self.adam.GetAllTemps()
         bt, sp, t1, t2, t3, t4, t5 = self.daq.read_all_temp()
 
         data = {'bt': bt,

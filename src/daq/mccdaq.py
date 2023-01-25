@@ -115,8 +115,8 @@ class Daq:
         tc4 = (self.data_buffer[3] - 1.25) / 5e-3
         tc5 = (self.data_buffer[6] - 1.25) / 5e-3
 
-        bt = self.data_buffer[4] / 10e-3
-        sp = self.data_buffer[5] / 10e-3
+        bt = self.data_buffer[5] / 10e-3
+        sp = self.data_buffer[4] / 10e-3
 
         self.ai.scan_wait(0, -1)
 
