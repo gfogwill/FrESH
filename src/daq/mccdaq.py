@@ -1,4 +1,5 @@
 from uldaq import get_daq_device_inventory, DaqDevice, InterfaceType, AiInputMode, Range, AOutFlag, AInFlag, ULException
+from uldaq import create_float_buffer
 
 import time
 import logging
@@ -27,6 +28,8 @@ class Daq:
             self.ai.info = self.ai.get_info()
 
             self.ao.a_out(channel=1, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=5)
+
+            self.data_buffer = create_float_buffer(7, 100)
 
             logging.info(f'MCCDAQ Connected!')
 
@@ -141,35 +144,13 @@ class Daq:
         read_setpoint_temp() -> 22.3
         """
 
-        vi1 = self.ai.a_in(channel=0,
-                           input_mode=AiInputMode.DIFFERENTIAL,
-                           analog_range=Range.BIP10VOLTS,
-                           flags=AInFlag.DEFAULT)
+        self.ai.a_in_scan(0, 6, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS,
+                          flags=AInFlag.DEFAULT, samples_per_channel=10, rate=10, options=0, data=self.data_buffer)
 
-        vi2 = self.ai.a_in(channel=1,
-                           input_mode=AiInputMode.DIFFERENTIAL,
-                           analog_range=Range.BIP10VOLTS,
-                           flags=AInFlag.DEFAULT)
-
-        vi3 = self.ai.a_in(channel=2,
-                           input_mode=AiInputMode.DIFFERENTIAL,
-                           analog_range=Range.BIP10VOLTS,
-                           flags=AInFlag.DEFAULT)
-
-        vi4 = self.ai.a_in(channel=3,
-                           input_mode=AiInputMode.DIFFERENTIAL,
-                           analog_range=Range.BIP10VOLTS,
-                           flags=AInFlag.DEFAULT)
-
-        vi5 = self.ai.a_in(channel=6,
-                           input_mode=AiInputMode.DIFFERENTIAL,
-                           analog_range=Range.BIP10VOLTS,
-                           flags=AInFlag.DEFAULT)
-
-        tc1 = (vi1 - 1.25) / 5e-3
-        tc2 = (vi2 - 1.25) / 5e-3
-        tc3 = (vi3 - 1.25) / 5e-3
-        tc4 = (vi4 - 1.25) / 5e-3
-        tc5 = (vi5 - 1.25) / 5e-3
+        tc1 = (self.data_buffer[0] - 1.25) / 5e-3
+        tc2 = (self.data_buffer[1] - 1.25) / 5e-3
+        tc3 = (self.data_buffer[2] - 1.25) / 5e-3
+        tc4 = (self.data_buffer[3] - 1.25) / 5e-3
+        tc5 = (self.data_buffer[6] - 1.25) / 5e-3
 
         return tc1, tc2, tc3, tc4, tc5
