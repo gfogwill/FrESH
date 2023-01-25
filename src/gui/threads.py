@@ -31,22 +31,22 @@ class DataWorker(QThread):
     def run(self):
         # Connect to ADAM-4015
         ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
-        conn = ADAMConnection(ini['SERIAL'])
-        self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
+        # conn = ADAMConnection(ini['SERIAL'])
+        # self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
 
         # Connect MC-DAQ (USB-1808) and set the initial temperature
         self.daq = mccdaq.Daq()
-        self.daq.set_starting_temp(self.init_temp)
+        # self.daq.set_starting_temp(self.init_temp)
 
         self.dataCollectionTimer.start(1000)
         loop = QEventLoop()
         loop.exec_()
 
     def read_temps(self):
-        bt = self.get_bath_temp()
-        sp = self.get_setpoint_temp()
-        s0, s1 = self.adam.GetAllTemps()
-        t1, t2, t3, t4, t5 = self.get_thermocouples_temps()
+        # bt = self.daq.data_buffer[4] / 10e-3 *0 # self.get_bath_temp()
+        # sp = self.daq.data_buffer[5] / 10e-3 *0 # self.get_setpoint_temp()
+        s0, s1 = (0, 0)   # self.adam.GetAllTemps()
+        bt, sp, t1, t2, t3, t4, t5 = self.daq.read_all_temp()
 
         data = {'bt': bt,
                 'sp': sp,
@@ -150,7 +150,7 @@ class DataWorker(QThread):
 
         for i in range(samples):
             QtTest.QTest.qWait(interval)
-            t1, t2, t3, t4, t5 = self.daq.read_thermocouples_temp()
+            t1, t2, t3, t4, t5 = self.daq.read_all_temp()
 
             tmp1.append(t1)
             tmp2.append(t2)

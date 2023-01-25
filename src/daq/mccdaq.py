@@ -1,5 +1,5 @@
 from uldaq import get_daq_device_inventory, DaqDevice, InterfaceType, AiInputMode, Range, AOutFlag, AInFlag, ULException
-from uldaq import create_float_buffer
+from uldaq import create_float_buffer, ScanOption
 
 import time
 import logging
@@ -30,6 +30,10 @@ class Daq:
             self.ao.a_out(channel=1, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=5)
 
             self.data_buffer = create_float_buffer(7, 100)
+
+            # self.ai.a_in_scan(0, 6, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS,
+            #                   flags=AInFlag.DEFAULT, samples_per_channel=1, rate=1, options=ScanOption.SINGLEIO,
+            #                   data=self.data_buffer)
 
             logging.info(f'MCCDAQ Connected!')
 
@@ -130,7 +134,7 @@ class Daq:
 
         return a_in / 10e-3
 
-    def read_thermocouples_temp(self):
+    def read_all_temp(self):
         """
         Reads the setpoint temperature from channel 4 of the USB-1808 device.
 
@@ -153,4 +157,9 @@ class Daq:
         tc4 = (self.data_buffer[3] - 1.25) / 5e-3
         tc5 = (self.data_buffer[6] - 1.25) / 5e-3
 
-        return tc1, tc2, tc3, tc4, tc5
+        bt = self.data_buffer[4] / 1e-3
+        sp = self.data_buffer[5] / 1e-3
+
+        self.ai.scan_wait(0, -1)
+
+        return bt, sp, tc1, tc2, tc3, tc4, tc5

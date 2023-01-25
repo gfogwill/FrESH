@@ -231,6 +231,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         t3 = data['t3']
         t4 = data['t4']
         t5 = data['t5']
+
         self.bath_temp.append((t, bt))
         self.setpoint.append((t, sp))
         self.adam0.append((t, s0))
@@ -269,7 +270,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.tc3 = []
         self.tc4 = []
         self.tc5 = []
-
 
     def exit(self):
 
