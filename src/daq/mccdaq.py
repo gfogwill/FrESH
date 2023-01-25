@@ -92,48 +92,6 @@ class Daq:
             t_setpoint = self.read_setpoint_temp()
             t_diff = t_target - t_setpoint
 
-    def read_bath_temp(self):
-        """
-        Reads the bath temperature from channel 5 of the USB-1808 device.
-
-        Returns
-        -------
-        float
-            float value representing the temperature in degree Celsius.
-
-        Example
-        -------
-        read_bath_temp() -> 20.5
-        """
-
-        a_in = self.ai.a_in(channel=5,
-                            input_mode=AiInputMode.DIFFERENTIAL,
-                            analog_range=Range.BIP10VOLTS,
-                            flags=AInFlag.DEFAULT)
-
-        return a_in / 10e-3
-
-    def read_setpoint_temp(self):
-        """
-        Reads the setpoint temperature from channel 4 of the USB-1808 device.
-
-        Returns
-        -------
-        float
-            float value representing the temperature in degree Celsius.
-
-        Example
-        -------
-        read_setpoint_temp() -> 22.3
-        """
-
-        a_in = self.ai.a_in(channel=4,
-                            input_mode=AiInputMode.DIFFERENTIAL,
-                            analog_range=Range.BIP10VOLTS,
-                            flags=AInFlag.DEFAULT)
-
-        return a_in / 10e-3
-
     def read_all_temp(self):
         """
         Reads the setpoint temperature from channel 4 of the USB-1808 device.
