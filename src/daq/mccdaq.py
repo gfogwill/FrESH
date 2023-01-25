@@ -9,6 +9,7 @@ class Daq:
     Daq class is used to interact with a USB-1808 DAQ device from MCCDAQ to perform functions such as setting the
     temperature and reading the bath temperature and setpoint temperature.
     """
+
     def __init__(self):
         try:
             devices = get_daq_device_inventory(InterfaceType.USB)
@@ -24,6 +25,8 @@ class Daq:
             # Get AiDevice and AiInfo objects for the analog input subsystem
             self.ai = self.daq_device.get_ai_device()
             self.ai.info = self.ai.get_info()
+
+            self.ao.a_out(channel=1, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=5)
 
             logging.info(f'MCCDAQ Connected!')
 
@@ -44,7 +47,7 @@ class Daq:
         set_starting_temp(20)
         """
 
-        self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=t*10e-3)
+        self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=t * 10e-3)
 
     def set_temperature(self, t_target):
         """
@@ -138,29 +141,35 @@ class Daq:
         read_setpoint_temp() -> 22.3
         """
 
-        tc1 = self.ai.a_in(channel=1,
-                            input_mode=AiInputMode.DIFFERENTIAL,
-                            analog_range=Range.BIP10VOLTS,
-                            flags=AInFlag.DEFAULT)
-
-        tc2 = self.ai.a_in(channel=2,
+        vi1 = self.ai.a_in(channel=0,
                            input_mode=AiInputMode.DIFFERENTIAL,
                            analog_range=Range.BIP10VOLTS,
                            flags=AInFlag.DEFAULT)
 
-        tc3 = self.ai.a_in(channel=3,
+        vi2 = self.ai.a_in(channel=1,
                            input_mode=AiInputMode.DIFFERENTIAL,
                            analog_range=Range.BIP10VOLTS,
                            flags=AInFlag.DEFAULT)
 
-        tc4 = self.ai.a_in(channel=6,
+        vi3 = self.ai.a_in(channel=2,
                            input_mode=AiInputMode.DIFFERENTIAL,
                            analog_range=Range.BIP10VOLTS,
                            flags=AInFlag.DEFAULT)
 
-        tc5 = self.ai.a_in(channel=7,
+        vi4 = self.ai.a_in(channel=3,
                            input_mode=AiInputMode.DIFFERENTIAL,
                            analog_range=Range.BIP10VOLTS,
                            flags=AInFlag.DEFAULT)
 
-        return (tc1, tc2, tc3, tc4, tc5) / 10e-3
+        vi5 = self.ai.a_in(channel=6,
+                           input_mode=AiInputMode.DIFFERENTIAL,
+                           analog_range=Range.BIP10VOLTS,
+                           flags=AInFlag.DEFAULT)
+
+        tc1 = (vi1 - 1.25) / 5e-3
+        tc2 = (vi2 - 1.25) / 5e-3
+        tc3 = (vi3 - 1.25) / 5e-3
+        tc4 = (vi4 - 1.25) / 5e-3
+        tc5 = (vi5 - 1.25) / 5e-3
+
+        return tc1, tc2, tc3, tc4, tc5

@@ -46,11 +46,17 @@ class DataWorker(QThread):
         bt = self.get_bath_temp()
         sp = self.get_setpoint_temp()
         s0, s1 = self.adam.GetAllTemps()
+        t1, t2, t3, t4, t5 = self.get_thermocouples_temps()
 
-        data = {'bath_temp': bt,
-                'setpoint_temp': sp,
-                'adam0': s0,
-                'adam1': s1}
+        data = {'bt': bt,
+                'sp': sp,
+                's0': s0,
+                's1': s1,
+                't1': t1,
+                't2': t2,
+                't3': t3,
+                't4': t4,
+                't5': t5}
 
         self.read_data_signal.emit(data)
 
@@ -192,9 +198,9 @@ class VideoThread(QThread):
             cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
 
             if ret:
-                if get_circles:
+                # if get_circles:
                     # cv_img = get_circles(cv_img, self.plot_circles)
-                    pass
+                    # pass
 
                 self.change_pixmap_signal.emit(cv_img)
 

@@ -219,14 +219,18 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.data_worker.start()
 
     @pyqtSlot(object)
-    def read_sensors_data(self):
+    def read_sensors_data(self, data):
         t = time.time()
 
-        bt = self.data_worker.get_bath_temp()
-        sp = self.data_worker.get_setpoint_temp()
-        s0, s1 = self.data_worker.adam.GetAllTemps()
-        t1, t2, t3, t4, t5 = self.data_worker.get_thermocouples_temps()
+        bt = data['bt']
+        sp = data['sp']
+        s0, s1 = data['s0'], data['s1']
 
+        t1 = data['t1']
+        t2 = data['t2']
+        t3 = data['t3']
+        t4 = data['t4']
+        t5 = data['t5']
         self.bath_temp.append((t, bt))
         self.setpoint.append((t, sp))
         self.adam0.append((t, s0))
@@ -259,6 +263,13 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.setpoint = []
         self.adam0 = []
         self.adam1 = []
+
+        self.tc1 = []
+        self.tc2 = []
+        self.tc3 = []
+        self.tc4 = []
+        self.tc5 = []
+
 
     def exit(self):
 
