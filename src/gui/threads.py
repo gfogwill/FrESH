@@ -1,3 +1,5 @@
+from typing import Tuple, Any
+
 import cv2
 import numpy as np
 from PyQt5.QtCore import QThread, pyqtSignal, QObject, QTimer, QEventLoop
@@ -110,6 +112,47 @@ class DataWorker(QThread):
             tmp.append(a_in)
 
         return sum(tmp) / len(tmp)
+
+    def get_thermocouples_temps(self, samples: int = 100, interval: int = 1) -> tuple[
+        float | Any, float | Any, float | Any, float | Any, float | Any]:
+        """
+        Get the setpoint temperature by reading from the DAQ.
+
+        Parameters
+        ----------
+        samples : int, optional
+            number of samples to collect (defaults to 100)
+        interval : int, optional
+            interval (in milliseconds) between samples (defaults to 1)
+
+        Returns
+        -------
+        float
+            the average setpoint temperature in degrees Celsius
+
+        Example
+        -------
+        >>>daq = SomeDAQ()
+        >>>setpoint_temp = daq.get_setpoint_temp(samples = 50, interval = 2)
+        >>>print(setpoint_temp)
+        """
+        tmp1 = []
+        tmp2 = []
+        tmp3 = []
+        tmp4 = []
+        tmp5 = []
+
+        for i in range(samples):
+            QtTest.QTest.qWait(interval)
+            t1, t2, t3, t4, t5 = self.daq.read_thermocouples_temp()
+
+            tmp1.append(t1)
+            tmp2.append(t2)
+            tmp3.append(t3)
+            tmp4.append(t4)
+            tmp5.append(t4)
+
+        return sum(tmp1) / len(tmp1), sum(tmp2) / len(tmp2), sum(tmp3) / len(tmp3), sum(tmp4) / len(tmp4), sum(tmp5) / len(tmp5)
 
 
 class VideoThread(QThread):

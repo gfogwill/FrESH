@@ -68,10 +68,23 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.adam0 = []
         self.adam1 = []
 
+        self.tc1 = []
+        self.tc2 = []
+        self.tc3 = []
+        self.tc4 = []
+        self.tc5 = []
+
+
         self.line1 = None
         self.line2 = None
         self.line3 = None
         self.line4 = None
+
+        self.line5 = None
+        self.line6 = None
+        self.line7 = None
+        self.line8 = None
+        self.line9 = None
 
         self.daq = None
         self.adam = None
@@ -107,14 +120,27 @@ class ExperimentUi(QtWidgets.QMainWindow):
         pen3 = pg.mkPen(color='blue', width=1)
         pen4 = pg.mkPen(color='orange', width=1)
 
+        pen5 = pg.mkPen(color='violet', width=1)
+        pen6 = pg.mkPen(color='cyan', width=1)
+        pen7 = pg.mkPen(color='yellow', width=1)
+        pen8 = pg.mkPen(color='white', width=1)
+        pen9 = pg.mkPen(color='gray', width=1)
+
         self.graphWidget.setLabel('left', 'Bath temp [ºC]', color='red', size=30)
         self.graphWidget.setLabel('right', 'Setpoint temp [ºC]', color='green', size=30)
         self.graphWidget.setLabel('bottom', 'Time', size=30)
 
         self.line1 = self.graphWidget.plot(*zip(*self.bath_temp), name="Bath temp.", pen=pen)
         self.line2 = self.graphWidget.plot(*zip(*self.setpoint), name="Setpoint temp.", pen=pen2)
+
         self.line3 = self.graphWidget.plot(*zip(*self.adam0), name="ADAM_0", pen=pen3)
         self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
+
+        self.line5 = self.graphWidget.plot(*zip(*self.tc1), name="TC_1", pen=pen5)
+        self.line6 = self.graphWidget.plot(*zip(*self.tc2), name="TC_2", pen=pen6)
+        self.line7 = self.graphWidget.plot(*zip(*self.tc3), name="TC_3", pen=pen7)
+        self.line8 = self.graphWidget.plot(*zip(*self.tc4), name="TC_4", pen=pen8)
+        self.line9 = self.graphWidget.plot(*zip(*self.tc5), name="TC_5", pen=pen9)
 
         self.show()
 
@@ -152,11 +178,17 @@ class ExperimentUi(QtWidgets.QMainWindow):
         logging.info(f"Experiment directory created: {self.experiment_path}")
 
         with open(self.experiment_path / "sensors_data.csv", "a") as fo:
-            fo.write(f'datetime, '
-                     f'setpoint [ºC], '
-                     f'bath temp [ºC], '
-                     f'RTD0 [ºC], '
-                     f'RTD1 [ºC]\n')
+            fo.write(f'datetime,'
+                     f'setpoint [ºC],'
+                     f'bath temp [ºC],'
+                     f'RTD0 [ºC],'
+                     f'RTD1 [ºC],'
+                     f'TC1,'
+                     f'TC2'
+                     f'TC3'
+                     f'TC4'
+                     f'TC5'
+                     f'\n')
 
         logging.info(f'Sensors data file created: {self.experiment_path / "sensors_data.csv"}')
 
@@ -193,11 +225,18 @@ class ExperimentUi(QtWidgets.QMainWindow):
         bt = self.data_worker.get_bath_temp()
         sp = self.data_worker.get_setpoint_temp()
         s0, s1 = self.data_worker.adam.GetAllTemps()
+        t1, t2, t3, t4, t5 = self.data_worker.get_thermocouples_temps()
 
         self.bath_temp.append((t, bt))
         self.setpoint.append((t, sp))
         self.adam0.append((t, s0))
         self.adam1.append((t, s1))
+
+        self.tc1.append((t, t1))
+        self.tc2.append((t, t2))
+        self.tc3.append((t, t3))
+        self.tc4.append((t, t4))
+        self.tc5.append((t, t5))
 
         if self.saveCheckBox.isChecked():
             with open(self.experiment_path / "sensors_data.csv", "a") as fo:
@@ -205,7 +244,13 @@ class ExperimentUi(QtWidgets.QMainWindow):
                          f'{sp:.2f},'
                          f'{bt:.2f},'
                          f'{s0:.2f},'
-                         f'{s1:.2f}\n')
+                         f'{s1:.2f},'
+                         f'{t1:.2f},'
+                         f'{t2:.2f},'
+                         f'{t3:.2f},'
+                         f'{t4:.2f},'
+                         f'{t5:.2f},'
+                         '\n')
 
         self.update_temp_plot()
 
@@ -234,6 +279,12 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.line2.setData(*zip(*self.setpoint))
         self.line3.setData(*zip(*self.adam0))
         self.line4.setData(*zip(*self.adam1))
+
+        self.line5.setData(*zip(*self.tc1))
+        self.line6.setData(*zip(*self.tc2))
+        self.line7.setData(*zip(*self.tc3))
+        self.line8.setData(*zip(*self.tc4))
+        self.line9.setData(*zip(*self.tc5))
 
     def set_temp(self):
         t = float(self.temp_set.text())

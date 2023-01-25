@@ -123,3 +123,44 @@ class Daq:
                             flags=AInFlag.DEFAULT)
 
         return a_in / 10e-3
+
+    def read_thermocouples_temp(self):
+        """
+        Reads the setpoint temperature from channel 4 of the USB-1808 device.
+
+        Returns
+        -------
+        tuple[float,float,float,float,float]
+            float value representing the temperature in degree Celsius.
+
+        Example
+        -------
+        read_setpoint_temp() -> 22.3
+        """
+
+        tc1 = self.ai.a_in(channel=1,
+                            input_mode=AiInputMode.DIFFERENTIAL,
+                            analog_range=Range.BIP10VOLTS,
+                            flags=AInFlag.DEFAULT)
+
+        tc2 = self.ai.a_in(channel=2,
+                           input_mode=AiInputMode.DIFFERENTIAL,
+                           analog_range=Range.BIP10VOLTS,
+                           flags=AInFlag.DEFAULT)
+
+        tc3 = self.ai.a_in(channel=3,
+                           input_mode=AiInputMode.DIFFERENTIAL,
+                           analog_range=Range.BIP10VOLTS,
+                           flags=AInFlag.DEFAULT)
+
+        tc4 = self.ai.a_in(channel=6,
+                           input_mode=AiInputMode.DIFFERENTIAL,
+                           analog_range=Range.BIP10VOLTS,
+                           flags=AInFlag.DEFAULT)
+
+        tc5 = self.ai.a_in(channel=7,
+                           input_mode=AiInputMode.DIFFERENTIAL,
+                           analog_range=Range.BIP10VOLTS,
+                           flags=AInFlag.DEFAULT)
+
+        return (tc1, tc2, tc3, tc4, tc5) / 10e-3
