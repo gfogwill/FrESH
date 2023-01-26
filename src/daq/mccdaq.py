@@ -79,12 +79,17 @@ class Daq:
         self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
         # Check if setpoint is correct
-        t_setpoint = self.ai.a_in(channel=4,
-                            input_mode=AiInputMode.DIFFERENTIAL,
-                            analog_range=Range.BIP10VOLTS,
-                            flags=AInFlag.DEFAULT) / 10e-3
-
-        t_diff = t_target - t_setpoint
+        while True:
+            try:
+                t_setpoint = self.ai.a_in(channel=4,
+                                          input_mode=AiInputMode.DIFFERENTIAL,
+                                          analog_range=Range.BIP10VOLTS,
+                                          flags=AInFlag.DEFAULT) / 10e-3
+                t_diff = t_target - t_setpoint
+            except ULException:
+                continue
+            else:
+                break
 
         while abs(t_diff) > 0.01:
             v_aout = (t_target + t_diff) * 10.0e-3
