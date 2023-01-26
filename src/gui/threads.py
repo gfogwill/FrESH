@@ -43,8 +43,6 @@ class DataWorker(QThread):
         loop.exec_()
 
     def read_temps(self):
-        # bt = self.daq.data_buffer[4] / 10e-3 *0 # self.get_bath_temp()
-        # sp = self.daq.data_buffer[5] / 10e-3 *0 # self.get_setpoint_temp()
         s0, s1 = self.adam.GetAllTemps()
         bt, sp, t1, t2, t3, t4, t5 = self.daq.read_all_temp()
 
@@ -98,10 +96,6 @@ class VideoThread(QThread):
             cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
 
             if ret:
-                # if get_circles:
-                    # cv_img = get_circles(cv_img, self.plot_circles)
-                    # pass
-
                 self.change_pixmap_signal.emit(cv_img)
 
         # shut down capture system
