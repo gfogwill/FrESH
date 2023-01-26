@@ -129,8 +129,8 @@ class Daq:
 
         tc1 = (data[0] - 1.25) / 5e-3
         tc2 = (data[1] - 1.25) / 5e-3
-        tc3 = (data[2] - 1.25) / 5e-3
-        tc4 = (data[3] - 1.25) / 5e-3
+        tc3 = (data[2] * 100) - 40  # (data[2] - 1.25) / 5e-3
+        tc4 = data[3] * 100  # (data[3] - 1.25) / 5e-3
         tc5 = (data[6] - 1.25) / 5e-3
 
         bt = data[5] / 10e-3
@@ -138,6 +138,7 @@ class Daq:
 
         self.ai.scan_wait(0, -1)
 
+        print(f"Temp:{tc3:.3f}\tRH:{tc4:.2f}")
         return bt, sp, tc1, tc2, tc3, tc4, tc5
 
 

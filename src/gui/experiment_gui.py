@@ -286,16 +286,16 @@ class ExperimentUi(QtWidgets.QMainWindow):
         sys.exit()
 
     def update_temp_plot(self):
-        self.line1.setData(*zip(*self.bath_temp))
-        self.line2.setData(*zip(*self.setpoint))
-        self.line3.setData(*zip(*self.adam0))
-        self.line4.setData(*zip(*self.adam1))
+        #self.line1.setData(*zip(*self.bath_temp))
+        #self.line2.setData(*zip(*self.setpoint))
+        #self.line3.setData(*zip(*self.adam0))
+        #self.line4.setData(*zip(*self.adam1))
 
-        self.line5.setData(*zip(*self.tc1))
-        self.line6.setData(*zip(*self.tc2))
+        #self.line5.setData(*zip(*self.tc1))
+        #self.line6.setData(*zip(*self.tc2))
         self.line7.setData(*zip(*self.tc3))
         self.line8.setData(*zip(*self.tc4))
-        self.line9.setData(*zip(*self.tc5))
+        #self.line9.setData(*zip(*self.tc5))
 
     def set_temp(self):
         t = float(self.temp_set.text())
