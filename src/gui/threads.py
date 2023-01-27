@@ -24,9 +24,18 @@ class DataWorker(QThread):
         self.daq = None
         self.threadactive = True
 
+        self.chilling = True
+        self.last_sp = 0
+        self.temp_step = 0.1
+        self.step_interval = 10  # in seconds
+
         self.dataCollectionTimer = QTimer()
         self.dataCollectionTimer.moveToThread(self)
         self.dataCollectionTimer.timeout.connect(self.read_temps)
+
+        self.tempRampTimer = QTimer()
+        self.tempRampTimer.moveToThread(self)
+        self.tempRampTimer.timeout.connect(self.update_temp)
 
     def run(self):
         # Connect to ADAM-4015
@@ -41,6 +50,23 @@ class DataWorker(QThread):
         self.dataCollectionTimer.start(1000)
         loop = QEventLoop()
         loop.exec_()
+
+        self.tempRampTimer.start(self.step_interval / 1e-3)
+        loop2 = QEventLoop()
+        loop2.exec_()
+
+    def update_temp(self):
+
+        if self.chilling:
+            self.last_sp -= self.temp_step
+            if self.last_sp == -30:
+                self.chilling = False
+        else:
+            self.last_sp += self.temp_step
+            if self.last_sp == 10:
+                self.chilling = True
+
+        self.daq.set_temperature(self.last_sp)
 
     def read_temps(self):
         s0, s1 = self.adam.GetAllTemps()
