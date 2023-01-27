@@ -1,6 +1,6 @@
 import uldaq
 from uldaq import get_daq_device_inventory, DaqDevice, InterfaceType, AiInputMode, Range, AOutFlag, AInFlag, ULException
-from uldaq import create_float_buffer, ScanOption
+from uldaq import create_float_buffer, ScanOption, ScanStatus
 
 import time
 import logging
@@ -32,7 +32,7 @@ class Daq:
             self.ao.a_out(channel=1, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=5)
 
             self.data_buffer = create_float_buffer(7, 500)
-
+            self.ts = 0
             # self.ai.a_in_scan(0, 6, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS,
             #                   flags=AInFlag.DEFAULT, samples_per_channel=1, rate=1, options=ScanOption.SINGLEIO,
             #                   data=self.data_buffer)
@@ -73,26 +73,29 @@ class Daq:
         -------
         set_temperature(25)
         """
-        v_aout = t_target * 10.0e-3
+        # v_aout = t_target * 10.0e-3
 
-        logging.debug(f"Value to be set in AOUT0: {v_aout}")
-        self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
+        # self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
         # Check if setpoint is correct
-        while True:
-            try:
-                t_setpoint = self.ai.a_in(channel=4,
-                                          input_mode=AiInputMode.DIFFERENTIAL,
-                                          analog_range=Range.BIP10VOLTS,
-                                          flags=AInFlag.DEFAULT) / 10e-3
-                t_diff = t_target - t_setpoint
-            except ULException:
-                continue
-            else:
-                break
+        # while True:
+        #     try:
+        #         t_setpoint = self.ai.a_in(channel=4,
+        #                                   input_mode=AiInputMode.DIFFERENTIAL,
+        #                                   analog_range=Range.BIP10VOLTS,
+        #                                   flags=AInFlag.DEFAULT) / 10e-3
+        #         t_diff = t_target - t_setpoint
+        #         break
+        #     except ULException:
+        #         continue
+        # else:
+        #    break
+
+        t_diff = 1
 
         while abs(t_diff) > 0.01:
-            v_aout = (t_target + t_diff) * 10.0e-3
+            print(t_diff)
+            v_aout = (t_target - t_diff) * 10.0e-3
 
             logging.debug(f'Value to be set in AOUT0: {v_aout}')
             self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
@@ -100,9 +103,9 @@ class Daq:
             # Check the new setpoint
             try:
                 t_setpoint = self.ai.a_in(channel=4,
-                                          input_mode=AiInputMode.DIFFERENTIAL,
-                                          analog_range=Range.BIP10VOLTS,
-                                          flags=AInFlag.DEFAULT) / 10e-3
+                             input_mode=AiInputMode.DIFFERENTIAL,
+                             analog_range=Range.BIP10VOLTS,
+                             flags=AInFlag.DEFAULT) / 10e-3
 
                 t_diff = t_target - t_setpoint
             except ULException:
@@ -121,6 +124,8 @@ class Daq:
         -------
         read_setpoint_temp() -> 22.3
         """
+        while ScanStatus.IDLE:
+            time.sleep(0.01)
 
         self.ai.a_in_scan(0, 6, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS,
                           flags=AInFlag.DEFAULT, samples_per_channel=500, rate=1000, options=0, data=self.data_buffer)
@@ -138,11 +143,5 @@ class Daq:
 
         self.ai.scan_wait(0, -1)
 
-        print(f"Temp:{tc3:.3f}\tRH:{tc4:.2f}")
+        # print(f"Temp:{tc3:.3f}\tRH:{tc4:.2f}")
         return bt, sp, tc1, tc2, tc3, tc4, tc5
-
-
-
-
-
-

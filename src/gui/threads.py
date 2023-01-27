@@ -24,18 +24,9 @@ class DataWorker(QThread):
         self.daq = None
         self.threadactive = True
 
-        self.chilling = True
-        self.last_sp = 0
-        self.temp_step = 0.1
-        self.step_interval = 10  # in seconds
-
         self.dataCollectionTimer = QTimer()
         self.dataCollectionTimer.moveToThread(self)
         self.dataCollectionTimer.timeout.connect(self.read_temps)
-
-        self.tempRampTimer = QTimer()
-        self.tempRampTimer.moveToThread(self)
-        self.tempRampTimer.timeout.connect(self.update_temp)
 
     def run(self):
         # Connect to ADAM-4015
@@ -50,23 +41,6 @@ class DataWorker(QThread):
         self.dataCollectionTimer.start(1000)
         loop = QEventLoop()
         loop.exec_()
-
-        self.tempRampTimer.start(self.step_interval / 1e-3)
-        loop2 = QEventLoop()
-        loop2.exec_()
-
-    def update_temp(self):
-
-        if self.chilling:
-            self.last_sp -= self.temp_step
-            if self.last_sp == -30:
-                self.chilling = False
-        else:
-            self.last_sp += self.temp_step
-            if self.last_sp == 10:
-                self.chilling = True
-
-        self.daq.set_temperature(self.last_sp)
 
     def read_temps(self):
         s0, s1 = self.adam.GetAllTemps()
@@ -85,24 +59,57 @@ class DataWorker(QThread):
         self.read_data_signal.emit(data)
 
 
+class TempThread(QThread):
+    temp_signal = pyqtSignal(object)
+
+    def __init__(self):
+        super().__init__()
+        self.chilling = True
+        self.last_sp = 2
+        self.temp_step = 0.1
+        self.step_interval = 5  # in seconds
+
+        self.tempRampTimer = QTimer()
+        self.tempRampTimer.moveToThread(self)
+        self.tempRampTimer.timeout.connect(self.update_temp)
+
+    def run(self):
+        self.tempRampTimer.start(int(self.step_interval / 1e-3))
+        loop = QEventLoop()
+        loop.exec_()
+
+    def update_temp(self):
+
+        if self.chilling:
+            self.last_sp -= self.temp_step
+            if self.last_sp == -3:
+                self.chilling = False
+        else:
+            self.last_sp += self.temp_step
+            if self.last_sp == 1:
+                self.chilling = True
+        self.temp_signal.emit(round(self.last_sp, 2))
+        # self.daq.set_temperature(self.last_sp)
+
+
 class VideoThread(QThread):
-    """
-    Subclass of QThread for capturing video from a webcam and emitting the frames as a numpy array.
-    """
 
+    """
+        Subclass of QThread for capturing video from a webcam and emitting the frames as a numpy array.
+        """
     change_pixmap_signal = pyqtSignal(np.ndarray)
+
     detect_circles = False
-
     def __init__(self, camera_ID):
-        """
-        Initialize the video thread.
 
-        Parameters
-        ----------
-        camera_ID : int
-            ID of the camera to capture video from.
         """
+            Initialize the video thread.
 
+            Parameters
+            ----------
+            camera_ID : int
+                ID of the camera to capture video from.
+            """
         super().__init__()
         self._run_flag = True
 

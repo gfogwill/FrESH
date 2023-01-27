@@ -20,7 +20,7 @@ from PyQt5.QtWidgets import *
 from src import paths, __version__
 from src.daq import mccdaq
 from src.gui.video import VideoSettingsUi
-from src.gui.threads import VideoThread, DataWorker
+from src.gui.threads import VideoThread, DataWorker, TempThread
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq.IniLoader import IniLoader
 
@@ -218,6 +218,18 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.data_worker.read_data_signal.connect(self.read_sensors_data)
         self.data_worker.start()
 
+        self.temp_worker = TempThread()
+        self.temp_worker.temp_signal.connect(self.set_temp2)
+        self.temp_worker.start()
+
+    @pyqtSlot(object)
+    def set_temp2(self, t):
+        logging.info(f'Setting temperature to: {t}')
+        try:
+            self.data_worker.daq.set_temperature(t)
+        except AttributeError:
+            pass
+
     @pyqtSlot(object)
     def read_sensors_data(self, data):
         t = time.time()
@@ -286,15 +298,15 @@ class ExperimentUi(QtWidgets.QMainWindow):
         sys.exit()
 
     def update_temp_plot(self):
-        #self.line1.setData(*zip(*self.bath_temp))
-        #self.line2.setData(*zip(*self.setpoint))
+        self.line1.setData(*zip(*self.bath_temp))
+        self.line2.setData(*zip(*self.setpoint))
         #self.line3.setData(*zip(*self.adam0))
         #self.line4.setData(*zip(*self.adam1))
 
         #self.line5.setData(*zip(*self.tc1))
         #self.line6.setData(*zip(*self.tc2))
-        self.line7.setData(*zip(*self.tc3))
-        self.line8.setData(*zip(*self.tc4))
+        #self.line7.setData(*zip(*self.tc3))
+        #self.line8.setData(*zip(*self.tc4))
         #self.line9.setData(*zip(*self.tc5))
 
     def set_temp(self):
