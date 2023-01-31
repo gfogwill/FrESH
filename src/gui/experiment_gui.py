@@ -10,7 +10,6 @@ import json
 import numpy as np
 import pyqtgraph as pg
 
-
 import PyQt5
 from PyQt5 import QtGui, QtWidgets, uic, QtCore
 from PyQt5.QtGui import QPixmap
@@ -23,7 +22,6 @@ from src.gui.video import VideoSettingsUi
 from src.gui.threads import VideoThread, DataWorker, TempThread
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq.IniLoader import IniLoader
-
 
 VIDEO_DISPLAY_WIDTH = 640
 VIDEO_DISPLAY_HEIGHT = 480
@@ -73,7 +71,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.tc3 = []
         self.tc4 = []
         self.tc5 = []
-
 
         self.line1 = None
         self.line2 = None
@@ -183,11 +180,11 @@ class ExperimentUi(QtWidgets.QMainWindow):
                      f'bt,'
                      f'RTD0,'
                      f'RTD1,'
-                     #f'TC1,'
-                     #f'TC2,'
+                     # f'TC1,'
+                     # f'TC2,'
                      f'TEMP,'
                      f'RH'
-                     #f'TC5'
+                     # f'TC5'
                      f'\n')
 
         logging.info(f'Sensors data file created: {self.experiment_path / "sensors_data.csv"}')
@@ -262,11 +259,11 @@ class ExperimentUi(QtWidgets.QMainWindow):
                          f'{bt:.2f},'
                          f'{s0:.2f},'
                          f'{s1:.2f},'
-                         #f'{t1:.2f},'
-                         #f'{t2:.2f},'
+                         # f'{t1:.2f},'
+                         # f'{t2:.2f},'
                          f'{t3:.2f},'
                          f'{t4:.2f}'
-                         #f'{t5:.2f},'
+                         # f'{t5:.2f},'
                          '\n')
 
         self.update_temp_plot()
@@ -300,14 +297,14 @@ class ExperimentUi(QtWidgets.QMainWindow):
     def update_temp_plot(self):
         self.line1.setData(*zip(*self.bath_temp))
         self.line2.setData(*zip(*self.setpoint))
-        #self.line3.setData(*zip(*self.adam0))
-        #self.line4.setData(*zip(*self.adam1))
+        # self.line3.setData(*zip(*self.adam0))
+        # self.line4.setData(*zip(*self.adam1))
 
-        #self.line5.setData(*zip(*self.tc1))
-        #self.line6.setData(*zip(*self.tc2))
+        # self.line5.setData(*zip(*self.tc1))
+        # self.line6.setData(*zip(*self.tc2))
         self.line7.setData(*zip(*self.tc3))
         self.line8.setData(*zip(*self.tc4))
-        #self.line9.setData(*zip(*self.tc5))
+        # self.line9.setData(*zip(*self.tc5))
 
     def set_temp(self):
         t = float(self.temp_set.text())
