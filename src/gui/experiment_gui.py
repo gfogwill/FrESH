@@ -183,11 +183,11 @@ class ExperimentUi(QtWidgets.QMainWindow):
                      f'bt,'
                      f'RTD0,'
                      f'RTD1,'
-                     f'TC1,'
-                     f'TC2,'
-                     f'TC3,'
-                     f'TC4,'
-                     f'TC5'
+                     #f'TC1,'
+                     #f'TC2,'
+                     f'TEMP,'
+                     f'RH'
+                     #f'TC5'
                      f'\n')
 
         logging.info(f'Sensors data file created: {self.experiment_path / "sensors_data.csv"}')
@@ -197,7 +197,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.timer2 = QTimer()
         self.timer2.setInterval(self.pictureIntervalSpinBox.value() * 1000)
         self.timer2.timeout.connect(self.save_pic)
-        #self.timer2.start()
+        self.timer2.start()
 
     def connect_video(self):
         logging.info("Connecting Camera")
@@ -262,11 +262,11 @@ class ExperimentUi(QtWidgets.QMainWindow):
                          f'{bt:.2f},'
                          f'{s0:.2f},'
                          f'{s1:.2f},'
-                         f'{t1:.2f},'
-                         f'{t2:.2f},'
+                         #f'{t1:.2f},'
+                         #f'{t2:.2f},'
                          f'{t3:.2f},'
-                         f'{t4:.2f},'
-                         f'{t5:.2f},'
+                         f'{t4:.2f}'
+                         #f'{t5:.2f},'
                          '\n')
 
         self.update_temp_plot()
@@ -305,8 +305,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         #self.line5.setData(*zip(*self.tc1))
         #self.line6.setData(*zip(*self.tc2))
-        #self.line7.setData(*zip(*self.tc3))
-        #self.line8.setData(*zip(*self.tc4))
+        self.line7.setData(*zip(*self.tc3))
+        self.line8.setData(*zip(*self.tc4))
         #self.line9.setData(*zip(*self.tc5))
 
     def set_temp(self):

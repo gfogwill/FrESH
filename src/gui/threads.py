@@ -36,7 +36,7 @@ class DataWorker(QThread):
 
         # Connect MC-DAQ (USB-1808) and set the initial temperature
         self.daq = mccdaq.Daq()
-        # self.daq.set_starting_temp(self.init_temp)
+        self.daq.set_starting_temp(self.init_temp)
 
         self.dataCollectionTimer.start(1000)
         loop = QEventLoop()
@@ -59,15 +59,17 @@ class DataWorker(QThread):
         self.read_data_signal.emit(data)
 
 
+
 class TempThread(QThread):
     temp_signal = pyqtSignal(object)
 
     def __init__(self):
         super().__init__()
         self.chilling = True
-        self.last_sp = 2
-        self.temp_step = 0.1
-        self.step_interval = 5  # in seconds
+        self.last_sp = 10
+        self.chill_temp_step = 0.1
+        self.cool_temp_step = 0.2
+        self.step_interval = 360  # in seconds
 
         self.tempRampTimer = QTimer()
         self.tempRampTimer.moveToThread(self)
@@ -81,14 +83,16 @@ class TempThread(QThread):
     def update_temp(self):
 
         if self.chilling:
-            self.last_sp -= self.temp_step
-            if self.last_sp == -3:
+            self.last_sp -= self.chill_temp_step
+            self.last_sp = round(self.last_sp, 2)
+            if self.last_sp == -10.0:
                 self.chilling = False
         else:
             self.last_sp += self.temp_step
-            if self.last_sp == 1:
+            self.last_sp = round(self.last_sp, 2)
+            if self.last_sp == 10.0:
                 self.chilling = True
-        self.temp_signal.emit(round(self.last_sp, 2))
+        self.temp_signal.emit(self.last_sp)
         # self.daq.set_temperature(self.last_sp)
 
 
@@ -126,7 +130,7 @@ class VideoThread(QThread):
         while self._run_flag:
 
             ret, cv_img = self.cap.read()
-            cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
+            cv_img = cv2.rotate(cv_img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
             if ret:
                 self.change_pixmap_signal.emit(cv_img)

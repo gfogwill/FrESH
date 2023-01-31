@@ -73,43 +73,25 @@ class Daq:
         -------
         set_temperature(25)
         """
-        # v_aout = t_target * 10.0e-3
+        v_aout = t_target * 10.0e-3
 
-        # self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
+        logging.debug(f"Value to be set in AOUT0: {v_aout}")
+        self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
         # Check if setpoint is correct
-        # while True:
-        #     try:
-        #         t_setpoint = self.ai.a_in(channel=4,
-        #                                   input_mode=AiInputMode.DIFFERENTIAL,
-        #                                   analog_range=Range.BIP10VOLTS,
-        #                                   flags=AInFlag.DEFAULT) / 10e-3
-        #         t_diff = t_target - t_setpoint
-        #         break
-        #     except ULException:
-        #         continue
-        # else:
-        #    break
+        t_setpoint = self.read_all_temp()[1]
+        t_diff = t_setpoint - t_target
 
-        t_diff = 1
-
-        while abs(t_diff) > 0.01:
-            print(t_diff)
-            v_aout = (t_target - t_diff) * 10.0e-3
+        while abs(t_diff) > 0.05:
+            print(abs(t_diff))
+            v_aout = v_aout - (t_diff * 10.0e-3)
 
             logging.debug(f'Value to be set in AOUT0: {v_aout}')
             self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
             # Check the new setpoint
-            try:
-                t_setpoint = self.ai.a_in(channel=4,
-                             input_mode=AiInputMode.DIFFERENTIAL,
-                             analog_range=Range.BIP10VOLTS,
-                             flags=AInFlag.DEFAULT) / 10e-3
-
-                t_diff = t_target - t_setpoint
-            except ULException:
-                pass
+            t_setpoint = self.read_all_temp()[1]
+            t_diff = t_setpoint - t_target
 
     def read_all_temp(self):
         """
@@ -124,7 +106,7 @@ class Daq:
         -------
         read_setpoint_temp() -> 22.3
         """
-        while ScanStatus.IDLE:
+        while self.ai.get_scan_status()[0] != ScanStatus.IDLE:
             time.sleep(0.01)
 
         self.ai.a_in_scan(0, 6, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS,
