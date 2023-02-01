@@ -88,7 +88,7 @@ class TempThread(QThread):
             if self.last_sp == -10.0:
                 self.chilling = False
         else:
-            self.last_sp += self.temp_step
+            self.last_sp += self.cool_temp_step
             self.last_sp = round(self.last_sp, 2)
             if self.last_sp == 10.0:
                 self.chilling = True
