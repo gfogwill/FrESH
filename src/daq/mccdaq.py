@@ -1,4 +1,5 @@
 from uldaq import get_daq_device_inventory, DaqDevice, InterfaceType, AiInputMode, Range, AOutFlag, AInFlag, ULException
+from uldaq import create_float_buffer, ScanStatus
 
 import time
 import logging
@@ -25,6 +26,14 @@ class Daq:
             self.ai = self.daq_device.get_ai_device()
             self.ai.info = self.ai.get_info()
 
+            self.ao.a_out(channel=1, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=5)
+
+            self.data_buffer = create_float_buffer(7, 500)
+
+            # self.ai.a_in_scan(0, 6, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS,
+            #                   flags=AInFlag.DEFAULT, samples_per_channel=1, rate=1, options=ScanOption.SINGLEIO,
+            #                   data=self.data_buffer)
+
             logging.info(f'MCCDAQ Connected!')
 
         except ULException as e:
@@ -44,7 +53,7 @@ class Daq:
         set_starting_temp(20)
         """
 
-        self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=t*10e-3)
+        self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=t * 10e-3)
 
     def set_temperature(self, t_target):
         """
@@ -69,57 +78,56 @@ class Daq:
         self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
         # Check if setpoint is correct
-        t_setpoint = self.read_setpoint_temp()
-        t_diff = t_target - t_setpoint
+        t_setpoint = self.read_all_temp()[1]
+        t_diff = t_setpoint - t_target
 
-        while abs(t_diff) > 0.01:
-            v_aout = (t_target + t_diff) * 10.0e-3
+        while abs(t_diff) > 0.05:
+            print(abs(t_diff))
+            v_aout = v_aout - (t_diff * 10.0e-3)
 
             logging.debug(f'Value to be set in AOUT0: {v_aout}')
             self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
             # Check the new setpoint
-            t_setpoint = self.read_setpoint_temp()
-            t_diff = t_target - t_setpoint
+            t_setpoint = self.read_all_temp()[1]
+            t_diff = t_setpoint - t_target
 
-    def read_bath_temp(self):
-        """
-        Reads the bath temperature from channel 5 of the USB-1808 device.
-
-        Returns
-        -------
-        float
-            float value representing the temperature in degree Celsius.
-
-        Example
-        -------
-        read_bath_temp() -> 20.5
-        """
-
-        a_in = self.ai.a_in(channel=5,
-                            input_mode=AiInputMode.DIFFERENTIAL,
-                            analog_range=Range.BIP10VOLTS,
-                            flags=AInFlag.DEFAULT)
-
-        return a_in / 10e-3
-
-    def read_setpoint_temp(self):
+    def read_all_temp(self):
         """
         Reads the setpoint temperature from channel 4 of the USB-1808 device.
 
         Returns
         -------
-        float
+        tuple[float,float,float,float,float]
             float value representing the temperature in degree Celsius.
 
         Example
         -------
         read_setpoint_temp() -> 22.3
         """
+        while self.ai.get_scan_status()[0] != ScanStatus.IDLE:
+            time.sleep(0.01)
 
-        a_in = self.ai.a_in(channel=4,
-                            input_mode=AiInputMode.DIFFERENTIAL,
-                            analog_range=Range.BIP10VOLTS,
-                            flags=AInFlag.DEFAULT)
+        self.ai.a_in_scan(0, 6, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS,
+                          flags=AInFlag.DEFAULT, samples_per_channel=500, rate=1000, options=0, data=self.data_buffer)
 
-        return a_in / 10e-3
+        data = np.array(self.data_buffer[:]).reshape((500, 7)).transpose().mean(axis=1)
+
+        tc1 = (data[0] - 1.25) / 5e-3
+        tc2 = (data[1] - 1.25) / 5e-3
+        tc3 = (data[2] - 1.25) / 5e-3
+        tc4 = (data[3] - 1.25) / 5e-3
+        tc5 = (data[6] - 1.25) / 5e-3
+
+        bt = data[5] / 10e-3
+        sp = data[4] / 10e-3
+
+        self.ai.scan_wait(0, -1)
+
+        return bt, sp, tc1, tc2, tc3, tc4, tc5
+
+
+
+
+
+
