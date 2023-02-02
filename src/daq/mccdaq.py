@@ -117,7 +117,7 @@ class Daq:
 
         self.ai.scan_wait(0, -1)
 
-        return bt, sp, tc1, tc2, tc3, tc4, tc5
+        return bt, sp
 
 
 
