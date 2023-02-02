@@ -4,6 +4,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, QObject, QTimer, QEventLoop
 
 from PyQt5 import QtTest
 
+from src import paths
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq import mccdaq
 from src.daq.IniLoader import IniLoader
@@ -42,7 +43,7 @@ class DataWorker(QThread):
         self.dataCollectionTimer.moveToThread(self)
         self.dataCollectionTimer.timeout.connect(self.read_temps)
 
-        self.temp_corr_coeffs = read_coefficients(paths.raw_data_path + 'thermometers_corr_coeffs_20230127.json')
+        self.temp_corr_coeffs = read_coefficients(paths.data_path / 'thermometers_corr_coeffs_20230127.json')
 
     def run(self):
         # Connect to ADAM-4015

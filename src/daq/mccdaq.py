@@ -3,7 +3,7 @@ from uldaq import create_float_buffer, ScanStatus
 
 import time
 import logging
-
+import numpy as np
 
 NUMBER_OF_CHANNELS = 2
 SAMPLES_PER_CHANNEL = 500
@@ -107,13 +107,13 @@ class Daq:
         while self.ai.get_scan_status()[0] != ScanStatus.IDLE:
             time.sleep(0.01)
 
-        self.ai.a_in_scan(0, 6, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS,
+        self.ai.a_in_scan(4, 5, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS,
                           flags=AInFlag.DEFAULT, samples_per_channel=SAMPLES_PER_CHANNEL, rate=SAMPLING_RATE, options=0, data=self.data_buffer)
 
         data = np.array(self.data_buffer[:]).reshape((SAMPLES_PER_CHANNEL, NUMBER_OF_CHANNELS)).transpose().mean(axis=1)
 
-        bt = data[5] / 10e-3
-        sp = data[4] / 10e-3
+        bt = data[1] / 10e-3
+        sp = data[0] / 10e-3
 
         self.ai.scan_wait(0, -1)
 
