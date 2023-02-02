@@ -131,6 +131,11 @@ class ExperimentUi(QtWidgets.QMainWindow):
     def setup_saving(self):
         log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
+        if not self.saveCheckBox.isChecked():
+            self.timer2.stop()
+            logging.info("Stopped saving data!")
+            return
+
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
 
