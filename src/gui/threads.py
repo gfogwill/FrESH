@@ -7,7 +7,23 @@ from PyQt5 import QtTest
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq import mccdaq
 from src.daq.IniLoader import IniLoader
-# from src.gui.video import get_circles
+
+import json
+
+
+def read_coefficients(filepath):
+    """
+    This function reads the coefficients from a JSON file and returns them as a dictionary.
+
+    Parameters:
+    filepath (str): The filepath to the JSON file containing the coefficients.
+
+    Returns:
+    dict: The coefficients stored in the JSON file.
+    """
+    with open(filepath, 'r') as json_file:
+        co = json.load(json_file)
+        return co
 
 
 class DataWorker(QThread):
@@ -26,6 +42,8 @@ class DataWorker(QThread):
         self.dataCollectionTimer.moveToThread(self)
         self.dataCollectionTimer.timeout.connect(self.read_temps)
 
+        self.temp_corr_coeffs = read_coefficients(paths.raw_data_path + 'thermometers_corr_coeffs_20230127.json')
+
     def run(self):
         # Connect to ADAM-4015
         ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
@@ -41,75 +59,28 @@ class DataWorker(QThread):
         loop.exec_()
 
     def read_temps(self):
-        bt = self.get_bath_temp()
-        sp = self.get_setpoint_temp()
-        s0, s1 = self.adam.GetAllTemps()
+        RTD0, RTD1 = self.adam.GetAllTemps()
+        BT, SP, TC1, TC2, TC3, TC4, TC5 = self.daq.read_all_temp()
 
-        data = {'bath_temp': bt,
-                'setpoint_temp': sp,
-                'adam0': s0,
-                'adam1': s1}
+        data = {'BT': BT,
+                'SP': SP,
+                'RTD0': RTD0,
+                'RTD1': RTD1,
+                'TC1': TC1,
+                'TC2': TC2,
+                'TC3': TC3,
+                'TC4': TC4,
+                'TC5': TC5}
+
+        data = self.apply_corr_coeffs(data)
 
         self.read_data_signal.emit(data)
 
-    def get_bath_temp(self, samples=100, interval=1):
-        """
-        Get the bath temperature by reading from the DAQ.
+    def apply_corr_coeffs(self, data):
+        for val in data:
+            data[val] = data[val] * self.temp_corr_coeffs[val][0] + self.temp_corr_coeffs[val][1]
 
-        Parameters
-        ----------
-        samples : int, optional
-            number of samples to collect (defaults to 100)
-        interval : int, optional
-            interval (in milliseconds) between samples (defaults to 1)
-
-        Returns
-        -------
-        float
-            the average over samples of the bath temperature in degrees Celsius
-        """
-
-        tmp = []
-
-        for i in range(samples):
-            QtTest.QTest.qWait(interval)
-            a_in = self.daq.read_bath_temp()
-
-            tmp.append(a_in)
-
-        return sum(tmp) / len(tmp)
-
-    def get_setpoint_temp(self, samples: int = 100, interval: int = 1) -> float:
-        """
-        Get the setpoint temperature by reading from the DAQ.
-
-        Parameters
-        ----------
-        samples : int, optional
-            number of samples to collect (defaults to 100)
-        interval : int, optional
-            interval (in milliseconds) between samples (defaults to 1)
-
-        Returns
-        -------
-        float
-            the average setpoint temperature in degrees Celsius
-
-        Example
-        -------
-        >>>daq = SomeDAQ()
-        >>>setpoint_temp = daq.get_setpoint_temp(samples = 50, interval = 2)
-        >>>print(setpoint_temp)
-        """
-        tmp = []
-
-        for i in range(samples):
-            QtTest.QTest.qWait(interval)
-            a_in = self.daq.read_setpoint_temp()
-
-            tmp.append(a_in)
-
-        return sum(tmp) / len(tmp)
+        return data
 
 
 class VideoThread(QThread):
@@ -149,10 +120,6 @@ class VideoThread(QThread):
             cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
 
             if ret:
-                if get_circles:
-                    # cv_img = get_circles(cv_img, self.plot_circles)
-                    pass
-
                 self.change_pixmap_signal.emit(cv_img)
 
         # shut down capture system

@@ -152,11 +152,11 @@ class ExperimentUi(QtWidgets.QMainWindow):
         logging.info(f"Experiment directory created: {self.experiment_path}")
 
         with open(self.experiment_path / "sensors_data.csv", "a") as fo:
-            fo.write(f'datetime, '
-                     f'setpoint [ºC], '
-                     f'bath temp [ºC], '
-                     f'RTD0 [ºC], '
-                     f'RTD1 [ºC]\n')
+            fo.write(f'datetime,'
+                     f'SP,'
+                     f'BT,'
+                     f'RTD0,'
+                     f'RTD1\n')
 
         logging.info(f'Sensors data file created: {self.experiment_path / "sensors_data.csv"}')
 
@@ -187,25 +187,26 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.data_worker.start()
 
     @pyqtSlot(object)
-    def read_sensors_data(self):
+    def read_sensors_data(self, data):
         t = time.time()
 
-        bt = self.data_worker.get_bath_temp()
-        sp = self.data_worker.get_setpoint_temp()
-        s0, s1 = self.data_worker.adam.GetAllTemps()
+        BT = data['BT']
+        SP = data['SP']
+        RTD0, RTD1 = data['RTD0'], data['RTD1']
 
-        self.bath_temp.append((t, bt))
-        self.setpoint.append((t, sp))
-        self.adam0.append((t, s0))
-        self.adam1.append((t, s1))
+        self.bath_temp.append((t, BT))
+        self.setpoint.append((t, SP))
+        self.adam0.append((t, RTD0))
+        self.adam1.append((t, RTD1))
 
         if self.saveCheckBox.isChecked():
             with open(self.experiment_path / "sensors_data.csv", "a") as fo:
                 fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
-                         f'{sp:.2f},'
-                         f'{bt:.2f},'
-                         f'{s0:.2f},'
-                         f'{s1:.2f}\n')
+                         f'{SP:.2f},'
+                         f'{BT:.2f},'
+                         f'{RTD0:.2f},'
+                         f'{RTD1:.2f}'
+                         '\n')
 
         self.update_temp_plot()
 
