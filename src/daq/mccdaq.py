@@ -80,8 +80,7 @@ class Daq:
         t_setpoint = self.read_all_temp()[1]
         t_diff = t_setpoint - t_target
 
-        while abs(t_diff) > 0.05:
-            print(abs(t_diff))
+        while abs(t_diff) > 0.02:
             v_aout = v_aout - (t_diff * 10.0e-3)
 
             logging.debug(f'Value to be set in AOUT0: {v_aout}')
