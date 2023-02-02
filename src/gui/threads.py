@@ -60,17 +60,12 @@ class DataWorker(QThread):
 
     def read_temps(self):
         RTD0, RTD1 = self.adam.GetAllTemps()
-        BT, SP, TC1, TC2, TC3, TC4, TC5 = self.daq.read_all_temp()
+        BT, SP = self.daq.read_all_temp()
 
         data = {'BT': BT,
                 'SP': SP,
                 'RTD0': RTD0,
-                'RTD1': RTD1,
-                'TC1': TC1,
-                'TC2': TC2,
-                'TC3': TC3,
-                'TC4': TC4,
-                'TC5': TC5}
+                'RTD1': RTD1}
 
         data = self.apply_corr_coeffs(data)
 

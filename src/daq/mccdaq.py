@@ -5,6 +5,11 @@ import time
 import logging
 
 
+NUMBER_OF_CHANNELS = 2
+SAMPLES_PER_CHANNEL = 500
+SAMPLING_RATE = 1000  # In samples per channel per second
+
+
 class Daq:
     """
     Daq class is used to interact with a USB-1808 DAQ device from MCCDAQ to perform functions such as setting the
@@ -26,13 +31,7 @@ class Daq:
             self.ai = self.daq_device.get_ai_device()
             self.ai.info = self.ai.get_info()
 
-            self.ao.a_out(channel=1, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=5)
-
-            self.data_buffer = create_float_buffer(7, 500)
-
-            # self.ai.a_in_scan(0, 6, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS,
-            #                   flags=AInFlag.DEFAULT, samples_per_channel=1, rate=1, options=ScanOption.SINGLEIO,
-            #                   data=self.data_buffer)
+            self.data_buffer = create_float_buffer(NUMBER_OF_CHANNELS, SAMPLES_PER_CHANNEL)
 
             logging.info(f'MCCDAQ Connected!')
 
@@ -109,15 +108,9 @@ class Daq:
             time.sleep(0.01)
 
         self.ai.a_in_scan(0, 6, input_mode=AiInputMode.DIFFERENTIAL, analog_range=Range.BIP10VOLTS,
-                          flags=AInFlag.DEFAULT, samples_per_channel=500, rate=1000, options=0, data=self.data_buffer)
+                          flags=AInFlag.DEFAULT, samples_per_channel=SAMPLES_PER_CHANNEL, rate=SAMPLING_RATE, options=0, data=self.data_buffer)
 
-        data = np.array(self.data_buffer[:]).reshape((500, 7)).transpose().mean(axis=1)
-
-        tc1 = (data[0] - 1.25) / 5e-3
-        tc2 = (data[1] - 1.25) / 5e-3
-        tc3 = (data[2] - 1.25) / 5e-3
-        tc4 = (data[3] - 1.25) / 5e-3
-        tc5 = (data[6] - 1.25) / 5e-3
+        data = np.array(self.data_buffer[:]).reshape((SAMPLES_PER_CHANNEL, NUMBER_OF_CHANNELS)).transpose().mean(axis=1)
 
         bt = data[5] / 10e-3
         sp = data[4] / 10e-3
