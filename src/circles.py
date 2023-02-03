@@ -3,21 +3,42 @@ import numpy as np
 import pathlib
 import os
 
-def sort_circles(circles):
-        # https://stackoverflow.com/questions/61741434/opencv-sorting-array-of-circles
-        circles = np.round(circles).astype("int")
-        circles = sorted(circles, key=lambda v: [v[1], v[0]])
 
-        NUM_COLS = 5
+def sort_circles(circles, n_cols):
+    """
+    Sorts an array of circles according to their positions.
 
-        sorted_rows = []
-        for k in range(0, len(circles), NUM_COLS):
-            row = circles[k:k+NUM_COLS]
-            sorted_rows.extend(sorted(row, key=lambda v: v[0]))
+    Circles are first sorted by their row position (y-coordinate), then by their column position (x-coordinate) within each row. Rows are divided into groups of `NUM_COLS` circles.
 
-        return sorted_rows
+    Parameters
+    ----------
+    circles : numpy.ndarray
+        Array of circles, where each circle is represented as a 1D array of 3 values [x, y, radius].
+    n_cols : int
+        Number of circles in each row.
 
-        
+    Returns
+    -------
+    sorted_circles : numpy.ndarray
+        Sorted array of circles.
+
+    """
+    # Round the circles to integer values and sort them by their y-coordinate
+    circles = np.round(circles).astype("int")
+    circles = sorted(circles, key=lambda v: [v[1], v[0]])
+
+    # Divide the sorted circles into rows of NUM_COLS circles each
+    sorted_rows = []
+    for k in range(0, len(circles), n_cols):
+        row = circles[k:k + n_cols]
+        sorted_rows.extend(sorted(row, key=lambda v: v[0]))
+
+    # Convert the sorted rows back to a numpy array
+    sorted_circles = np.array(sorted_rows)
+
+    return sorted_circles
+
+
 def plot_detected_circles(img, circles):
     # Draw detected circles
     if circles is not None:
@@ -43,7 +64,7 @@ def plot_detected_circles(img, circles):
 def get_grayscales(image, circles, mask=True):
     grayscales = []
     
-    for circle in circles[:25]:
+    for circle in circles[:96]:
         x = circle[0]
         y = circle[1]
         r = circle[2]
@@ -64,16 +85,13 @@ def get_grayscales(image, circles, mask=True):
             background = np.full(img.shape, 255, dtype=np.uint8)
             bk = cv2.bitwise_or(background, background, mask=m)
             img = cv2.bitwise_or(fg, bk)
-        
-        
+
         grayscales.append(img.mean())
         
     return grayscales
 
     
-def get_circles(img, minDist=20, param1=60, param2=10, minRadius=10, maxRadius=13, sort=True, plot=True, mask=True):
-    # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # img_blur = cv2.medianBlur(gray, 5)
+def get_circles(img, minDist=20, param1=60, param2=10, minRadius=10, maxRadius=13, sort=True, plot=True):
 
     # https://docs.opencv.org/4.x/dd/d1a/group__imgproc__feature.html#ga47849c3be0d0406ad3ca45db65a25d2d
     circles = cv2.HoughCircles(img,
@@ -87,11 +105,9 @@ def get_circles(img, minDist=20, param1=60, param2=10, minRadius=10, maxRadius=1
                               )[0]
 
     if sort:
-        circles = sort_circles(circles)
-
+        circles = sort_circles(circles, n_cols=12)
 
     if plot:
         plot_detected_circles(img, circles)
 
-        
     return circles
