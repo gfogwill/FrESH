@@ -70,13 +70,12 @@ class DataWorker(QThread):
 
         data = self.apply_corr_coeffs(data)
 
+        if data['BT'] < -1:
+            self.daq.set_temperature(2)
+        if data['BT'] > 1:
+            self.daq.set_temperature(-2)
+
         self.read_data_signal.emit(data)
-
-    def apply_corr_coeffs(self, data):
-        for val in data:
-            data[val] = data[val] * self.temp_corr_coeffs[val][0] + self.temp_corr_coeffs[val][1]
-
-        return data
 
 
 class VideoThread(QThread):
