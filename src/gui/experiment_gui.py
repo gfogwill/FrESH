@@ -25,8 +25,8 @@ from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq.IniLoader import IniLoader
 
 
-VIDEO_DISPLAY_WIDTH = 640
-VIDEO_DISPLAY_HEIGHT = 480
+VIDEO_DISPLAY_WIDTH = 525
+VIDEO_DISPLAY_HEIGHT = 359
 
 if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
     PyQt5.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
@@ -238,11 +238,10 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.line3.setData(*zip(*self.adam0))
         self.line4.setData(*zip(*self.adam1))
 
-        self.lcdBT.display(str(f"{self.bath_temp[-1][1]:.2}"))
+        self.lcdBT.display(f"{self.bath_temp[-1][1]:.2}")
         self.lcdSP.display(str(f"{self.setpoint[-1][1]:.2}"))
         self.lcdRTD1.display(str(f"{self.adam0[-1][1]:.2}"))
         self.lcdRTD2.display(str(f"{self.adam1[-1][1]:.2}"))
-
 
     def set_temp(self):
         t = float(self.temp_set.text())
