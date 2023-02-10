@@ -243,7 +243,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.lcdRTD1.display(str(f"{self.adam0[-1][1]:.2}"))
         self.lcdRTD2.display(str(f"{self.adam1[-1][1]:.2}"))
 
-        print(str(self.bath_temp[-1][1]))
 
     def set_temp(self):
         t = float(self.temp_set.text())

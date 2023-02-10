@@ -242,7 +242,10 @@
          </sizepolicy>
         </property>
         <property name="digitCount">
-         <number>7</number>
+         <number>10</number>
+        </property>
+        <property name="segmentStyle">
+         <enum>QLCDNumber::Flat</enum>
         </property>
         <property name="intValue" stdset="0">
          <number>0</number>
@@ -258,7 +261,10 @@
          </sizepolicy>
         </property>
         <property name="digitCount">
-         <number>7</number>
+         <number>10</number>
+        </property>
+        <property name="segmentStyle">
+         <enum>QLCDNumber::Flat</enum>
         </property>
        </widget>
       </item>
@@ -278,7 +284,10 @@
          </sizepolicy>
         </property>
         <property name="digitCount">
-         <number>7</number>
+         <number>10</number>
+        </property>
+        <property name="segmentStyle">
+         <enum>QLCDNumber::Flat</enum>
         </property>
        </widget>
       </item>
@@ -298,7 +307,10 @@
          </sizepolicy>
         </property>
         <property name="digitCount">
-         <number>7</number>
+         <number>10</number>
+        </property>
+        <property name="segmentStyle">
+         <enum>QLCDNumber::Flat</enum>
         </property>
        </widget>
       </item>
