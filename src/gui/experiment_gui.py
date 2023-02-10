@@ -238,7 +238,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.line3.setData(*zip(*self.adam0))
         self.line4.setData(*zip(*self.adam1))
 
-        self.lcdBT.display(self.bath_temp[-1][1])
+        self.lcdBT.display(str(f"{self.bath_temp[-1][1]:.2}"))
         self.lcdSP.display(str(self.setpoint[-1][1]))
         self.lcdRTD1.display(str(self.adam0[-1][1]))
         self.lcdRTD2.display(str(self.adam1[-1][1]))
