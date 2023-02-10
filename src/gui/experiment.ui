@@ -72,8 +72,8 @@
    <widget class="QPushButton" name="clearPlotButton">
     <property name="geometry">
      <rect>
-      <x>200</x>
-      <y>570</y>
+      <x>140</x>
+      <y>600</y>
       <width>89</width>
       <height>25</height>
      </rect>
@@ -208,10 +208,10 @@
    <widget class="QFrame" name="frame">
     <property name="geometry">
      <rect>
-      <x>140</x>
+      <x>90</x>
       <y>410</y>
-      <width>221</width>
-      <height>131</height>
+      <width>271</width>
+      <height>181</height>
      </rect>
     </property>
     <property name="frameShape">
@@ -225,16 +225,33 @@
       <rect>
        <x>10</x>
        <y>10</y>
-       <width>201</width>
-       <height>112</height>
+       <width>251</width>
+       <height>161</height>
       </rect>
      </property>
      <layout class="QFormLayout" name="formLayout">
+      <property name="sizeConstraint">
+       <enum>QLayout::SetMaximumSize</enum>
+      </property>
       <item row="0" column="1">
-       <widget class="QLCDNumber" name="lcdSP"/>
+       <widget class="QLCDNumber" name="lcdSP">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QLCDNumber" name="lcdBT"/>
+       <widget class="QLCDNumber" name="lcdBT">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
       </item>
       <item row="2" column="0">
        <widget class="QLabel" name="label_4">
@@ -244,7 +261,14 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QLCDNumber" name="lcdRTD1"/>
+       <widget class="QLCDNumber" name="lcdRTD1">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
       </item>
       <item row="3" column="0">
        <widget class="QLabel" name="label_5">
@@ -254,7 +278,14 @@
        </widget>
       </item>
       <item row="3" column="1">
-       <widget class="QLCDNumber" name="lcdRTD2"/>
+       <widget class="QLCDNumber" name="lcdRTD2">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
       </item>
       <item row="1" column="0">
        <widget class="QLabel" name="label">
