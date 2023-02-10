@@ -191,12 +191,15 @@
      <rect>
       <x>80</x>
       <y>260</y>
-      <width>48</width>
+      <width>91</width>
       <height>26</height>
      </rect>
     </property>
     <property name="minimum">
      <number>1</number>
+    </property>
+    <property name="maximum">
+     <number>10000</number>
     </property>
    </widget>
    <zorder>frameVideo</zorder>
