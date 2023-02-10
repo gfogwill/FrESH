@@ -1,3 +1,5 @@
+import logging
+
 import cv2
 import numpy as np
 from PyQt5.QtCore import QThread, pyqtSignal, QObject, QTimer, QEventLoop
@@ -22,9 +24,12 @@ def read_coefficients(filepath):
     Returns:
     dict: The coefficients stored in the JSON file.
     """
-    with open(filepath, 'r') as json_file:
-        co = json.load(json_file)
-        return co
+    try:
+        with open(filepath, 'r') as json_file:
+            co = json.load(json_file)
+            return co
+    except FileNotFoundError:
+        logging.error(f"File not found:\n{filepath}")
 
 
 class DataWorker(QThread):

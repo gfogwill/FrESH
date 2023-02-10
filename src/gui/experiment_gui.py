@@ -35,16 +35,6 @@ if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
     PyQt5.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
 
 
-class TimeAxisItem(pg.AxisItem):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.setLabel(text='Time', units=None)
-        self.enableAutoSIPrefix(False)
-
-    def tickStrings(self, values, scale, spacing):
-        return [time.strftime("%H:%M:%S", time.localtime(value)) for value in values]
-
-
 def convert_cv_qt(cv_img):
     """Convert from an opencv image to QPixmap"""
     rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
@@ -101,6 +91,11 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.graphWidget.setAxisItems(axisItems={'bottom': TimeAxisItem(orientation='bottom')})
 
         self.saveCheckBox.stateChanged.connect(self.setup_saving)
+
+        # Create a custom logging handler
+        self.log_text_edit = self.findChild(QtWidgets.QPlainTextEdit, 'logTextEdit')
+        self.log_handler = QPlainTextEditLogger(self.logTextEdit)
+        logging.getLogger().addHandler(self.log_handler)
 
         pen = pg.mkPen(color='red', width=1)
         pen2 = pg.mkPen(color='green', width=1)
@@ -221,6 +216,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.adam0 = []
         self.adam1 = []
 
+        self.lcdBT.display(-0.05)
+
     def exit(self):
 
         try:
@@ -246,7 +243,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.lcdRTD1.display(str(self.adam0[-1]))
         self.lcdRTD2.display(str(self.adam1[-1]))
 
-
     def set_temp(self):
         t = float(self.temp_set.text())
         logging.info(f'Setting temperature to: {t}')
@@ -257,6 +253,31 @@ class ExperimentUi(QtWidgets.QMainWindow):
         """Updates the image_label with a new opencv image"""
         qt_img = convert_cv_qt(cv_img)
         self.image_frame.setPixmap(qt_img)
+
+
+class QPlainTextEditLogger(logging.Handler):
+    def __init__(self, parent):
+        super(QPlainTextEditLogger, self).__init__()
+
+        self.widget = QPlainTextEdit(parent)
+        self.widget.setReadOnly(True)
+
+    def emit(self, record):
+        msg = self.format(record)
+        self.widget.appendPlainText(msg)
+
+    def write(self, m):
+        pass
+
+
+class TimeAxisItem(pg.AxisItem):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setLabel(text='Time', units=None)
+        self.enableAutoSIPrefix(False)
+
+    def tickStrings(self, values, scale, spacing):
+        return [time.strftime("%H:%M:%S", time.localtime(value)) for value in values]
 
 
 def main():
