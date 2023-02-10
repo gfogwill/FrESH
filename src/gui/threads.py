@@ -68,8 +68,8 @@ class TempThread(QThread):
         self.chilling = True
         self.last_sp = 10
         self.chill_temp_step = 0.1
-        self.cool_temp_step = 0.2
-        self.step_interval = 360  # in seconds
+        self.cool_temp_step = 1
+        self.step_interval = 60  # in seconds
 
         self.tempRampTimer = QTimer()
         self.tempRampTimer.moveToThread(self)
@@ -85,7 +85,7 @@ class TempThread(QThread):
         if self.chilling:
             self.last_sp -= self.chill_temp_step
             self.last_sp = round(self.last_sp, 2)
-            if self.last_sp == -30.0:
+            if self.last_sp == -35.0:
                 self.chilling = False
         else:
             self.last_sp += self.cool_temp_step
