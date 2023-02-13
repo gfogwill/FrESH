@@ -59,7 +59,6 @@ class DataWorker(QThread):
         self.read_data_signal.emit(data)
 
 
-
 class TempThread(QThread):
     temp_signal = pyqtSignal(object)
 
