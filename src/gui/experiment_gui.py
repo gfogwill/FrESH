@@ -194,7 +194,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.timer2 = QTimer()
         self.timer2.setInterval(self.pictureIntervalSpinBox.value() * 1000)
         self.timer2.timeout.connect(self.save_pic)
-        # self.timer2.start()
+        self.timer2.start()
 
     def connect_video(self):
         logging.info("Connecting Camera")

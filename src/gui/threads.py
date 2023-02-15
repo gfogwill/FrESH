@@ -65,8 +65,8 @@ class TempThread(QThread):
 
     def __init__(self):
         super().__init__()
-        self.chilling = True
-        self.last_sp = 10
+        self.chilling = False
+        self.last_sp = -26
         self.chill_temp_step = 0.1
         self.cool_temp_step = 1
         self.step_interval = 60  # in seconds
