@@ -135,7 +135,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
             logging.root.removeHandler(handler)
 
         date_str = time.strftime('%Y%m%d%H%M', time.localtime())
-        self.experiment_path = paths.raw_data_path / f"{date_str}_{self.exp_metadata['type']}"
+        self.experiment_path = paths.raw_data_path / f"{date_str}_{self.exp_metadata['label']}"
 
         try:
             os.mkdir(self.experiment_path)
