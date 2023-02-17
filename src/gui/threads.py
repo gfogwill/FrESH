@@ -92,7 +92,6 @@ class TempThread(QThread):
             if self.last_sp == 10.0:
                 self.chilling = True
         self.temp_signal.emit(self.last_sp)
-        # self.daq.set_temperature(self.last_sp)
 
 
 class VideoThread(QThread):
@@ -103,6 +102,7 @@ class VideoThread(QThread):
     change_pixmap_signal = pyqtSignal(np.ndarray)
 
     detect_circles = False
+
     def __init__(self, camera_ID):
 
         """
