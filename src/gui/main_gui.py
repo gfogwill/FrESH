@@ -4,6 +4,7 @@ import logging
 
 from PyQt5 import QtGui, QtWidgets, uic
 from experiment_metadata import ExperimentMetadataUi
+from analysis import ExperimentAnalysisUi
 
 from src import paths
 
@@ -18,12 +19,20 @@ class MainUi(QtWidgets.QMainWindow):
         self.button_new_experiment = self.findChild(QtWidgets.QPushButton, 'newExperimentButton')
         self.button_new_experiment.clicked.connect(self.start_experiment)
 
+        self.button_view_experiment = self.findChild(QtWidgets.QPushButton, 'viewExperimentButton')
+        self.button_view_experiment.clicked.connect(self.view_experiment)
+
     def start_experiment(self):
         self.hide()
 
         self.ExperimentMetadataUi = ExperimentMetadataUi()
         self.ExperimentMetadataUi.show()
 
+    def view_experiment(self):
+        self.hide()
+
+        self.ExperimentAnalysisUi = ExperimentAnalysisUi()
+        self.ExperimentAnalysisUi.show()
 
 def main():
     app = QtWidgets.QApplication(sys.argv)

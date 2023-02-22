@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>394</width>
-    <height>142</height>
+    <width>370</width>
+    <height>264</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -27,13 +27,26 @@
      <string>New experiment</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="viewExperimentButton">
+    <property name="geometry">
+     <rect>
+      <x>120</x>
+      <y>110</y>
+      <width>141</width>
+      <height>61</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>View experiment</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>394</width>
+     <width>370</width>
      <height>22</height>
     </rect>
    </property>
