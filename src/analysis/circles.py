@@ -60,6 +60,24 @@ def plot_detected_circles(img, circles):
     cv2.destroyAllWindows()
 
 
+def add_circles(img, circles):
+    # Draw detected circles
+    if circles is not None:
+        circles = np.uint16(np.around(circles))
+
+        for n, i in enumerate(circles):
+            # outer circle
+            # cv2.circle(image, center_coordinates, radius, color, thickness)
+            cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 0), 1)
+
+            # inner circle
+            cv2.circle(img, (i[0], i[1]), 1, (0, 0, 255), 2)
+
+            cv2.putText(img, "{}".format(n + 1), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 255), 1)
+
+    return img
+
+
 def get_grayscales(image, circles, mask=True):
     grayscales = []
 
@@ -90,23 +108,23 @@ def get_grayscales(image, circles, mask=True):
     return grayscales
 
 
-def get_circles(img, minDist=40, param1=150, param2=15, minRadius=19, maxRadius=22, sort=True, plot=True):
+def get_circles(img, minDist=40, param1=150, param2=10, minRadius=19, maxRadius=22, sort=True, plot=True):
     # https://docs.opencv.org/4.x/dd/d1a/group__imgproc__feature.html#ga47849c3be0d0406ad3ca45db65a25d2d
 
     n_circs = None
 
-    while n_circs != 96:
-        circles = cv2.HoughCircles(img,
-                                   cv2.HOUGH_GRADIENT,
-                                   1,
-                                   minDist=minDist,
-                                   param1=param1 + random.randint(-30, 30),
-                                   param2=param2 + random.randint(-5, 5),
-                                   minRadius=minRadius,
-                                   maxRadius=maxRadius
-                                   )[0]
+    # while n_circs != 96:
+    circles = cv2.HoughCircles(img,
+                               cv2.HOUGH_GRADIENT,
+                               1,
+                               minDist=minDist,
+                               param1=param1,  # + random.randint(-30, 30)
+                               param2=param2,  # + random.randint(-10, 10)
+                               minRadius=minRadius,
+                               maxRadius=maxRadius
+                               )[0]
 
-        n_circs = circles.shape[0]
+        # n_circs = circles.shape[0]
 
     if sort:
         circles = sort_circles(circles, n_cols=12)
