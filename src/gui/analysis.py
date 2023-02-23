@@ -59,16 +59,6 @@ def process_sensors_data(exp_name, freezing_idxs, freezing_times):
 
     return t, ff
 
-    # p = pathlib.Path(src.paths.processed_data_path / exp_name)
-    # p.mkdir(parents=True, exist_ok=True)
-    #
-    # with open(src.paths.processed_data_path / exp_name / 'frozen_fraction_report.csv', 'w') as fo:
-    #     fo.write(f'index, temp, ff\n')
-    #     for i, line in enumerate(data):
-    #         t.append(line[2])
-    #         ff.append((freezing_times <= line['datetime']).sum() / freezing_idxs.__len__())
-    #         fo.write(f'{i},{t[-1]},{ff[-1]}\n')
-
 
 class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
@@ -107,33 +97,18 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.experiment_list_view.setModel(model)
 
         listdir = os.listdir(paths.raw_data_path)
-        listdir.sort()
+        listdir.sort(reverse=True)
 
         for i in listdir:
             item = QtGui.QStandardItem(i)
             item.setEditable(False)
             model.appendRow(item)
 
-    def crop_image(self, image):
-
-        # get the dimensions of the image
-        height, width, _ = image.shape
-
-        # calculate the top, right, bottom, and left coordinates of the crop
-        top = int((self.topSpinBox.value() / 100) * height)
-        right = int((1 - (self.rightSpinBox.value() / 100)) * width)
-        bottom = int((1 - (self.bottomSpinBox.value() / 100)) * height)
-        left = int((self.leftSpinBox.value() / 100) * width)
-
-        # crop the image
-        cropped_image = image[top:bottom, left:right]
-
-        return cropped_image
-
     def update_frame(self, frame):
+        self.frameNumber.setText(str(frame))
         img = cv2.imread(str(self.img_files[frame]))
-        img = self.crop_image(img)
-        #img = cv2.equalizeHist(img)
+        # img = self.crop_image(img)
+        img = self.auto_crop(img)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         img_blur = cv2.medianBlur(gray, 9)
 
@@ -145,15 +120,14 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                                     maxRadius=self.horizontalSlider_17.value(),
                                     sort=True, plot=False)
 
-        img = circles.add_circles(img_blur, dcirc)
+        img = circles.add_circles(img, dcirc)
 
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
 
     def update_img(self):
         img = cv2.imread(str(self.img_files[self.framesSlider.value()]))
-        img = self.crop_image(img)
-        #img = cv2.equalizeHist(img)
+        img = self.auto_crop(img)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         img_blur = cv2.medianBlur(gray, 9)
 
@@ -165,7 +139,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                                     maxRadius=self.horizontalSlider_17.value(),
                                     sort=True, plot=False)
 
-        img = circles.add_circles(img_blur, dcirc)
+        img = circles.add_circles(img, dcirc)
 
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
@@ -181,7 +155,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         freezing_idxs = calculate_freezing_idxs(grayscales_evolution)
         freezing_times = calculate_freezing_times(self.img_files, freezing_idxs)
         t, ff = process_sensors_data(self.exp_name, freezing_idxs, freezing_times)
-        # self.line1.setData(ff)
 
         self.FFwidget.plot(t, ff)
 
@@ -191,8 +164,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         for img_file in img_files:
             img_path = str(img_file)
             img = cv2.imread(img_path)
-            img = self.crop_image(img)
-            #img = cv2.equalizeHist(img)
+            img = self.auto_crop(img)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             img_blur = cv2.medianBlur(gray, 9)
             dcirc = circles.get_circles(img_blur, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
@@ -217,14 +189,32 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.img_files.sort()
 
         img = cv2.imread(str(self.img_files[0]))
-        #img = cv2.equalizeHist(img)
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        img_blur = cv2.medianBlur(gray, 9)
 
-        dcirc = circles.get_circles(img_blur, sort=True, plot=False)
-        img = circles.add_circles(img_blur, dcirc)
+        img = self.auto_crop(img)
 
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
 
-        self.framesSlider.setMaximum(self.img_files.__len__()-1)
+        self.framesSlider.setMaximum(self.img_files.__len__() - 1)
+
+    def auto_crop(self, img):
+        template_image = cv2.imread('/home/perezfo/Documents/notas/áreas/👨‍🔬/FrESH/snippets/template_image.png')
+
+        # Get the height and width of the template image
+        template_height, template_width = template_image.shape[:2]
+
+        # Perform template matching
+        match_result = cv2.matchTemplate(img, template_image, cv2.TM_CCOEFF_NORMED)
+
+        # Get the location of the best match
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(match_result)
+
+        # Calculate the top-left and bottom-right coordinates of the ROI
+        top_left = max_loc
+        bottom_right = (top_left[0] + template_width, top_left[1] + template_height)
+
+        # Draw a rectangle around the ROI
+        # cv2.rectangle(img, top_left, bottom_right, (0, 0, 255), 2)
+        roi = img[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
+
+        return roi
