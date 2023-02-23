@@ -44,7 +44,7 @@ $ source venv/bin/activate
 ## Using the code
 
 ```console
-$ ...
+$ .
 ```
 
 If everything is OK you should see the program logo.
