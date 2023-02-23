@@ -24,20 +24,6 @@ def get_exp_description(exp_name):
     return None
 
 
-def process_images(img_files, minDist, param1, param2, minRadius, maxRadius):
-    # function to process the images and return the grayscales
-    res = []
-    for img_file in img_files:
-        img_path = str(img_file)
-        img = cv2.imread(img_path)
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        img_blur = cv2.medianBlur(gray, 9)
-        dcirc = circles.get_circles(img_blur, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
-        res.append(circles.get_grayscales(img_blur, dcirc))
-
-    return np.array(res)
-
-
 def calculate_freezing_idxs(grayscales_evolution):
     # function to calculate the freezing indices
     freezing_idxs = []
@@ -110,6 +96,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.horizontalSlider_15.valueChanged['int'].connect(self.update_img)
         self.horizontalSlider_16.valueChanged['int'].connect(self.update_img)
         self.horizontalSlider_17.valueChanged['int'].connect(self.update_img)
+        self.framesSlider.valueChanged['int'].connect(self.update_frame)
 
         # self.FFwidget.setAxisItems(axisItems={'bottom': TimeAxisItem(orientation='bottom')})
         pen = pg.mkPen(color='red', width=1)
@@ -119,28 +106,36 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         model = QtGui.QStandardItemModel()
         self.experiment_list_view.setModel(model)
 
-        for i in os.listdir(paths.raw_data_path):
+        listdir = os.listdir(paths.raw_data_path)
+        listdir.sort()
+
+        for i in listdir:
             item = QtGui.QStandardItem(i)
             item.setEditable(False)
             model.appendRow(item)
 
-    def run_analysis(self):
-        minDist = self.horizontalSlider_13.value()
-        param1 = self.horizontalSlider_14.value()
-        param2 = self.horizontalSlider_15.value()
-        minRadius = self.horizontalSlider_16.value()
-        maxRadius = self.horizontalSlider_17.value()
+    def crop_image(self, image):
 
-        grayscales_evolution = process_images(self.img_files, minDist, param1, param2, minRadius, maxRadius)
-        freezing_idxs = calculate_freezing_idxs(grayscales_evolution)
-        freezing_times = calculate_freezing_times(self.img_files, freezing_idxs)
-        t, ff = process_sensors_data(self.exp_name, freezing_idxs, freezing_times)
-        self.line1.setData(ff)
+        # get the dimensions of the image
+        height, width, _ = image.shape
 
-    def update_img(self):
-        img = cv2.imread(str(self.img_files[0]))
+        # calculate the top, right, bottom, and left coordinates of the crop
+        top = int((self.topSpinBox.value() / 100) * height)
+        right = int((1 - (self.rightSpinBox.value() / 100)) * width)
+        bottom = int((1 - (self.bottomSpinBox.value() / 100)) * height)
+        left = int((self.leftSpinBox.value() / 100) * width)
+
+        # crop the image
+        cropped_image = image[top:bottom, left:right]
+
+        return cropped_image
+
+    def update_frame(self, frame):
+        img = cv2.imread(str(self.img_files[frame]))
+        img = self.crop_image(img)
+        #img = cv2.equalizeHist(img)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        img_blur = cv2.medianBlur(gray, 7)
+        img_blur = cv2.medianBlur(gray, 9)
 
         dcirc = circles.get_circles(img_blur,
                                     minDist=self.horizontalSlider_13.value(),
@@ -155,6 +150,61 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
 
+    def update_img(self):
+        img = cv2.imread(str(self.img_files[self.framesSlider.value()]))
+        img = self.crop_image(img)
+        #img = cv2.equalizeHist(img)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        img_blur = cv2.medianBlur(gray, 9)
+
+        dcirc = circles.get_circles(img_blur,
+                                    minDist=self.horizontalSlider_13.value(),
+                                    param1=self.horizontalSlider_14.value(),
+                                    param2=self.horizontalSlider_15.value(),
+                                    minRadius=self.horizontalSlider_16.value(),
+                                    maxRadius=self.horizontalSlider_17.value(),
+                                    sort=True, plot=False)
+
+        img = circles.add_circles(img_blur, dcirc)
+
+        qt_img = convert_cv_qt(img)
+        self.image_frame.setPixmap(qt_img)
+
+    def run_analysis(self):
+        minDist = self.horizontalSlider_13.value()
+        param1 = self.horizontalSlider_14.value()
+        param2 = self.horizontalSlider_15.value()
+        minRadius = self.horizontalSlider_16.value()
+        maxRadius = self.horizontalSlider_17.value()
+
+        grayscales_evolution = self.process_images(self.img_files, minDist, param1, param2, minRadius, maxRadius)
+        freezing_idxs = calculate_freezing_idxs(grayscales_evolution)
+        freezing_times = calculate_freezing_times(self.img_files, freezing_idxs)
+        t, ff = process_sensors_data(self.exp_name, freezing_idxs, freezing_times)
+        # self.line1.setData(ff)
+
+        self.FFwidget.plot(t, ff)
+
+    def process_images(self, img_files, minDist, param1, param2, minRadius, maxRadius):
+        # function to process the images and return the grayscales
+        res = []
+        for img_file in img_files:
+            img_path = str(img_file)
+            img = cv2.imread(img_path)
+            img = self.crop_image(img)
+            #img = cv2.equalizeHist(img)
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            img_blur = cv2.medianBlur(gray, 9)
+            dcirc = circles.get_circles(img_blur, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
+            res.append(circles.get_grayscales(img_blur, dcirc))
+
+            img = circles.add_circles(img_blur, dcirc)
+
+            qt_img = convert_cv_qt(img)
+            self.image_frame.setPixmap(qt_img)
+
+        return np.array(res)
+
     def load_experiment(self):
         self.exp_name = self.experiment_list_view.currentIndex().data()
 
@@ -167,8 +217,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.img_files.sort()
 
         img = cv2.imread(str(self.img_files[0]))
+        #img = cv2.equalizeHist(img)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        img_blur = cv2.medianBlur(gray, 7)
+        img_blur = cv2.medianBlur(gray, 9)
 
         dcirc = circles.get_circles(img_blur, sort=True, plot=False)
         img = circles.add_circles(img_blur, dcirc)
@@ -176,3 +227,4 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
 
+        self.framesSlider.setMaximum(self.img_files.__len__()-1)
