@@ -216,8 +216,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.adam0 = []
         self.adam1 = []
 
-        self.lcdBT.display(-0.05)
-
     def exit(self):
 
         try:
