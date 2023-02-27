@@ -18,6 +18,4 @@ summary_path = reports_path / 'summary'
 tables_path = reports_path / 'tables'
 figures_path = reports_path / 'figures'
 
-# model_path = project_dir / 'models'
-# model_output_path = model_path / 'outputs'
-# trained_model_path = model_path / 'trained'
+etc_path = project_dir / 'etc'
