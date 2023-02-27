@@ -197,8 +197,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.framesSlider.setMaximum(self.img_files.__len__() - 1)
 
-    def auto_crop(self, img):
-        template_image = cv2.imread('/home/perezfo/Documents/notas/áreas/👨‍🔬/FrESH/snippets/template_image.png')
+    @staticmethod
+    def auto_crop(img):
+        template_image = cv2.imread(paths.etc_path / 'template_image.png')
 
         # Get the height and width of the template image
         template_height, template_width = template_image.shape[:2]

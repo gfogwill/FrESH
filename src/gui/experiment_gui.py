@@ -233,6 +233,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
         except AttributeError:
             logging.warning("Camera not initialized")
 
+        logging.info("Exiting experiment")
+
         sys.exit()
 
     def update_temp_plot(self):
