@@ -34,6 +34,7 @@ class MainUi(QtWidgets.QMainWindow):
         self.ExperimentAnalysisUi = ExperimentAnalysisUi()
         self.ExperimentAnalysisUi.show()
 
+
 def main():
     app = QtWidgets.QApplication(sys.argv)
     window = MainUi()
