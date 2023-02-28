@@ -71,9 +71,9 @@ def add_circles(img, circles):
             cv2.circle(img, (i[0], i[1]), i[2], (0, 255, 0), 1)
 
             # inner circle
-            cv2.circle(img, (i[0], i[1]), 1, (0, 0, 255), 2)
+            # cv2.circle(img, (i[0], i[1]), 1, (0, 0, 255), 2)
 
-            cv2.putText(img, "{}".format(n + 1), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 0, 0), 2)
+            cv2.putText(img, "{}".format(n + 1), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 0, 0), 1)
 
     return img
 
