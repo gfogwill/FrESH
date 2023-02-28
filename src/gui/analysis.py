@@ -10,6 +10,7 @@ from src.analysis import circles
 from src.gui.experiment_gui import convert_cv_qt
 
 import os
+import pathlib
 import numpy as np
 from datetime import datetime
 import pyqtgraph as pg
@@ -66,7 +67,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.exp_name = None
         self.img_files = None
-        self.line1 = None
+        self.t = []
         self.ff = []
 
         uic.loadUi('analysis.ui', self)
@@ -105,7 +106,13 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             model.appendRow(item)
 
     def save(self):
-        pass
+        p = pathlib.Path(paths.processed_data_path / self.exp_name)
+        p.mkdir(parents=True, exist_ok=True)
+
+        with open(paths.processed_data_path / self.exp_name / 'frozen_fraction_report.csv', 'w') as fo:
+            fo.write(f'index, temp, ff\n')
+            for i in range(len(self.t)):
+                fo.write(f'{i}, {self.t[i]}, {self.ff[i]}\n')
 
     def update_img(self):
         frame = self.framesSlider.value()
@@ -137,10 +144,10 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         grayscales_evolution = self.process_images(self.img_files, minDist, param1, param2, minRadius, maxRadius)
         freezing_idxs = calculate_freezing_idxs(grayscales_evolution)
         freezing_times = calculate_freezing_times(self.img_files, freezing_idxs)
-        t, ff = process_sensors_data(self.exp_name, freezing_idxs, freezing_times)
+        self.t, self.ff = process_sensors_data(self.exp_name, freezing_idxs, freezing_times)
 
         self.FFwidget.clear()
-        self.FFwidget.plot(t, ff)
+        self.FFwidget.plot(self.t, self.ff)
 
     def process_images(self, img_files, minDist, param1, param2, minRadius, maxRadius):
         # function to process the images and return the grayscales
@@ -161,6 +168,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         return np.array(res)
 
     def load_experiment(self):
+        self.t = []
+        self.ff = []
+
         self.exp_name = self.experiment_list_view.currentIndex().data()
 
         img_dir = paths.raw_data_path / self.exp_name / 'pics'
