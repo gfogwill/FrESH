@@ -79,6 +79,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.button_run_analysis = self.findChild(QtWidgets.QPushButton, 'runButton')
         self.button_run_analysis.clicked.connect(self.run_analysis)
 
+        self.button_save = self.findChild(QtWidgets.QPushButton, 'saveButton')
+        self.button_save.clicked.connect(self.save)
+
         self.image_frame = self.findChild(QtWidgets.QLabel, 'img_label')
 
         self.horizontalSlider_13.valueChanged['int'].connect(self.update_img)
@@ -86,11 +89,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.horizontalSlider_15.valueChanged['int'].connect(self.update_img)
         self.horizontalSlider_16.valueChanged['int'].connect(self.update_img)
         self.horizontalSlider_17.valueChanged['int'].connect(self.update_img)
-        self.framesSlider.valueChanged['int'].connect(self.update_frame)
+        self.framesSlider.valueChanged['int'].connect(self.update_img)
 
-        pen = pg.mkPen(color='red', width=1)
         self.FFwidget.setLabel('left', 'Frozen Fraction', color='red', size=30)
-        self.line1 = self.FFwidget.plot(*zip(*self.ff), name="FF", pen=pen)
 
         model = QtGui.QStandardItemModel()
         self.experiment_list_view.setModel(model)
@@ -103,35 +104,17 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             item.setEditable(False)
             model.appendRow(item)
 
-    def update_frame(self, frame):
-        self.frameNumber.setText(str(frame))
+    def save(self):
+        pass
+
+    def update_img(self):
+        frame = self.framesSlider.value()
         img = cv2.imread(str(self.img_files[frame]))
 
         img = self.auto_crop(img)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        img_blur = cv2.medianBlur(gray, 9)
 
-        dcirc = circles.get_circles(img_blur,
-                                    minDist=self.horizontalSlider_13.value(),
-                                    param1=self.horizontalSlider_14.value(),
-                                    param2=self.horizontalSlider_15.value(),
-                                    minRadius=self.horizontalSlider_16.value(),
-                                    maxRadius=self.horizontalSlider_17.value(),
-                                    sort=True, plot=False)
-
-        img = circles.add_circles(img, dcirc)
-
-        qt_img = convert_cv_qt(img)
-        self.image_frame.setPixmap(qt_img)
-
-    def update_img(self):
-        img = cv2.imread(str(self.img_files[self.framesSlider.value()]))
-
-        img = self.auto_crop(img)
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        img_blur = cv2.medianBlur(gray, 9)
-
-        dcirc = circles.get_circles(img_blur,
+        dcirc = circles.get_circles(gray,
                                     minDist=self.horizontalSlider_13.value(),
                                     param1=self.horizontalSlider_14.value(),
                                     param2=self.horizontalSlider_15.value(),
@@ -156,6 +139,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         freezing_times = calculate_freezing_times(self.img_files, freezing_idxs)
         t, ff = process_sensors_data(self.exp_name, freezing_idxs, freezing_times)
 
+        self.FFwidget.clear()
         self.FFwidget.plot(t, ff)
 
     def process_images(self, img_files, minDist, param1, param2, minRadius, maxRadius):
@@ -166,11 +150,10 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             img = cv2.imread(img_path)
             img = self.auto_crop(img)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            img_blur = cv2.medianBlur(gray, 9)
-            dcirc = circles.get_circles(img_blur, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
-            res.append(circles.get_grayscales(img_blur, dcirc))
+            dcirc = circles.get_circles(gray, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
+            res.append(circles.get_grayscales(gray, dcirc))
 
-            img = circles.add_circles(img_blur, dcirc)
+            img = circles.add_circles(gray, dcirc)
 
             qt_img = convert_cv_qt(img)
             self.image_frame.setPixmap(qt_img)
