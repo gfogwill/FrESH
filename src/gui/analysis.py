@@ -88,7 +88,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.horizontalSlider_17.valueChanged['int'].connect(self.update_img)
         self.framesSlider.valueChanged['int'].connect(self.update_frame)
 
-        # self.FFwidget.setAxisItems(axisItems={'bottom': TimeAxisItem(orientation='bottom')})
         pen = pg.mkPen(color='red', width=1)
         self.FFwidget.setLabel('left', 'Frozen Fraction', color='red', size=30)
         self.line1 = self.FFwidget.plot(*zip(*self.ff), name="FF", pen=pen)
@@ -107,7 +106,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def update_frame(self, frame):
         self.frameNumber.setText(str(frame))
         img = cv2.imread(str(self.img_files[frame]))
-        # img = self.crop_image(img)
+
         img = self.auto_crop(img)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         img_blur = cv2.medianBlur(gray, 9)
@@ -127,6 +126,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
     def update_img(self):
         img = cv2.imread(str(self.img_files[self.framesSlider.value()]))
+
         img = self.auto_crop(img)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         img_blur = cv2.medianBlur(gray, 9)
@@ -199,7 +199,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
     @staticmethod
     def auto_crop(img):
-        template_image = cv2.imread(paths.etc_path / 'template_image.png')
+        template_image = cv2.imread(str(paths.etc_path / 'template_image.png'))
 
         # Get the height and width of the template image
         template_height, template_width = template_image.shape[:2]
@@ -216,6 +216,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         # Draw a rectangle around the ROI
         # cv2.rectangle(img, top_left, bottom_right, (0, 0, 255), 2)
-        roi = img[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
+        cropper_img = img[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
 
-        return roi
+        return cropper_img
