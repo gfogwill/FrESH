@@ -75,6 +75,13 @@ class DataWorker(QThread):
 
         data = self.apply_corr_coeffs(data)
 
+        # if data['BT'] < -1:
+        #     print("Seting temp to 2")
+        #     self.daq.set_temperature(2)
+        # if data['BT'] > 1:
+        #     print("Seting temp to -2")
+        #     self.daq.set_temperature(-2)
+
         self.read_data_signal.emit(data)
 
     def apply_corr_coeffs(self, data):
