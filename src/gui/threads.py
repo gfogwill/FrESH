@@ -52,7 +52,7 @@ class DataWorker(QThread):
 
     def run(self):
         # Connect to ADAM-4015
-        ini = IniLoader.load('perezfo', '../../notebooks/test.ini')
+        ini = IniLoader.load('perezfo', paths.etc_path / 'test.ini')
         conn = ADAMConnection(ini['SERIAL'])
         self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
 
