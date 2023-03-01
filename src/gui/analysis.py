@@ -116,6 +116,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
     def update_img(self):
         frame = self.framesSlider.value()
+        self.frameNumber.setText(str(self.img_files[frame].stem))
         img = cv2.imread(str(self.img_files[frame]))
 
         img = self.auto_crop(img)

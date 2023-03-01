@@ -238,10 +238,10 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.line3.setData(*zip(*self.adam0))
         self.line4.setData(*zip(*self.adam1))
 
-        self.lcdBT.display(f"{self.bath_temp[-1][1]:.2}")
-        self.lcdSP.display(str(f"{self.setpoint[-1][1]:.2}"))
-        self.lcdRTD1.display(str(f"{self.adam0[-1][1]:.2}"))
-        self.lcdRTD2.display(str(f"{self.adam1[-1][1]:.2}"))
+        self.lcdBT.display(f"{self.bath_temp[-1][1]:.02f}")
+        self.lcdSP.display(str(f"{self.setpoint[-1][1]:.02f}"))
+        self.lcdRTD1.display(str(f"{self.adam0[-1][1]:.02f}"))
+        self.lcdRTD2.display(str(f"{self.adam1[-1][1]:.02f}"))
 
     def set_temp(self):
         t = float(self.temp_set.text())
