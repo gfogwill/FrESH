@@ -4,7 +4,7 @@ from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import QTimer, pyqtSlot, Qt
 from PyQt5.QtWidgets import *
 
-from experimentt4_gui import ExperimentUi
+from experiment_gui import ExperimentUi
 import sys
 
 
