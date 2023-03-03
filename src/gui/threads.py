@@ -44,7 +44,7 @@ class DataWorker(QThread):
 
     def read_temps(self):
         s0, s1 = self.adam.GetAllTemps()
-        bt, sp, t1, t2, t3, t4, t5 = self.daq.read_all_temp()
+        bt, sp, t1, t2, temp, rh, t5 = self.daq.read_all_temp()
 
         data = {'bt': bt,
                 'sp': sp,
@@ -52,8 +52,8 @@ class DataWorker(QThread):
                 's1': s1,
                 't1': t1,
                 't2': t2,
-                't3': t3,
-                't4': t4,
+                'temp': temp,
+                'rh': rh,
                 't5': t5}
 
         # if data['BT'] < -1:

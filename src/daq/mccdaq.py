@@ -114,16 +114,16 @@ class Daq:
 
         data = np.array(self.data_buffer[:]).reshape((500, 7)).transpose().mean(axis=1)
 
-        tc1 = (data[0] - 1.25) / 5e-3
-        tc2 = (data[1] - 1.25) / 5e-3
-        tc3 = (data[2] * 100) - 40  # (data[2] - 1.25) / 5e-3
-        tc4 = data[3] * 100  # (data[3] - 1.25) / 5e-3
-        tc5 = (data[6] - 1.25) / 5e-3
+        ch0 = data[0]
+        ch1 = data[1]
+        temp = (data[2] * 100) - 40  # (data[2] - 1.25) / 5e-3
+        rh = data[3] * 100  # (data[3] - 1.25) / 5e-3
+        ch6 = data[6]
 
-        bt = data[5] / 10e-3
         sp = data[4] / 10e-3
+        bt = data[5] / 10e-3
 
         self.ai.scan_wait(0, -1)
 
         # print(f"Temp:{tc3:.3f}\tRH:{tc4:.2f}")
-        return bt, sp, tc1, tc2, tc3, tc4, tc5
+        return bt, sp, ch0, ch1, temp, rh, ch6
