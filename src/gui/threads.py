@@ -48,7 +48,7 @@ class DataWorker(QThread):
         s0, s1 = self.adam.GetAllTemps()
         bt, sp, t1, t2, temp, rh, t5 = self.daq.read_all_temp()
 
-        data = {'BR': bt,
+        data = {'BT': bt,
                 'SP': sp,
                 'RTD0': s0,
                 'RTD1': s1,
