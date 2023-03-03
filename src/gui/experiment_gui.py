@@ -224,6 +224,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.setpoint.append((t, SP))
         self.adam0.append((t, RTD0))
         self.adam1.append((t, RTD1))
+        self.TEMP.append((t, TEMP))
+        self.RH.append((t, RH))
 
         if self.saveCheckBox.isChecked():
             with open(self.experiment_path / "sensors_data.csv", "a") as fo:
@@ -267,9 +269,11 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.line4.setData(*zip(*self.adam1))
 
         self.lcdBT.display(f"{self.bath_temp[-1][1]:.02f}")
-        self.lcdSP.display(str(f"{self.setpoint[-1][1]:.02f}"))
-        self.lcdRTD1.display(str(f"{self.adam0[-1][1]:.02f}"))
-        self.lcdRTD2.display(str(f"{self.adam1[-1][1]:.02f}"))
+        self.lcdSP.display(f"{self.setpoint[-1][1]:.02f}")
+        self.lcdRTD1.display(f"{self.adam0[-1][1]:.02f}")
+        self.lcdRTD2.display(f"{self.adam1[-1][1]:.02f}")
+        self.lcdTEMP.display(str(f"{self.temp[-1][1]:.02f}"))
+        self.lcdRH.display(str(f"{self.rh[-1][1]:.02f}"))
 
     def set_temp(self):
         t = float(self.temp_set.text())

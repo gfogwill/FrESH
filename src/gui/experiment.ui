@@ -59,8 +59,8 @@
    <widget class="QPushButton" name="exitButton">
     <property name="geometry">
      <rect>
-      <x>60</x>
-      <y>570</y>
+      <x>260</x>
+      <y>550</y>
       <width>89</width>
       <height>25</height>
      </rect>
@@ -72,8 +72,8 @@
    <widget class="QPushButton" name="clearPlotButton">
     <property name="geometry">
      <rect>
-      <x>200</x>
-      <y>570</y>
+      <x>260</x>
+      <y>470</y>
       <width>89</width>
       <height>25</height>
      </rect>
@@ -211,10 +211,10 @@
    <widget class="QFrame" name="frame">
     <property name="geometry">
      <rect>
-      <x>140</x>
-      <y>410</y>
+      <x>20</x>
+      <y>400</y>
       <width>221</width>
-      <height>131</height>
+      <height>201</height>
      </rect>
     </property>
     <property name="frameShape">
@@ -229,12 +229,19 @@
        <x>10</x>
        <y>10</y>
        <width>201</width>
-       <height>112</height>
+       <height>170</height>
       </rect>
      </property>
      <layout class="QFormLayout" name="formLayout">
       <item row="0" column="1">
        <widget class="QLCDNumber" name="lcdSP">
+        <property name="font">
+         <font>
+          <pointsize>11</pointsize>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
         <property name="smallDecimalPoint">
          <bool>true</bool>
         </property>
@@ -255,7 +262,11 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QLCDNumber" name="lcdRTD1"/>
+       <widget class="QLCDNumber" name="lcdRTD1">
+        <property name="smallDecimalPoint">
+         <bool>true</bool>
+        </property>
+       </widget>
       </item>
       <item row="3" column="0">
        <widget class="QLabel" name="label_5">
@@ -265,7 +276,11 @@
        </widget>
       </item>
       <item row="3" column="1">
-       <widget class="QLCDNumber" name="lcdRTD2"/>
+       <widget class="QLCDNumber" name="lcdRTD2">
+        <property name="smallDecimalPoint">
+         <bool>true</bool>
+        </property>
+       </widget>
       </item>
       <item row="1" column="0">
        <widget class="QLabel" name="label">
@@ -278,6 +293,34 @@
        <widget class="QLabel" name="label_3">
         <property name="text">
          <string>Set Point:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_10">
+        <property name="text">
+         <string>Temp:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QLCDNumber" name="lcdTEMP">
+        <property name="smallDecimalPoint">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="label_11">
+        <property name="text">
+         <string>RH</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QLCDNumber" name="lcdRH">
+        <property name="smallDecimalPoint">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
