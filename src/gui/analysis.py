@@ -174,6 +174,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.exp_name = self.experiment_list_view.currentIndex().data()
 
+        self.setWindowTitle(self.exp_name)
+
         img_dir = paths.raw_data_path / self.exp_name / 'pics'
 
         # get a list of all PNG files in the directory
