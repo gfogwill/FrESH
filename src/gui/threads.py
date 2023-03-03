@@ -1,4 +1,4 @@
-import logging
+from typing import Tuple, Any
 
 import cv2
 import numpy as np
@@ -6,30 +6,10 @@ from PyQt5.QtCore import QThread, pyqtSignal, QObject, QTimer, QEventLoop
 
 from PyQt5 import QtTest
 
-from src import paths
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq import mccdaq
 from src.daq.IniLoader import IniLoader
-
-import json
-
-
-def read_coefficients(filepath):
-    """
-    This function reads the coefficients from a JSON file and returns them as a dictionary.
-
-    Parameters:
-    filepath (str): The filepath to the JSON file containing the coefficients.
-
-    Returns:
-    dict: The coefficients stored in the JSON file.
-    """
-    try:
-        with open(filepath, 'r') as json_file:
-            co = json.load(json_file)
-            return co
-    except FileNotFoundError:
-        logging.error(f"File not found:\n{filepath}")
+# from src.gui.video import get_circles
 
 
 class DataWorker(QThread):
@@ -48,8 +28,6 @@ class DataWorker(QThread):
         self.dataCollectionTimer.moveToThread(self)
         self.dataCollectionTimer.timeout.connect(self.read_temps)
 
-        self.temp_corr_coeffs = read_coefficients(paths.data_path / 'thermometers_corr_coeffs_20230127.json')
-
     def run(self):
         # Connect to ADAM-4015
         ini = IniLoader.load('perezfo', paths.etc_path / 'test.ini')
@@ -65,15 +43,18 @@ class DataWorker(QThread):
         loop.exec_()
 
     def read_temps(self):
-        RTD0, RTD1 = self.adam.GetAllTemps()
-        BT, SP = self.daq.read_all_temp()
+        s0, s1 = self.adam.GetAllTemps()
+        bt, sp, t1, t2, temp, rh, t5 = self.daq.read_all_temp()
 
-        data = {'BT': BT,
-                'SP': SP,
-                'RTD0': RTD0,
-                'RTD1': RTD1}
-
-        data = self.apply_corr_coeffs(data)
+        data = {'bt': bt,
+                'sp': sp,
+                's0': s0,
+                's1': s1,
+                't1': t1,
+                't2': t2,
+                'temp': temp,
+                'rh': rh,
+                't5': t5}
 
         # if data['BT'] < -1:
         #     print("Seting temp to 2")
@@ -84,31 +65,62 @@ class DataWorker(QThread):
 
         self.read_data_signal.emit(data)
 
-    def apply_corr_coeffs(self, data):
-        for val in data:
-            data[val] = data[val] * self.temp_corr_coeffs[val][0] + self.temp_corr_coeffs[val][1]
 
-        return data
+class TempThread(QThread):
+    temp_signal = pyqtSignal(object)
+
+    def __init__(self):
+        super().__init__()
+        self.chilling = True
+        self.last_sp = 10
+        self.chill_temp_step = 0.1
+        self.heat_temp_step = 1
+        self.step_interval = 60  # in seconds
+
+        self.tempRampTimer = QTimer()
+        self.tempRampTimer.moveToThread(self)
+        self.tempRampTimer.timeout.connect(self.update_temp)
+
+    def run(self):
+        self.tempRampTimer.start(int(self.step_interval / 1e-3))
+        loop = QEventLoop()
+        loop.exec_()
+
+    def update_temp(self):
+
+        if self.chilling:
+            self.last_sp -= self.chill_temp_step
+            self.last_sp = round(self.last_sp, 2)
+            if self.last_sp == -35.0:
+                self.chilling = False
+        else:
+            self.last_sp += self.heat_temp_step
+            self.last_sp = round(self.last_sp, 2)
+            if self.last_sp == 10.0:
+                self.chilling = True
+
+        self.temp_signal.emit(self.last_sp)
 
 
 class VideoThread(QThread):
-    """
-    Subclass of QThread for capturing video from a webcam and emitting the frames as a numpy array.
-    """
 
+    """
+        Subclass of QThread for capturing video from a webcam and emitting the frames as a numpy array.
+        """
     change_pixmap_signal = pyqtSignal(np.ndarray)
+
     detect_circles = False
 
     def __init__(self, camera_ID):
-        """
-        Initialize the video thread.
 
-        Parameters
-        ----------
-        camera_ID : int
-            ID of the camera to capture video from.
         """
+            Initialize the video thread.
 
+            Parameters
+            ----------
+            camera_ID : int
+                ID of the camera to capture video from.
+            """
         super().__init__()
         self._run_flag = True
 
@@ -125,7 +137,7 @@ class VideoThread(QThread):
         while self._run_flag:
 
             ret, cv_img = self.cap.read()
-            cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
+            cv_img = cv2.rotate(cv_img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
             if ret:
                 self.change_pixmap_signal.emit(cv_img)

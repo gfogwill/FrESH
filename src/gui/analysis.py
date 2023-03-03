@@ -122,7 +122,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         img = self.auto_crop(img)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        dcirc = circles.get_circles(gray,
+        self.dcirc = circles.get_circles(gray,
                                     minDist=self.horizontalSlider_13.value(),
                                     param1=self.horizontalSlider_14.value(),
                                     param2=self.horizontalSlider_15.value(),
@@ -130,7 +130,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                                     maxRadius=self.horizontalSlider_17.value(),
                                     sort=True, plot=False)
 
-        img = circles.add_circles(img, dcirc)
+        img = circles.add_circles(img, self.dcirc)
 
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
@@ -158,10 +158,10 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             img = cv2.imread(img_path)
             img = self.auto_crop(img)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            dcirc = circles.get_circles(gray, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
-            res.append(circles.get_grayscales(gray, dcirc))
+            #dcirc = circles.get_circles(gray, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
+            res.append(circles.get_grayscales(gray, self.dcirc))
 
-            img = circles.add_circles(gray, dcirc)
+            img = circles.add_circles(gray, self.dcirc)
 
             qt_img = convert_cv_qt(img)
             self.image_frame.setPixmap(qt_img)

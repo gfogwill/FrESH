@@ -78,6 +78,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.btn_connect_lauda = self.findChild(QtWidgets.QPushButton, 'connectLAUDAButton')
         self.btn_connect_lauda.clicked.connect(self.connect_lauda)
 
+        self.btn_start_scan = self.findChild(QtWidgets.QPushButton, 'startScanButton')
+        self.btn_start_scan.clicked.connect(self.start_scan)
+
         self.btn_exit = self.findChild(QtWidgets.QPushButton, 'exitButton')
         self.btn_exit.clicked.connect(self.exit)
 
@@ -158,7 +161,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
                      f'SP,'
                      f'BT,'
                      f'RTD0,'
-                     f'RTD1\n')
+                     f'RTD1,'
+                     f'TEMP,'
+                     f'RH\n')
 
         logging.info(f'Sensors data file created: {self.experiment_path / "sensors_data.csv"}')
 
@@ -188,6 +193,20 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.data_worker.read_data_signal.connect(self.read_sensors_data)
         self.data_worker.start()
 
+        self.temp_worker = TempThread()
+        self.temp_worker.temp_signal.connect(self.set_temp2)
+
+    def start_scan(self):
+        self.temp_worker.start()
+
+    @pyqtSlot(object)
+    def set_temp2(self, t):
+        logging.info(f'Setting temperature to: {t}')
+        try:
+            self.data_worker.daq.set_temperature(t)
+        except AttributeError:
+            pass
+
     @pyqtSlot(object)
     def read_sensors_data(self, data):
         t = time.time()
@@ -195,6 +214,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         BT = data['BT']
         SP = data['SP']
         RTD0, RTD1 = data['RTD0'], data['RTD1']
+        TEMP, RH = data['TEMP'], data['RH']
 
         self.bath_temp.append((t, BT))
         self.setpoint.append((t, SP))
@@ -207,7 +227,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
                          f'{SP:.2f},'
                          f'{BT:.2f},'
                          f'{RTD0:.2f},'
-                         f'{RTD1:.2f}'
+                         f'{RTD1:.2f},'
+                         f'{TEMP:.2f},'
+                         f'{RH:.2f}'
                          '\n')
 
         self.update_temp_plot()
