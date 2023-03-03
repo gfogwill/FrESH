@@ -94,7 +94,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         # Create a custom logging handler
         self.log_text_edit = self.findChild(QtWidgets.QPlainTextEdit, 'logTextEdit')
-        self.log_handler = QPlainTextEditLogger(self.logTextEdit)
+        self.log_handler = QPlainTextEditLogger(self.log_text_edit)
         logging.getLogger().addHandler(self.log_handler)
 
         pen = pg.mkPen(color='red', width=1)
