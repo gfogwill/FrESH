@@ -195,9 +195,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
     def start_scan(self):
         max_temp = float(self.maxTemp.text())
-        min_temp = float(self.maxTemp.text())
-        cooling_rate = float(self.maxTemp.text())
-        heating_rate = float(self.maxTemp.text())
+        min_temp = float(self.minTemp.text())
+        cooling_rate = float(self.coolingRate.text())
+        heating_rate = float(self.heatingRate.text())
 
         self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate)
         self.temp_worker.temp_signal.connect(self.set_temp2)
