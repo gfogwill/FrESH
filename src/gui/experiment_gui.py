@@ -57,6 +57,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.setpoint = []
         self.adam0 = []
         self.adam1 = []
+        self.TEMP = []
+        self.RH = []
 
         self.line1 = None
         self.line2 = None
