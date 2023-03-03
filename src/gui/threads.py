@@ -9,6 +9,8 @@ from PyQt5 import QtTest
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq import mccdaq
 from src.daq.IniLoader import IniLoader
+from src import paths
+
 # from src.gui.video import get_circles
 
 
