@@ -74,7 +74,7 @@ class Daq:
         set_temperature(25)
         """
         v_aout = t_target * 10.0e-3
-
+        logging.info(f"Setting temperature to: {t_target}")
         logging.debug(f"Value to be set in AOUT0: {v_aout}")
         self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
@@ -83,7 +83,6 @@ class Daq:
         t_diff = t_setpoint - t_target
 
         while abs(t_diff) > 0.05:
-            print(abs(t_diff))
             v_aout = v_aout - (t_diff * 10.0e-3)
 
             logging.debug(f'Value to be set in AOUT0: {v_aout}')
