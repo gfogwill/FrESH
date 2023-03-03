@@ -193,10 +193,14 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.data_worker.read_data_signal.connect(self.read_sensors_data)
         self.data_worker.start()
 
-        self.temp_worker = TempThread()
-        self.temp_worker.temp_signal.connect(self.set_temp2)
-
     def start_scan(self):
+        max_temp = float(self.maxTemp.text())
+        min_temp = float(self.maxTemp.text())
+        cooling_rate = float(self.maxTemp.text())
+        heating_rate = float(self.maxTemp.text())
+
+        self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate)
+        self.temp_worker.temp_signal.connect(self.set_temp2)
         self.temp_worker.start()
 
     @pyqtSlot(object)
