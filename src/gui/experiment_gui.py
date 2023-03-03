@@ -274,8 +274,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.lcdSP.display(f"{self.setpoint[-1][1]:.02f}")
         self.lcdRTD1.display(f"{self.adam0[-1][1]:.02f}")
         self.lcdRTD2.display(f"{self.adam1[-1][1]:.02f}")
-        self.lcdTEMP.display(str(f"{self.temp[-1][1]:.02f}"))
-        self.lcdRH.display(str(f"{self.rh[-1][1]:.02f}"))
+        self.lcdTEMP.display(str(f"{self.TEMP[-1][1]:.02f}"))
+        self.lcdRH.display(str(f"{self.RH[-1][1]:.02f}"))
 
     def set_temp(self):
         t = float(self.temp_set.text())
