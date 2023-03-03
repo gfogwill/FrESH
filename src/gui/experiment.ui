@@ -214,7 +214,7 @@
       <x>20</x>
       <y>400</y>
       <width>221</width>
-      <height>201</height>
+      <height>231</height>
      </rect>
     </property>
     <property name="frameShape">
@@ -229,26 +229,32 @@
        <x>10</x>
        <y>10</y>
        <width>201</width>
-       <height>170</height>
+       <height>211</height>
       </rect>
      </property>
      <layout class="QFormLayout" name="formLayout">
-      <item row="0" column="1">
-       <widget class="QLCDNumber" name="lcdSP">
-        <property name="font">
-         <font>
-          <pointsize>11</pointsize>
-          <weight>75</weight>
-          <bold>true</bold>
-         </font>
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_3">
+        <property name="text">
+         <string>Set Point:</string>
         </property>
-        <property name="smallDecimalPoint">
-         <bool>true</bool>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Bath temp.:</string>
         </property>
        </widget>
       </item>
       <item row="1" column="1">
        <widget class="QLCDNumber" name="lcdBT">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="smallDecimalPoint">
          <bool>true</bool>
         </property>
@@ -263,6 +269,12 @@
       </item>
       <item row="2" column="1">
        <widget class="QLCDNumber" name="lcdRTD1">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="smallDecimalPoint">
          <bool>true</bool>
         </property>
@@ -277,22 +289,14 @@
       </item>
       <item row="3" column="1">
        <widget class="QLCDNumber" name="lcdRTD2">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="smallDecimalPoint">
          <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label">
-        <property name="text">
-         <string>Bath temp.:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_3">
-        <property name="text">
-         <string>Set Point:</string>
         </property>
        </widget>
       </item>
@@ -305,6 +309,12 @@
       </item>
       <item row="4" column="1">
        <widget class="QLCDNumber" name="lcdTEMP">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="smallDecimalPoint">
          <bool>true</bool>
         </property>
@@ -319,6 +329,40 @@
       </item>
       <item row="5" column="1">
        <widget class="QLCDNumber" name="lcdRH">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>22</pointsize>
+         </font>
+        </property>
+        <property name="smallDecimalPoint">
+         <bool>true</bool>
+        </property>
+        <property name="segmentStyle">
+         <enum>QLCDNumber::Filled</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLCDNumber" name="lcdSP">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>11</pointsize>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
         <property name="smallDecimalPoint">
          <bool>true</bool>
         </property>
