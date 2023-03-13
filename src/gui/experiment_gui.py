@@ -18,7 +18,7 @@ from PyQt5.QtCore import QTimer, pyqtSlot, Qt
 from PyQt5.QtWidgets import *
 
 from src import paths, __version__
-# from src.daq import mccdaq
+from src.daq import mccdaq
 from src.gui.video import VideoSettingsUi
 from src.gui.threads import VideoThread, DataWorker, TempThread
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
