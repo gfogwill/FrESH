@@ -22,7 +22,6 @@ class Daq:
             self.daq_device.connect()
             # add comment
 
-
             # Get AoDevice and AoInfo objects for the analog input subsystem
             self.ao = self.daq_device.get_ao_device()
             self.ao.info = self.ao.get_info()

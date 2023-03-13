@@ -60,7 +60,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.TEMP = []
         self.RH = []
 
-        self.line1 = None
+        self.new_line1 = None
         self.line2 = None
         self.line3 = None
         self.line4 = None
@@ -111,7 +111,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.graphWidget.setLabel('right', 'Setpoint temp [ºC]', color='green', size=30)
         self.graphWidget.setLabel('bottom', 'Time', size=30)
 
-        self.line1 = self.graphWidget.plot(*zip(*self.bath_temp), name="Bath temp.", pen=pen)
+        self.new_line1 = self.graphWidget.plot(*zip(*self.bath_temp), name="Bath temp.", pen=pen)
         self.line2 = self.graphWidget.plot(*zip(*self.setpoint), name="Setpoint temp.", pen=pen2)
         self.line3 = self.graphWidget.plot(*zip(*self.adam0), name="ADAM_0", pen=pen3)
         self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
@@ -265,7 +265,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         sys.exit()
 
     def update_temp_plot(self):
-        self.line1.setData(*zip(*self.bath_temp))
+        self.new_line1.setData(*zip(*self.bath_temp))
         self.line2.setData(*zip(*self.setpoint))
         self.line3.setData(*zip(*self.adam0))
         self.line4.setData(*zip(*self.adam1))
