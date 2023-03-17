@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1241</width>
-    <height>834</height>
+    <width>1069</width>
+    <height>514</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,10 +17,10 @@
    <widget class="QListView" name="experimentListView">
     <property name="geometry">
      <rect>
-      <x>30</x>
+      <x>10</x>
       <y>10</y>
       <width>271</width>
-      <height>241</height>
+      <height>91</height>
      </rect>
     </property>
    </widget>
@@ -28,12 +28,64 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>300</y>
+      <y>152</y>
       <width>371</width>
-      <height>211</height>
+      <height>113</height>
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout">
+     <item row="3" column="0">
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>Min. radius</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="label_2">
+       <property name="text">
+        <string>Param. 1</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="2">
+      <widget class="QSpinBox" name="spinBox_17">
+       <property name="value">
+        <number>20</number>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="2">
+      <widget class="QSpinBox" name="spinBox_14">
+       <property name="maximum">
+        <number>200</number>
+       </property>
+       <property name="value">
+        <number>150</number>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0">
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Min. dist.</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="2">
+      <widget class="QSpinBox" name="spinBox_15">
+       <property name="value">
+        <number>15</number>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="2">
+      <widget class="QSpinBox" name="spinBox_16">
+       <property name="value">
+        <number>19</number>
+       </property>
+      </widget>
+     </item>
      <item row="3" column="1">
       <widget class="QSlider" name="horizontalSlider_16">
        <property name="value">
@@ -57,20 +109,27 @@
        </property>
       </widget>
      </item>
-     <item row="2" column="1">
-      <widget class="QSlider" name="horizontalSlider_15">
+     <item row="4" column="1">
+      <widget class="QSlider" name="horizontalSlider_17">
        <property name="value">
-        <number>15</number>
+        <number>21</number>
        </property>
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
       </widget>
      </item>
-     <item row="3" column="2">
-      <widget class="QSpinBox" name="spinBox_16">
-       <property name="value">
-        <number>19</number>
+     <item row="2" column="0">
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Param. 2</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="label_5">
+       <property name="text">
+        <string>Max. radius</string>
        </property>
       </widget>
      </item>
@@ -91,72 +150,13 @@
        </property>
       </widget>
      </item>
-     <item row="4" column="0">
-      <widget class="QLabel" name="label_5">
-       <property name="text">
-        <string>Max. radius</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="1">
-      <widget class="QSlider" name="horizontalSlider_17">
-       <property name="value">
-        <number>21</number>
-       </property>
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="2">
-      <widget class="QSpinBox" name="spinBox_14">
-       <property name="maximum">
-        <number>200</number>
-       </property>
-       <property name="value">
-        <number>150</number>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="2">
-      <widget class="QSpinBox" name="spinBox_15">
+     <item row="2" column="1">
+      <widget class="QSlider" name="horizontalSlider_15">
        <property name="value">
         <number>15</number>
        </property>
-      </widget>
-     </item>
-     <item row="0" column="0">
-      <widget class="QLabel" name="label">
-       <property name="text">
-        <string>Min. dist.</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="0">
-      <widget class="QLabel" name="label_3">
-       <property name="text">
-        <string>Param. 2</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="0">
-      <widget class="QLabel" name="label_4">
-       <property name="text">
-        <string>Min. radius</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="2">
-      <widget class="QSpinBox" name="spinBox_17">
-       <property name="value">
-        <number>20</number>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="label_2">
-       <property name="text">
-        <string>Param. 1</string>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
        </property>
       </widget>
      </item>
@@ -165,8 +165,8 @@
    <widget class="QPushButton" name="loadExperimentButton">
     <property name="geometry">
      <rect>
-      <x>30</x>
-      <y>260</y>
+      <x>10</x>
+      <y>110</y>
       <width>271</width>
       <height>31</height>
      </rect>
@@ -178,10 +178,10 @@
    <widget class="QLabel" name="img_label">
     <property name="geometry">
      <rect>
-      <x>530</x>
-      <y>20</y>
-      <width>640</width>
-      <height>480</height>
+      <x>400</x>
+      <y>10</y>
+      <width>591</width>
+      <height>361</height>
      </rect>
     </property>
     <property name="text">
@@ -191,10 +191,10 @@
    <widget class="QFrame" name="frame">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>520</y>
-      <width>511</width>
-      <height>271</height>
+      <x>20</x>
+      <y>310</y>
+      <width>321</width>
+      <height>171</height>
      </rect>
     </property>
     <property name="frameShape">
@@ -203,22 +203,12 @@
     <property name="frameShadow">
      <enum>QFrame::Raised</enum>
     </property>
-    <widget class="PlotWidget" name="FFwidget" native="true">
-     <property name="geometry">
-      <rect>
-       <x>40</x>
-       <y>10</y>
-       <width>441</width>
-       <height>241</height>
-      </rect>
-     </property>
-    </widget>
    </widget>
    <widget class="QPushButton" name="runButton">
     <property name="geometry">
      <rect>
-      <x>730</x>
-      <y>560</y>
+      <x>480</x>
+      <y>450</y>
       <width>89</width>
       <height>25</height>
      </rect>
@@ -230,10 +220,10 @@
    <widget class="QSlider" name="framesSlider">
     <property name="geometry">
      <rect>
-      <x>430</x>
-      <y>500</y>
-      <width>801</width>
-      <height>16</height>
+      <x>390</x>
+      <y>380</y>
+      <width>541</width>
+      <height>20</height>
      </rect>
     </property>
     <property name="pageStep">
@@ -246,8 +236,8 @@
    <widget class="QLabel" name="frameNumber">
     <property name="geometry">
      <rect>
-      <x>740</x>
-      <y>620</y>
+      <x>390</x>
+      <y>400</y>
       <width>241</width>
       <height>17</height>
      </rect>
@@ -259,14 +249,79 @@
    <widget class="QPushButton" name="saveButton">
     <property name="geometry">
      <rect>
-      <x>900</x>
-      <y>560</y>
+      <x>630</x>
+      <y>450</y>
       <width>89</width>
       <height>25</height>
      </rect>
     </property>
     <property name="text">
      <string>Save</string>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="delete_spinbox">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>270</y>
+      <width>42</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="minimum">
+     <number>1</number>
+    </property>
+    <property name="maximum">
+     <number>96</number>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="deleteButton">
+    <property name="geometry">
+     <rect>
+      <x>60</x>
+      <y>270</y>
+      <width>101</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Delete Droplet</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="deleted_label">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>290</y>
+      <width>391</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="temp_label">
+    <property name="geometry">
+     <rect>
+      <x>700</x>
+      <y>400</y>
+      <width>151</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="PlotWidget" name="FFwidget" native="true">
+    <property name="geometry">
+     <rect>
+      <x>30</x>
+      <y>320</y>
+      <width>301</width>
+      <height>151</height>
+     </rect>
     </property>
    </widget>
   </widget>
