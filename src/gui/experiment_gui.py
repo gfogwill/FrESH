@@ -123,7 +123,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.VideoSettingsUi.show()
 
     def save_pic(self):
-        fo = self.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.png", time.localtime())
+        fo = self.experiment.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.png", time.localtime())
         ret, cv_img = self.video_thread.cap.read()
         cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
         cv2.imwrite(str(fo), cv_img)
@@ -152,13 +152,13 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         logging.basicConfig(level=logging.INFO,
                             format=log_fmt,
-                            filename=self.experiment_path / f'EX{date_str}.log',
+                            filename=self.experiment.experiment_path / f'{self.experiment.metadata.label}.log',
                             filemode='w')
 
         logging.info(f"Software version: {__version__}")
-        logging.info(f"Experiment directory created: {self.experiment_path}")
+        logging.info(f"Experiment directory created: {self.experiment.experiment_path}")
 
-        with open(self.experiment_path / "sensors_data.csv", "a") as fo:
+        with open(self.experiment.experiment_path / "sensors_data.csv", "a") as fo:
             fo.write(f'datetime,'
                      f'SP,'
                      f'BT,'
@@ -167,9 +167,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
                      f'TEMP,'
                      f'RH\n')
 
-        logging.info(f'Sensors data file created: {self.experiment_path / "sensors_data.csv"}')
+        logging.info(f'Sensors data file created: {self.experiment.experiment_path / "sensors_data.csv"}')
 
-        logging.info(f'Experiment metadata:\n\n{json.dumps(self.experiment, indent=4)}\n\n')
+        # logging.info(f'Experiment metadata:\n\n{json.dumps(self.experiment, indent=4)}\n\n')
 
         self.timer2 = QTimer()
         self.timer2.setInterval(self.pictureIntervalSpinBox.value() * 1000)
