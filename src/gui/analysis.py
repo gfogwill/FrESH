@@ -111,7 +111,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.label_deleted = self.findChild(QtWidgets.QLabel, 'deleted_label')
 
-
         self.image_frame = self.findChild(QtWidgets.QLabel, 'img_label')
 
         self.label_temp = self.findChild(QtWidgets.QLabel, 'temp_label')

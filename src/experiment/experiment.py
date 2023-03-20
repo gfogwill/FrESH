@@ -117,7 +117,7 @@ class FrESHExperiment:
         # saves metadata to a JSON file
         metadata_path = os.path.join(self.experiment_path, f"{self.metadata.label}_metadata.json")
         with open(metadata_path, "w") as metadata_file:
-            json.dump(self.metadata.__dict__, metadata_file)
+            json.dump(self.metadata.__dict__, metadata_file, indent=4)
 
     def load_metadata(self):
         # loads metadata from a JSON file
@@ -142,7 +142,7 @@ class FrESHExperiment:
         if export_format == "json":
             export_path = os.path.join(self.experiment_path, f"{self.metadata.label}_metadata.json")
             with open(export_path, "w") as export_file:
-                json.dump(self.metadata.__dict__, export_file)
+                json.dump(self.metadata.__dict__, export_file, indent=4)
         elif export_format == "yaml":
             export_path = os.path.join(self.experiment_path, f"{self.metadata.label}_metadata.yaml")
             with open(export_path, "w") as export_file:

@@ -230,7 +230,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.RH.append((t, RH))
 
         if self.saveCheckBox.isChecked():
-            with open(self.experiment_path / "sensors_data.csv", "a") as fo:
+            with open(self.experiment.experiment_path / "sensors_data.csv", "a") as fo:
                 fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
                          f'{SP:.2f},'
                          f'{BT:.2f},'
