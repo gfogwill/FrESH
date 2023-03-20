@@ -1,7 +1,6 @@
 import os
 import json
 import yaml
-import time
 import logging
 
 from src import paths
@@ -43,22 +42,10 @@ class ExperimentMetadata:
         The run number for the experiment.
     """
 
-    def __init__(self,
-                 sampling_time=None,
-                 sampling_interval=10,
-                 storage_temperature=-20,
-                 experiment_type=None,
-                 station=None,
-                 label=None,
-                 sampler_ID=None,
-                 air_volume=None,
-                 start_time=None,
-                 end_time=None,
-                 temp=None,
-                 press=None,
-                 exp_description=None,
-                 run=None
-                 ):
+    def __init__(self, sampling_time=None, sampling_interval=10, storage_temperature=-20, experiment_type=None,
+                 station=None, label=None, sampler_ID=None, air_volume=None, start_time=None, end_time=None, temp=None,
+                 press=None, exp_description=None, run=None, v_drop=None, v_wash=None,
+                 dil_factor=None):
         self.station = station
         self.sampling_time = sampling_time
         self.sampling_interval = sampling_interval
@@ -73,6 +60,9 @@ class ExperimentMetadata:
         self.press = press
         self.exp_description = exp_description
         self.run = run
+        self.v_drop = v_drop
+        self.v_wash = v_wash
+        self.dil_factor = dil_factor
 
     def check_required_fields(self):
         """
@@ -90,19 +80,16 @@ class ExperimentMetadata:
 
 
 class FrESHExperiment:
-    def __init__(self, experiment_metadata):
-        self.metadata = experiment_metadata
+    def __init__(self, experiment_name):
+        self.experiment_name = experiment_name
 
-        date_str = time.strftime('%Y%m%d%H%M', time.localtime())
-        self.experiment_path = paths.raw_data_path / f"{date_str}_{self.metadata.label}"
+        self.experiment_path = paths.raw_data_path / experiment_name
 
         # create experiment directory if it doesn't exist
         if not os.path.exists(self.experiment_path):
             logging.info(f"Creating new experiment: {self.experiment_path}")
             os.mkdir(self.experiment_path)
             os.mkdir(self.experiment_path / 'pics')
-
-            self.set_metadata(experiment_metadata)
 
         else:
             self.load_metadata()
@@ -115,13 +102,13 @@ class FrESHExperiment:
 
     def _save_metadata(self):
         # saves metadata to a JSON file
-        metadata_path = os.path.join(self.experiment_path, f"{self.metadata.label}_metadata.json")
+        metadata_path = os.path.join(self.experiment_path, f"metadata.json")
         with open(metadata_path, "w") as metadata_file:
             json.dump(self.metadata.__dict__, metadata_file, indent=4)
 
     def load_metadata(self):
         # loads metadata from a JSON file
-        metadata_path = os.path.join(self.experiment_path, f"{self.metadata.label}_metadata.json")
+        metadata_path = os.path.join(self.experiment_path, f"metadata.json")
         if os.path.exists(metadata_path):
             with open(metadata_path, "r") as metadata_file:
                 metadata_dict = json.load(metadata_file)
@@ -140,11 +127,11 @@ class FrESHExperiment:
     def export_metadata(self, export_format="json"):
         # exports metadata to a file in the specified format (JSON or YAML)
         if export_format == "json":
-            export_path = os.path.join(self.experiment_path, f"{self.metadata.label}_metadata.json")
+            export_path = os.path.join(self.experiment_path, f"metadata.json")
             with open(export_path, "w") as export_file:
                 json.dump(self.metadata.__dict__, export_file, indent=4)
         elif export_format == "yaml":
-            export_path = os.path.join(self.experiment_path, f"{self.metadata.label}_metadata.yaml")
+            export_path = os.path.join(self.experiment_path, f"metadata.yaml")
             with open(export_path, "w") as export_file:
                 yaml.dump(self.metadata.__dict__, export_file, default_flow_style=False)
         else:

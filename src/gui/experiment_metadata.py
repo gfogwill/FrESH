@@ -6,8 +6,10 @@ from PyQt5.QtWidgets import *
 
 from experiment_gui import ExperimentUi
 import sys
+import time
 
 from src.experiment.experiment import FrESHExperiment, ExperimentMetadata
+from src import paths
 
 
 class ExperimentMetadataUi(QtWidgets.QMainWindow):
@@ -45,17 +47,24 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
                                           station=stations_dict[self.comboBoxStation.currentText()],
                                           label=self.textLabel.toPlainText(),
                                           sampler_ID=self.textSamplerID.toPlainText(),
-                                          air_volume=self.textAirVolume.toPlainText(),
+                                          air_volume=float(self.textAirVolume.toPlainText()),
                                           start_time=self.textStartTime.toPlainText(),
                                           end_time=self.textEndTime.toPlainText(),
                                           temp=self.textTemp.toPlainText(),
                                           press=self.textPress.toPlainText(),
                                           exp_description=self.textDescription.toPlainText(),
-                                          run=0)
+                                          run=0,
+                                          v_drop=50e-6,
+                                          v_wash=float(self.textVolWash.toPlainText()),
+                                          dil_factor=float(self.textDilFactor.toPlainText()))
 
         exp_metadata.check_required_fields()
 
-        self.experiment = FrESHExperiment(exp_metadata)
+        date_str = time.strftime('%Y%m%d%H%M', time.localtime())
+        exp_name = paths.raw_data_path / f"{date_str}_{exp_metadata.label}"
+
+        self.experiment = FrESHExperiment(exp_name)
+        self.experiment.set_metadata(exp_metadata)
 
     def start_experiment(self):
         self.read_metadata()

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>414</width>
-    <height>707</height>
+    <width>418</width>
+    <height>767</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,7 @@
       <x>10</x>
       <y>120</y>
       <width>391</width>
-      <height>361</height>
+      <height>411</height>
      </rect>
     </property>
     <property name="title">
@@ -35,7 +35,7 @@
        <x>10</x>
        <y>30</y>
        <width>371</width>
-       <height>311</height>
+       <height>381</height>
       </rect>
      </property>
      <layout class="QFormLayout" name="formLayout_2">
@@ -267,14 +267,54 @@
         </property>
        </widget>
       </item>
+      <item row="9" column="0">
+       <widget class="QLabel" name="label_8">
+        <property name="text">
+         <string>Wash vol.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="1">
+       <widget class="QTextEdit" name="textVolWash">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>1</horstretch>
+          <verstretch>1</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>32</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="0">
+       <widget class="QLabel" name="label_9">
+        <property name="text">
+         <string>Dil. Factor</string>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="1">
+       <widget class="QTextEdit" name="textDilFactor">
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>32</height>
+         </size>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </widget>
    <widget class="QDialogButtonBox" name="ConfirmbuttonBox">
     <property name="geometry">
      <rect>
-      <x>110</x>
-      <y>650</y>
+      <x>120</x>
+      <y>710</y>
       <width>166</width>
       <height>25</height>
      </rect>
@@ -337,8 +377,8 @@
    <widget class="QGroupBox" name="groupBox_2">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>490</y>
+      <x>20</x>
+      <y>550</y>
       <width>391</width>
       <height>151</height>
      </rect>
