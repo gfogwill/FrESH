@@ -47,12 +47,12 @@ def convert_cv_qt(cv_img):
 
 
 class ExperimentUi(QtWidgets.QMainWindow):
-    def __init__(self, exp_metadata, *args, **kwargs):
+    def __init__(self, experiment, *args, **kwargs):
         super(ExperimentUi, self).__init__(*args, **kwargs)
 
         uic.loadUi('experiment.ui', self)
 
-        self.exp_metadata = exp_metadata
+        self.experiment = experiment
         self.bath_temp = []
         self.setpoint = []
         self.adam0 = []
@@ -139,16 +139,16 @@ class ExperimentUi(QtWidgets.QMainWindow):
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
 
-        date_str = time.strftime('%Y%m%d%H%M', time.localtime())
-        self.experiment_path = paths.raw_data_path / f"{date_str}_{self.exp_metadata['label']}"
+        # date_str = time.strftime('%Y%m%d%H%M', time.localtime())
+        # self.experiment_path = paths.raw_data_path / f"{date_str}_{self.exp_metadata['label']}"
 
-        self.setWindowTitle(f"{date_str}_{self.exp_metadata['label']}")
+        self.setWindowTitle(f"{self.experiment.metadata.label}")
 
-        try:
-            os.mkdir(self.experiment_path)
-            os.mkdir(self.experiment_path / 'pics')
-        except FileExistsError:
-            logging.error(f"Experiment already exist: {self.experiment_path}")
+        # try:
+        #     os.mkdir(self.experiment_path)
+        #     os.mkdir(self.experiment_path / 'pics')
+        # except FileExistsError:
+        #     logging.error(f"Experiment already exist: {self.experiment_path}")
 
         logging.basicConfig(level=logging.INFO,
                             format=log_fmt,
@@ -169,7 +169,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         logging.info(f'Sensors data file created: {self.experiment_path / "sensors_data.csv"}')
 
-        logging.info(f'Experiment metadata:\n\n{json.dumps(self.exp_metadata, indent=4)}\n\n')
+        logging.info(f'Experiment metadata:\n\n{json.dumps(self.experiment, indent=4)}\n\n')
 
         self.timer2 = QTimer()
         self.timer2.setInterval(self.pictureIntervalSpinBox.value() * 1000)
