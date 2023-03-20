@@ -33,6 +33,7 @@ def calculate_freezing_idxs(grayscales_evolution):
         freezing_idxs.append(np.argmax(grayscales_diffs) + 1)
     return freezing_idxs
 
+
 def calculate_frame_temperatures(img_files,exp_name):
     #function to calculate temperatures which correspond to displayed images
 
@@ -51,12 +52,14 @@ def calculate_frame_temperatures(img_files,exp_name):
             t.append(line[2])
     return t
 
+
 def calculate_freezing_times(img_files, freezing_idxs):
     # function to calculate the freezing times
     freezing_times = []
     for i, idx in enumerate(freezing_idxs):
         freezing_times.append(datetime.strptime(img_files[freezing_idxs[i]].stem, "%Y%m%d%H%M%S"))
     return np.array(freezing_times)
+
 
 def process_sensors_data(exp_name, freezing_idxs, freezing_times):
     # function to process the sensors data and return the t and ff arrays
@@ -230,7 +233,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.image_frame.setPixmap(qt_img)
 
         self.framesSlider.setMaximum(self.img_files.__len__() - 1)
-        self.frame_t = calculate_frame_temperatures(self.img_files,self.exp_name)
+        self.frame_t = calculate_frame_temperatures(self.img_files, self.exp_name)
 
     @staticmethod
     def auto_crop(img):
