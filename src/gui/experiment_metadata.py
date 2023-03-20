@@ -41,7 +41,7 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
         #                          exp_description=self.textDescription.toPlainText(),
         #                          run=0)
 
-        exp_metadata = ExperimentMetadata(type=self.comboBoxSampleType.currentText(),
+        exp_metadata = ExperimentMetadata(experiment_type=self.comboBoxSampleType.currentText(),
                                           station=stations_dict[self.comboBoxStation.currentText()],
                                           label=self.textLabel.toPlainText(),
                                           sampler_ID=self.textSamplerID.toPlainText(),
@@ -52,6 +52,8 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
                                           press=self.textPress.toPlainText(),
                                           exp_description=self.textDescription.toPlainText(),
                                           run=0)
+
+        exp_metadata.check_required_fields()
 
         self.experiment = FrESHExperiment(exp_metadata)
 
