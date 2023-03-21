@@ -8,6 +8,7 @@ import cv2
 from src import paths
 from src.analysis import circles
 from src.gui.experiment_gui import convert_cv_qt
+from src.experiment.experiment import FrESHExperiment
 
 import os
 import pathlib
@@ -32,6 +33,25 @@ def calculate_freezing_idxs(grayscales_evolution):
         grayscales_diffs = [s - t for s, t in zip(grayscales_evolution[:, i], grayscales_evolution[1:, i])]
         freezing_idxs.append(np.argmax(grayscales_diffs) + 1)
     return freezing_idxs
+
+
+def calculate_frame_temperatures(img_files, exp_name):
+    # function to calculate temperatures which correspond to displayed images
+
+    # image times
+    times = [datetime.strptime(img_files[i].stem, "%Y%m%d%H%M%S") for i in range(len(img_files))]
+    # corresponding temperatures
+    str2date = lambda x: datetime.strptime(x.decode("utf-8"), '%Y-%m-%d %H:%M:%S')
+    data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
+                         delimiter=',',
+                         dtype=None,
+                         names=True,
+                         converters={0: str2date})
+    t = []
+    for line in data:
+        if line['datetime'] in times:
+            t.append(line[2])
+    return t
 
 
 def calculate_freezing_times(img_files, freezing_idxs):
@@ -65,10 +85,13 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
         super(ExperimentAnalysisUi, self).__init__(*args, **kwargs)
 
+        self.conc = None
         self.exp_name = None
         self.img_files = None
+        self.del_indx = []
         self.t = []
         self.ff = []
+        self.frame_t = []
 
         uic.loadUi('analysis.ui', self)
 
@@ -83,7 +106,16 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.button_save = self.findChild(QtWidgets.QPushButton, 'saveButton')
         self.button_save.clicked.connect(self.save)
 
+        self.spinbox_delete = self.findChild(QtWidgets.QSpinBox, 'delete_spinbox')
+
+        self.button_delete = self.findChild(QtWidgets.QPushButton, 'deleteButton')
+        self.button_delete.clicked.connect(self.delete_indx)
+
+        self.label_deleted = self.findChild(QtWidgets.QLabel, 'deleted_label')
+
         self.image_frame = self.findChild(QtWidgets.QLabel, 'img_label')
+
+        self.label_temp = self.findChild(QtWidgets.QLabel, 'temp_label')
 
         self.horizontalSlider_13.valueChanged['int'].connect(self.update_img)
         self.horizontalSlider_14.valueChanged['int'].connect(self.update_img)
@@ -105,30 +137,39 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             item.setEditable(False)
             model.appendRow(item)
 
+    def delete_indx(self):
+        value = self.spinbox_delete.value()
+        if value in self.del_indx:
+            self.del_indx.remove(value)
+        else:
+            self.del_indx.append(value)
+        self.label_deleted.setText("Delete droplets : " + str(self.del_indx))
+
     def save(self):
         p = pathlib.Path(paths.processed_data_path / self.exp_name)
         p.mkdir(parents=True, exist_ok=True)
 
-        with open(paths.processed_data_path / self.exp_name / 'frozen_fraction_report.csv', 'w') as fo:
-            fo.write(f'index, temp, ff\n')
+        with open(paths.processed_data_path / self.exp_name / 'report.csv', 'w') as fo:
+            fo.write(f'index, temp, ff, concentration\n')
             for i in range(len(self.t)):
-                fo.write(f'{i}, {self.t[i]}, {self.ff[i]}\n')
+                fo.write(f'{i}, {self.t[i]}, {self.ff[i]}, {self.conc[i]}\n')
 
     def update_img(self):
         frame = self.framesSlider.value()
-        self.frameNumber.setText(str(self.img_files[frame].stem))
+        self.frameNumber.setText('Frame: ' + str(self.img_files[frame].stem))
+        self.label_temp.setText('Temperature: ' + str(self.frame_t[frame]))
         img = cv2.imread(str(self.img_files[frame]))
 
         img = self.auto_crop(img)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         self.dcirc = circles.get_circles(gray,
-                                    minDist=self.horizontalSlider_13.value(),
-                                    param1=self.horizontalSlider_14.value(),
-                                    param2=self.horizontalSlider_15.value(),
-                                    minRadius=self.horizontalSlider_16.value(),
-                                    maxRadius=self.horizontalSlider_17.value(),
-                                    sort=True, plot=False)
+                                         minDist=self.horizontalSlider_13.value(),
+                                         param1=self.horizontalSlider_14.value(),
+                                         param2=self.horizontalSlider_15.value(),
+                                         minRadius=self.horizontalSlider_16.value(),
+                                         maxRadius=self.horizontalSlider_17.value(),
+                                         sort=True, plot=False)
 
         img = circles.add_circles(img, self.dcirc)
 
@@ -144,11 +185,20 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         grayscales_evolution = self.process_images(self.img_files, minDist, param1, param2, minRadius, maxRadius)
         freezing_idxs = calculate_freezing_idxs(grayscales_evolution)
+        self.del_indx = [i - 1 for i in self.del_indx]
+        freezing_idxs = np.delete(freezing_idxs, self.del_indx)
         freezing_times = calculate_freezing_times(self.img_files, freezing_idxs)
         self.t, self.ff = process_sensors_data(self.exp_name, freezing_idxs, freezing_times)
 
         self.FFwidget.clear()
         self.FFwidget.plot(self.t, self.ff)
+
+        nu = self.experiment.metadata.dil_factor
+        v_wash = self.experiment.metadata.v_wash
+        v_drop = self.experiment.metadata.v_drop
+        v_air = self.experiment.metadata.air_volume
+
+        self.conc = - nu * v_wash / v_drop / v_air * np.log(1 - np.array(self.ff))
 
     def process_images(self, img_files, minDist, param1, param2, minRadius, maxRadius):
         # function to process the images and return the grayscales
@@ -158,7 +208,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             img = cv2.imread(img_path)
             img = self.auto_crop(img)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            #dcirc = circles.get_circles(gray, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
+            # dcirc = circles.get_circles(gray, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
             res.append(circles.get_grayscales(gray, self.dcirc))
 
             img = circles.add_circles(gray, self.dcirc)
@@ -171,16 +221,18 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def load_experiment(self):
         self.t = []
         self.ff = []
+        self.del_indx = []
 
         self.exp_name = self.experiment_list_view.currentIndex().data()
 
         self.setWindowTitle(self.exp_name)
 
+        self.experiment = FrESHExperiment(self.exp_name)
+
         img_dir = paths.raw_data_path / self.exp_name / 'pics'
 
         # get a list of all PNG files in the directory
         self.img_files = [f for f in img_dir.iterdir() if f.is_file() and f.suffix == ".png"]
-
         # sort the list of images
         self.img_files.sort()
 
@@ -192,6 +244,10 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.image_frame.setPixmap(qt_img)
 
         self.framesSlider.setMaximum(self.img_files.__len__() - 1)
+        self.frame_t = calculate_frame_temperatures(self.img_files, self.exp_name)
+
+        self.update_img()
+        self.run_analysis()
 
     @staticmethod
     def auto_crop(img):

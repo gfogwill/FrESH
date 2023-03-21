@@ -47,12 +47,12 @@ def convert_cv_qt(cv_img):
 
 
 class ExperimentUi(QtWidgets.QMainWindow):
-    def __init__(self, exp_metadata, *args, **kwargs):
+    def __init__(self, experiment, *args, **kwargs):
         super(ExperimentUi, self).__init__(*args, **kwargs)
 
         uic.loadUi('experiment.ui', self)
 
-        self.exp_metadata = exp_metadata
+        self.experiment = experiment
         self.bath_temp = []
         self.setpoint = []
         self.adam0 = []
@@ -60,7 +60,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.TEMP = []
         self.RH = []
 
-        self.line1 = None
+        self.new_line1 = None
         self.line2 = None
         self.line3 = None
         self.line4 = None
@@ -111,7 +111,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.graphWidget.setLabel('right', 'Setpoint temp [ºC]', color='green', size=30)
         self.graphWidget.setLabel('bottom', 'Time', size=30)
 
-        self.line1 = self.graphWidget.plot(*zip(*self.bath_temp), name="Bath temp.", pen=pen)
+        self.new_line1 = self.graphWidget.plot(*zip(*self.bath_temp), name="Bath temp.", pen=pen)
         self.line2 = self.graphWidget.plot(*zip(*self.setpoint), name="Setpoint temp.", pen=pen2)
         self.line3 = self.graphWidget.plot(*zip(*self.adam0), name="ADAM_0", pen=pen3)
         self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
@@ -123,7 +123,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.VideoSettingsUi.show()
 
     def save_pic(self):
-        fo = self.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.png", time.localtime())
+        fo = self.experiment.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.png", time.localtime())
         ret, cv_img = self.video_thread.cap.read()
         cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
         cv2.imwrite(str(fo), cv_img)
@@ -139,26 +139,26 @@ class ExperimentUi(QtWidgets.QMainWindow):
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
 
-        date_str = time.strftime('%Y%m%d%H%M', time.localtime())
-        self.experiment_path = paths.raw_data_path / f"{date_str}_{self.exp_metadata['label']}"
+        # date_str = time.strftime('%Y%m%d%H%M', time.localtime())
+        # self.experiment_path = paths.raw_data_path / f"{date_str}_{self.exp_metadata['label']}"
 
-        self.setWindowTitle(f"{date_str}_{self.exp_metadata['label']}")
+        self.setWindowTitle(f"{self.experiment.metadata.label}")
 
-        try:
-            os.mkdir(self.experiment_path)
-            os.mkdir(self.experiment_path / 'pics')
-        except FileExistsError:
-            logging.error(f"Experiment already exist: {self.experiment_path}")
+        # try:
+        #     os.mkdir(self.experiment_path)
+        #     os.mkdir(self.experiment_path / 'pics')
+        # except FileExistsError:
+        #     logging.error(f"Experiment already exist: {self.experiment_path}")
 
         logging.basicConfig(level=logging.INFO,
                             format=log_fmt,
-                            filename=self.experiment_path / f'EX{date_str}.log',
+                            filename=self.experiment.experiment_path / f'{self.experiment.metadata.label}.log',
                             filemode='w')
 
         logging.info(f"Software version: {__version__}")
-        logging.info(f"Experiment directory created: {self.experiment_path}")
+        logging.info(f"Experiment directory created: {self.experiment.experiment_path}")
 
-        with open(self.experiment_path / "sensors_data.csv", "a") as fo:
+        with open(self.experiment.experiment_path / "sensors_data.csv", "a") as fo:
             fo.write(f'datetime,'
                      f'SP,'
                      f'BT,'
@@ -167,9 +167,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
                      f'TEMP,'
                      f'RH\n')
 
-        logging.info(f'Sensors data file created: {self.experiment_path / "sensors_data.csv"}')
+        logging.info(f'Sensors data file created: {self.experiment.experiment_path / "sensors_data.csv"}')
 
-        logging.info(f'Experiment metadata:\n\n{json.dumps(self.exp_metadata, indent=4)}\n\n')
+        # logging.info(f'Experiment metadata:\n\n{json.dumps(self.experiment, indent=4)}\n\n')
 
         self.timer2 = QTimer()
         self.timer2.setInterval(self.pictureIntervalSpinBox.value() * 1000)
@@ -230,7 +230,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.RH.append((t, RH))
 
         if self.saveCheckBox.isChecked():
-            with open(self.experiment_path / "sensors_data.csv", "a") as fo:
+            with open(self.experiment.experiment_path / "sensors_data.csv", "a") as fo:
                 fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
                          f'{SP:.2f},'
                          f'{BT:.2f},'
@@ -265,7 +265,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         sys.exit()
 
     def update_temp_plot(self):
-        self.line1.setData(*zip(*self.bath_temp))
+        self.new_line1.setData(*zip(*self.bath_temp))
         self.line2.setData(*zip(*self.setpoint))
         self.line3.setData(*zip(*self.adam0))
         self.line4.setData(*zip(*self.adam1))
