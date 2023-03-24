@@ -125,7 +125,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
     def save_pic(self):
         fo = self.experiment.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.png", time.localtime())
         ret, cv_img = self.video_thread.cap.read()
-        cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
+        # cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
         cv2.imwrite(str(fo), cv_img)
 
     def setup_saving(self):
