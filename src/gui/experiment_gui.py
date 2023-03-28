@@ -123,7 +123,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.VideoSettingsUi.show()
 
     def save_pic(self):
-        fo = self.experiment.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.png", time.localtime())
+        fo = self.experiment.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.jpg", time.localtime())
         ret, cv_img = self.video_thread.cap.read()
         # cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
         cv2.imwrite(str(fo), cv_img)
