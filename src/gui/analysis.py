@@ -232,7 +232,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         img_dir = paths.raw_data_path / self.exp_name / 'pics'
 
         # get a list of all PNG files in the directory
-        self.img_files = [f for f in img_dir.iterdir() if f.is_file() and f.suffix == ".png"]
+        self.img_files = [f for f in img_dir.iterdir() if f.is_file() and f.suffix == ".jpg"]
         # sort the list of images
         self.img_files.sort()
 
