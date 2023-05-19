@@ -12,6 +12,12 @@ from experiment_gui import ExperimentUi
 from src.experiment.experiment import FrESHExperiment, ExperimentMetadata
 from src import paths
 
+stations_dict = {'Water background': 'WBG',
+                 'Helsinki': 'HEL',
+                 'Utö': 'UTO',
+                 'Kuopio': 'KUO',
+                 'Pallas': 'PAL'}
+
 
 class ExperimentMetadataUi(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
@@ -35,31 +41,34 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
             return
 
         # Split the input string by "/"
-        cols = input_str.split(",")
-        values = cols[0].split("/")
+        values = input_str.split(";")
 
-        start_date = datetime.strptime(cols[1], "%m/%d/%Y").strftime("%Y-%m-%d")
-        end_date = datetime.strptime(cols[3], "%m/%d/%Y").strftime("%Y-%m-%d")
+        start_date = datetime.strptime(values[2], "%d.%m.%y")
+        end_date = datetime.strptime(values[4], "%d.%m.%y")
 
+        station = stations_dict[self.comboBoxStation.currentText()]
+
+        label = f"{station}_{start_date.strftime('%Y%m%d')}"
         # Assign each value to the corresponding key in a dictionary
         metadata = {
             "station": values[0],
-            "sampling_time": int(values[4]),
+            "sampling_time": 24,
             "sampling_interval": 10,
             "storage_temperature": -20,
             "experiment_type": "Filter",
-            "label": f"{values[0]}_{values[1]}_{values[2]}",
-            "sampler_ID": values[1],
-            "air_volume": float(cols[7]),
-            "start_time": f"{start_date} {cols[2]}",
-            "end_time": f"{end_date} {cols[4]}",
+            "label": f"{label}",
+            "sampler_ID": "",
+            "air_volume": float(values[8]),
+            "start_time": f"{start_date} {values[3]}",
+            "end_time": f"{end_date} {values[5]}",
             "temp": "",
             "press": "",
             "exp_description": "",
             "run": 0,
             "v_drop": 5e-05,
             "v_wash": 0.01,
-            "dil_factor": 1
+            "dil_factor": 1,
+            "filter_fraction": 1
         }
 
         #self.comboBoxSampleType.setPlainText(metadata["experiment_type"])
@@ -75,25 +84,9 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
         self.textDescription.setPlainText(metadata["exp_description"])
         self.textVolWash.setPlainText(str(metadata["v_wash"]))
         self.textDilFactor.setPlainText(str(metadata["dil_factor"]))
+        self.textFilterFraction.setPlainText(str(metadata["filter_fraction"]))
 
     def read_metadata(self):
-        stations_dict = {'Water background': 'WBG',
-                         'Helsinki': 'HEL',
-                         'Utö': 'UTO',
-                         'Kuopio': 'KUO',
-                         'Pallas': 'PAL'}
-
-        # self.exp_metadata = dict(type=self.comboBoxSampleType.currentText(),
-        #                          station=stations_dict[self.comboBoxStation.currentText()],
-        #                          label=self.textLabel.toPlainText(),
-        #                          sampler_ID=self.textSamplerID.toPlainText(),
-        #                          air_volume=self.textAirVolume.toPlainText(),
-        #                          start_time=self.textStartTime.toPlainText(),
-        #                          end_time=self.textEndTime.toPlainText(),
-        #                          temp=self.textTemp.toPlainText(),
-        #                          press=self.textPress.toPlainText(),
-        #                          exp_description=self.textDescription.toPlainText(),
-        #                          run=0)
 
         exp_metadata = ExperimentMetadata(experiment_type=self.comboBoxSampleType.currentText(),
                                           station=stations_dict[self.comboBoxStation.currentText()],
