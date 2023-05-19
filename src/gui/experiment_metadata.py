@@ -101,7 +101,8 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
                                           run=0,
                                           v_drop=50e-6,
                                           v_wash=float(self.textVolWash.toPlainText()),
-                                          dil_factor=float(self.textDilFactor.toPlainText()))
+                                          dil_factor=float(self.textDilFactor.toPlainText()),
+                                          filter_fraction=float(self.textFilterFraction.toPlainText()))
 
         exp_metadata.check_required_fields()
 
