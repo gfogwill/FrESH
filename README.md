@@ -1,11 +1,4 @@
-# NEW TITLE!!!!!
-ASd
-asd
-asd
-asd
-
-
-IceNucleiCounter
+FrESH
 ==============================
 
 This project is to control the cooling unit, read the camara and get the Ice Nuclei concentration
