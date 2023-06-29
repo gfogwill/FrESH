@@ -46,6 +46,7 @@ class ExperimentMetadata:
                  station=None, label=None, sampler_ID=None, air_volume=None, start_time=None, end_time=None, temp=None,
                  press=None, exp_description=None, run=None, v_drop=None, v_wash=None,
                  dil_factor=None, filter_fraction=None):
+
         self.station = station
         self.sampling_time = sampling_time
         self.sampling_interval = sampling_interval

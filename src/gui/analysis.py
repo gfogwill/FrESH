@@ -59,6 +59,7 @@ def calculate_freezing_times(img_files, freezing_idxs):
     freezing_times = []
     for i, idx in enumerate(freezing_idxs):
         freezing_times.append(datetime.strptime(img_files[freezing_idxs[i]].stem, "%Y%m%d%H%M%S"))
+
     return np.array(freezing_times)
 
 
@@ -105,6 +106,12 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.button_save = self.findChild(QtWidgets.QPushButton, 'saveButton')
         self.button_save.clicked.connect(self.save)
+
+        self.button_detect = self.findChild(QtWidgets.QPushButton, "pushButton_Detect")
+        self.button_detect.clicked.connect(self.detect_circles)
+
+        self.button_detect = self.findChild(QtWidgets.QPushButton, "pushButton_Lock")
+        self.button_detect.clicked.connect(self.lock_circles)
 
         self.spinbox_delete = self.findChild(QtWidgets.QSpinBox, 'delete_spinbox')
 
@@ -154,11 +161,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             for i in range(len(self.t)):
                 fo.write(f'{i}, {self.t[i]}, {self.ff[i]}, {self.conc[i]}\n')
 
-    def update_img(self):
-        frame = self.framesSlider.value()
-        self.frameNumber.setText('Frame: ' + str(self.img_files[frame].stem))
-        self.label_temp.setText('Temperature: ' + str(self.frame_t[frame]))
-        img = cv2.imread(str(self.img_files[frame]))
+    def detect_circles(self):
+        img = cv2.imread(str(self.img_files[0]))
 
         img = self.auto_crop(img)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -171,7 +175,28 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                                          maxRadius=self.horizontalSlider_17.value(),
                                          sort=True, plot=False)
 
-        img = circles.add_circles(img, self.dcirc)
+    def lock_circles(self):
+        pass
+
+    def update_img(self):
+        frame = self.framesSlider.value()
+        self.frameNumber.setText('Image: ' + str(self.img_files[frame].stem))
+        self.label_temp.setText('Temperature: ' + str(self.frame_t[frame]))
+
+        img = cv2.imread(str(self.img_files[frame]))
+
+        img = self.auto_crop(img)
+
+        if hasattr(self, "dcirc"):
+            np_dcirc = np.uint16(np.around(self.dcirc))
+
+            for n, i in enumerate(np_dcirc):
+                if self.freezing_idxs[n] > frame:
+                    cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 255), 1)
+                else:
+                    cv2.circle(img, (i[0], i[1]), i[2], (0, 255, 0), 1)
+
+        # img = circles.add_circles(img, self.dcirc)
 
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
@@ -184,11 +209,11 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         maxRadius = self.horizontalSlider_17.value()
 
         grayscales_evolution = self.process_images(self.img_files, minDist, param1, param2, minRadius, maxRadius)
-        freezing_idxs = calculate_freezing_idxs(grayscales_evolution)
+        self.freezing_idxs = calculate_freezing_idxs(grayscales_evolution)
         self.del_indx = [i - 1 for i in self.del_indx]
-        freezing_idxs = np.delete(freezing_idxs, self.del_indx)
-        freezing_times = calculate_freezing_times(self.img_files, freezing_idxs)
-        self.t, self.ff = process_sensors_data(self.exp_name, freezing_idxs, freezing_times)
+        self.freezing_idxs = np.delete(self.freezing_idxs, self.del_indx)
+        freezing_times = calculate_freezing_times(self.img_files, self.freezing_idxs)
+        self.t, self.ff = process_sensors_data(self.exp_name, self.freezing_idxs, freezing_times)
 
         self.FFwidget.clear()
         self.FFwidget.plot(self.t, self.ff)
@@ -246,8 +271,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.framesSlider.setMaximum(self.img_files.__len__() - 1)
         self.frame_t = calculate_frame_temperatures(self.img_files, self.exp_name)
 
-        self.update_img()
+        self.detect_circles()
         self.run_analysis()
+        self.update_img()
 
     @staticmethod
     def auto_crop(img):
