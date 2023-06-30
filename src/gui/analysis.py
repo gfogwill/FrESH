@@ -201,6 +201,10 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
 
+        self.FFwidget.clear()
+        self.FFwidget.plot(self.t, self.ff)
+        self.FFwidget.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget.getAxis('left').range)
+
     def run_analysis(self):
         minDist = self.horizontalSlider_13.value()
         param1 = self.horizontalSlider_14.value()
