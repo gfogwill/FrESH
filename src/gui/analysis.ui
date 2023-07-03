@@ -42,8 +42,8 @@
      <rect>
       <x>300</x>
       <y>10</y>
-      <width>591</width>
-      <height>361</height>
+      <width>600</width>
+      <height>402</height>
      </rect>
     </property>
     <property name="text">
@@ -82,8 +82,8 @@
    <widget class="QSlider" name="framesSlider">
     <property name="geometry">
      <rect>
-      <x>290</x>
-      <y>380</y>
+      <x>320</x>
+      <y>430</y>
       <width>541</width>
       <height>20</height>
      </rect>
@@ -98,8 +98,8 @@
    <widget class="QLabel" name="frameNumber">
     <property name="geometry">
      <rect>
-      <x>290</x>
-      <y>400</y>
+      <x>320</x>
+      <y>450</y>
       <width>241</width>
       <height>17</height>
      </rect>
@@ -124,8 +124,8 @@
    <widget class="QSpinBox" name="delete_spinbox">
     <property name="geometry">
      <rect>
-      <x>410</x>
-      <y>450</y>
+      <x>440</x>
+      <y>500</y>
       <width>42</width>
       <height>22</height>
      </rect>
@@ -140,8 +140,8 @@
    <widget class="QPushButton" name="deleteButton">
     <property name="geometry">
      <rect>
-      <x>460</x>
-      <y>450</y>
+      <x>490</x>
+      <y>500</y>
       <width>101</width>
       <height>21</height>
      </rect>
@@ -153,8 +153,8 @@
    <widget class="QLabel" name="temp_label">
     <property name="geometry">
      <rect>
-      <x>600</x>
-      <y>400</y>
+      <x>630</x>
+      <y>450</y>
       <width>151</width>
       <height>16</height>
      </rect>
@@ -349,6 +349,32 @@
       <string>Lock</string>
      </property>
     </widget>
+   </widget>
+   <widget class="QFrame" name="frame_2">
+    <property name="geometry">
+     <rect>
+      <x>940</x>
+      <y>200</y>
+      <width>321</width>
+      <height>171</height>
+     </rect>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::StyledPanel</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Raised</enum>
+    </property>
+   </widget>
+   <widget class="PlotWidget" name="FFwidget_grayscale" native="true">
+    <property name="geometry">
+     <rect>
+      <x>950</x>
+      <y>210</y>
+      <width>301</width>
+      <height>151</height>
+     </rect>
+    </property>
    </widget>
   </widget>
  </widget>

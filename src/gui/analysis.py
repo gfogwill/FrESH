@@ -51,6 +51,7 @@ def calculate_frame_temperatures(img_files, exp_name):
     for line in data:
         if line['datetime'] in times:
             t.append(line[2])
+
     return t
 
 
@@ -89,6 +90,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.conc = None
         self.exp_name = None
         self.img_files = None
+        self.selected_droplet = None
+        self.grayscales_evolution = None
         self.del_indx = []
         self.t = []
         self.ff = []
@@ -121,6 +124,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.label_deleted = self.findChild(QtWidgets.QLabel, 'deleted_label')
 
         self.image_frame = self.findChild(QtWidgets.QLabel, 'img_label')
+        self.image_frame.setFixedWidth(600)
+        self.image_frame.setFixedHeight(402)
+        self.image_frame.setScaledContents(True)
 
         self.label_temp = self.findChild(QtWidgets.QLabel, 'temp_label')
 
@@ -133,6 +139,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.FFwidget.setLabel('left', 'Frozen Fraction', color='red', size=30)
 
+        #self.image_frame.scene().sigMouseClicked.connect(self.mouse_clicked)
+        self.image_frame.mousePressEvent = self.mouse_clicked
+
         model = QtGui.QStandardItemModel()
         self.experiment_list_view.setModel(model)
 
@@ -143,6 +152,15 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             item = QtGui.QStandardItem(i)
             item.setEditable(False)
             model.appendRow(item)
+
+    def mouse_clicked(self, evt):
+        x = evt.pos().x()
+        y = evt.pos().y()
+        self.selected_droplet = np.argmin(np.linalg.norm(self.dcirc[:, :2] - np.array([x, y]), axis=1))
+        print(f'clicked plot X: {x}, Y: {y}, circle: {self.selected_droplet}')
+
+        self.FFwidget_grayscale.clear()
+        self.FFwidget_grayscale.plot(self.grayscales_evolution[:, self.selected_droplet])
 
     def delete_indx(self):
         value = self.spinbox_delete.value()
@@ -173,7 +191,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                                          param2=self.horizontalSlider_15.value(),
                                          minRadius=self.horizontalSlider_16.value(),
                                          maxRadius=self.horizontalSlider_17.value(),
-                                         sort=True, plot=False)
+                                         sort=True, plot=True)
 
     def lock_circles(self):
         pass
@@ -193,8 +211,11 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             for n, i in enumerate(np_dcirc):
                 if self.freezing_idxs[n] > frame:
                     cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 255), 1)
+                    cv2.putText(img, "{}".format(n), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 0), 1)
                 else:
                     cv2.circle(img, (i[0], i[1]), i[2], (0, 255, 0), 1)
+                    cv2.putText(img, "{}".format(n), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 0), 1)
+
 
         # img = circles.add_circles(img, self.dcirc)
 
@@ -212,8 +233,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         minRadius = self.horizontalSlider_16.value()
         maxRadius = self.horizontalSlider_17.value()
 
-        grayscales_evolution = self.process_images(self.img_files, minDist, param1, param2, minRadius, maxRadius)
-        self.freezing_idxs = calculate_freezing_idxs(grayscales_evolution)
+        self.grayscales_evolution = self.process_images(self.img_files, minDist, param1, param2, minRadius, maxRadius)
+        self.freezing_idxs = calculate_freezing_idxs(self.grayscales_evolution)
         self.del_indx = [i - 1 for i in self.del_indx]
         self.freezing_idxs = np.delete(self.freezing_idxs, self.del_indx)
         freezing_times = calculate_freezing_times(self.img_files, self.freezing_idxs)
@@ -300,4 +321,4 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         # cv2.rectangle(img, top_left, bottom_right, (0, 0, 255), 2)
         cropper_img = img[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
 
-        return cropper_img
+        return cropper_img.copy()

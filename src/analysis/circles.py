@@ -55,9 +55,7 @@ def plot_detected_circles(img, circles):
 
             cv2.putText(img, "{}".format(n + 1), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 255), 1)
 
-    cv2.imshow('Image', img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+
 
 
 def add_circles(img, circles):
