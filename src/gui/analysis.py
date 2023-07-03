@@ -1,3 +1,5 @@
+import logging
+
 from PyQt5 import QtWidgets, uic, QtGui
 
 from PyQt5.QtWidgets import *
@@ -175,9 +177,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         p.mkdir(parents=True, exist_ok=True)
 
         with open(paths.processed_data_path / self.exp_name / 'report.csv', 'w') as fo:
-            fo.write(f'index, temp, ff, concentration\n')
+            fo.write(f'index, temp, ff, conc_per_L, conc_per_drop\n')
             for i in range(len(self.t)):
-                fo.write(f'{i}, {self.t[i]}, {self.ff[i]}, {self.conc[i]}\n')
+                fo.write(f'{i}, {self.t[i]}, {self.ff[i]}, {self.conc_per_L[i]}, {self.conc_per_drop[i]} \n')
 
     def detect_circles(self):
         img = cv2.imread(str(self.img_files[0]))
@@ -227,6 +229,13 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.FFwidget.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget.getAxis('left').range)
 
     def run_analysis(self):
+        nu = self.experiment.metadata.dil_factor
+        v_wash = self.experiment.metadata.v_wash
+        v_drop = self.experiment.metadata.v_drop
+        v_air = self.experiment.metadata.air_volume
+        filter_fraction = self.experiment.metadata.filter_fraction
+
+
         minDist = self.horizontalSlider_13.value()
         param1 = self.horizontalSlider_14.value()
         param2 = self.horizontalSlider_15.value()
@@ -243,12 +252,16 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.FFwidget.clear()
         self.FFwidget.plot(self.t, self.ff)
 
-        nu = self.experiment.metadata.dil_factor
-        v_wash = self.experiment.metadata.v_wash
-        v_drop = self.experiment.metadata.v_drop
-        v_air = self.experiment.metadata.air_volume
+        # ToDo:
+        # Normalization factor to L^-1
+        X = nu * v_wash / (v_air / filter_fraction)
 
-        self.conc = - nu * v_wash / v_drop / v_air * np.log(1 - np.array(self.ff))
+        # Concentration per sample
+        self.conc_per_drop = - np.log(1 - np.array(self.ff)) / v_drop
+        # Concentration per standar L of air
+        self.conc_per_L = self.conc_per_drop * X
+
+        # self.conc = - 1 * 1 * np.log(1 - np.array(self.ff)) / (v_drop * 1 * 1)
 
     def process_images(self, img_files, minDist, param1, param2, minRadius, maxRadius):
         # function to process the images and return the grayscales
@@ -285,6 +298,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.img_files = [f for f in img_dir.iterdir() if f.is_file() and f.suffix == ".jpg"]
         # sort the list of images
         self.img_files.sort()
+
+        if self.img_files.__len__() == 0:
+            logging.error(f"No pictures found in dir: {img_dir}")
 
         img = cv2.imread(str(self.img_files[0]))
 
