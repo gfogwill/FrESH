@@ -2,87 +2,17 @@ import logging
 
 from PyQt5 import QtWidgets, uic, QtGui
 
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-
 import cv2
 
 from src import paths
 from src.analysis import circles
 from src.gui.experiment_gui import convert_cv_qt
-from src.experiment.experiment import FrESHExperiment
+from src.experiment.experiment import FrESHExperiment, process_sensors_data, calculate_frame_temperatures, \
+    calculate_freezing_idxs, calculate_freezing_times
 
 import os
 import pathlib
 import numpy as np
-from datetime import datetime
-import pyqtgraph as pg
-
-
-def get_exp_description(exp_name):
-    with open(src.paths.raw_data_path / exp_name / f"EX{exp_name.split('_')[0]}.log", "r") as f:
-        lines = f.readlines()
-        for line in lines:
-            if "exp_description" in line:
-                return line
-    return None
-
-
-def calculate_freezing_idxs(grayscales_evolution):
-    # function to calculate the freezing indices
-    freezing_idxs = []
-    for i in range(grayscales_evolution.shape[-1]):
-        grayscales_diffs = [s - t for s, t in zip(grayscales_evolution[:, i], grayscales_evolution[1:, i])]
-        freezing_idxs.append(np.argmax(grayscales_diffs) + 1)
-    return freezing_idxs
-
-
-def calculate_frame_temperatures(img_files, exp_name):
-    # function to calculate temperatures which correspond to displayed images
-
-    # image times
-    times = [datetime.strptime(img_files[i].stem, "%Y%m%d%H%M%S") for i in range(len(img_files))]
-    # corresponding temperatures
-    str2date = lambda x: datetime.strptime(x.decode("utf-8"), '%Y-%m-%d %H:%M:%S')
-    data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
-                         delimiter=',',
-                         dtype=None,
-                         names=True,
-                         converters={0: str2date})
-    t = []
-    for line in data:
-        if line['datetime'] in times:
-            t.append(line[2])
-
-    return t
-
-
-def calculate_freezing_times(img_files, freezing_idxs):
-    # function to calculate the freezing times
-    freezing_times = []
-    for i, idx in enumerate(freezing_idxs):
-        freezing_times.append(datetime.strptime(img_files[freezing_idxs[i]].stem, "%Y%m%d%H%M%S"))
-
-    return np.array(freezing_times)
-
-
-def process_sensors_data(exp_name, freezing_idxs, freezing_times):
-    # function to process the sensors data and return the t and ff arrays
-    str2date = lambda x: datetime.strptime(x.decode("utf-8"), '%Y-%m-%d %H:%M:%S')
-    data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
-                         delimiter=',',
-                         dtype=None,
-                         names=True,
-                         converters={0: str2date})
-
-    t = []
-    ff = []
-
-    for i, line in enumerate(data):
-        t.append(line[2])
-        ff.append((freezing_times <= line['datetime']).sum() / freezing_idxs.__len__())
-
-    return t, ff
 
 
 class ExperimentAnalysisUi(QtWidgets.QMainWindow):
@@ -162,7 +92,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         print(f'clicked plot X: {x}, Y: {y}, circle: {self.selected_droplet}')
 
         self.FFwidget_grayscale.clear()
-        self.FFwidget_grayscale.plot(self.grayscales_evolution[:, self.selected_droplet])
+        self.FFwidget_grayscale.plot(self.frame_t, self.grayscales_evolution[:, self.selected_droplet])
 
     def delete_indx(self):
         value = self.spinbox_delete.value()
@@ -228,13 +158,13 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.FFwidget.plot(self.t, self.ff)
         self.FFwidget.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget.getAxis('left').range)
 
+
     def run_analysis(self):
         nu = self.experiment.metadata.dil_factor
         v_wash = self.experiment.metadata.v_wash
         v_drop = self.experiment.metadata.v_drop
         v_air = self.experiment.metadata.air_volume
         filter_fraction = self.experiment.metadata.filter_fraction
-
 
         minDist = self.horizontalSlider_13.value()
         param1 = self.horizontalSlider_14.value()

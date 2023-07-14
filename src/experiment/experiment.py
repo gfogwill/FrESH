@@ -1,5 +1,8 @@
 import os
 import json
+from datetime import datetime
+
+import numpy as np
 import yaml
 import logging
 
@@ -139,3 +142,68 @@ class FrESHExperiment:
         else:
             print(f"Unsupported export format: {export_format}")
 
+
+def process_sensors_data(exp_name, freezing_idxs, freezing_times):
+    # function to process the sensors data and return the t and ff arrays
+    str2date = lambda x: datetime.strptime(x.decode("utf-8"), '%Y-%m-%d %H:%M:%S')
+    data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
+                         delimiter=',',
+                         dtype=None,
+                         names=True,
+                         converters={0: str2date})
+
+    t = []
+    ff = []
+
+    for i, line in enumerate(data):
+        t.append(line[2])
+        ff.append((freezing_times <= line['datetime']).sum() / freezing_idxs.__len__())
+
+    return t, ff
+
+
+def calculate_frame_temperatures(img_files, exp_name):
+    # function to calculate temperatures which correspond to displayed images
+
+    # image times
+    times = [datetime.strptime(img_files[i].stem, "%Y%m%d%H%M%S") for i in range(len(img_files))]
+    # corresponding temperatures
+    str2date = lambda x: datetime.strptime(x.decode("utf-8"), '%Y-%m-%d %H:%M:%S')
+    data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
+                         delimiter=',',
+                         dtype=None,
+                         names=True,
+                         converters={0: str2date})
+    t = []
+    for line in data:
+        if line['datetime'] in times:
+            t.append(line[2])
+
+    return t
+
+
+def get_exp_description(exp_name):
+    with open(src.paths.raw_data_path / exp_name / f"EX{exp_name.split('_')[0]}.log", "r") as f:
+        lines = f.readlines()
+        for line in lines:
+            if "exp_description" in line:
+                return line
+    return None
+
+
+def calculate_freezing_idxs(grayscales_evolution):
+    # function to calculate the freezing indices
+    freezing_idxs = []
+    for i in range(grayscales_evolution.shape[-1]):
+        grayscales_diffs = [s - t for s, t in zip(grayscales_evolution[:, i], grayscales_evolution[1:, i])]
+        freezing_idxs.append(np.argmax(grayscales_diffs) + 1)
+    return freezing_idxs
+
+
+def calculate_freezing_times(img_files, freezing_idxs):
+    # function to calculate the freezing times
+    freezing_times = []
+    for i, idx in enumerate(freezing_idxs):
+        freezing_times.append(datetime.strptime(img_files[freezing_idxs[i]].stem, "%Y%m%d%H%M%S"))
+
+    return np.array(freezing_times)
