@@ -4,6 +4,7 @@ from PyQt5 import QtWidgets, uic, QtGui
 
 import cv2
 
+from src.analysis.circles import auto_crop
 from src import paths
 from src.analysis import circles
 from src.gui.experiment_gui import convert_cv_qt
@@ -114,7 +115,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def detect_circles(self):
         img = cv2.imread(str(self.img_files[0]))
 
-        img = self.auto_crop(img)
+        img = auto_crop(img)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         self.dcirc = circles.get_circles(gray,
@@ -135,7 +136,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         img = cv2.imread(str(self.img_files[frame]))
 
-        img = self.auto_crop(img)
+        img = auto_crop(img)
 
         if hasattr(self, "dcirc"):
             np_dcirc = np.uint16(np.around(self.dcirc))
@@ -157,7 +158,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.FFwidget.clear()
         self.FFwidget.plot(self.t, self.ff)
         self.FFwidget.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget.getAxis('left').range)
-
 
     def run_analysis(self):
         nu = self.experiment.metadata.dil_factor
@@ -199,7 +199,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         for img_file in img_files:
             img_path = str(img_file)
             img = cv2.imread(img_path)
-            img = self.auto_crop(img)
+            img = auto_crop(img)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             # dcirc = circles.get_circles(gray, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
             res.append(circles.get_grayscales(gray, self.dcirc))
@@ -234,7 +234,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         img = cv2.imread(str(self.img_files[0]))
 
-        img = self.auto_crop(img)
+        img = auto_crop(img)
 
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
@@ -246,25 +246,3 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.run_analysis()
         self.update_img()
 
-    @staticmethod
-    def auto_crop(img):
-        template_image = cv2.imread(str(paths.etc_path / 'template_image.png'))
-
-        # Get the height and width of the template image
-        template_height, template_width = template_image.shape[:2]
-
-        # Perform template matching
-        match_result = cv2.matchTemplate(img, template_image, cv2.TM_CCOEFF_NORMED)
-
-        # Get the location of the best match
-        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(match_result)
-
-        # Calculate the top-left and bottom-right coordinates of the ROI
-        top_left = max_loc
-        bottom_right = (top_left[0] + template_width, top_left[1] + template_height)
-
-        # Draw a rectangle around the ROI
-        # cv2.rectangle(img, top_left, bottom_right, (0, 0, 255), 2)
-        cropper_img = img[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
-
-        return cropper_img.copy()

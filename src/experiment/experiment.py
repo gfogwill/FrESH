@@ -46,24 +46,32 @@ class ExperimentMetadata:
     """
 
     def __init__(self, sampling_time=None, sampling_interval=10, storage_temperature=-20, experiment_type=None,
-                 station=None, label=None, sampler_ID=None, air_volume=None, start_time=None, end_time=None, temp=None,
-                 press=None, exp_description=None, run=None, v_drop=None, v_wash=None,
-                 dil_factor=None, filter_fraction=None):
-
+                 station=None, label=None, sampler_id=None, sampler_status=None, air_volume=None, start_time=None,
+                 end_time=None, flow=None, temp=None, press=None, exp_description=None, run=None, v_drop=None,
+                 v_wash=None, dil_factor=None, filter_fraction=None, filter_position=None):
+        # Collection
         self.station = station
-        self.sampling_time = sampling_time
-        self.sampling_interval = sampling_interval
         self.storage_temperature = storage_temperature
         self.experiment_type = experiment_type
         self.label = label
-        self.sampler_ID = sampler_ID
+
+        self.sampler_ID = sampler_id
+        self.sampler_status = sampler_status
+        self.filter_position = filter_position
         self.air_volume = air_volume
+
         self.start_time = start_time
         self.end_time = end_time
+        self.sampling_time = sampling_time
+        self.sampling_interval = sampling_interval
+
+        self.flow = flow
         self.temp = temp
         self.press = press
+
         self.exp_description = exp_description
         self.run = run
+
         self.v_drop = v_drop
         self.v_wash = v_wash
         self.dil_factor = dil_factor
@@ -86,7 +94,7 @@ class ExperimentMetadata:
 
 class FrESHExperiment:
     def __init__(self, experiment_name):
-        self.experiment_name = experiment_name
+        self.exp_name = experiment_name
 
         self.experiment_path = paths.raw_data_path / experiment_name
 
@@ -182,13 +190,7 @@ def calculate_frame_temperatures(img_files, exp_name):
     return t
 
 
-def get_exp_description(exp_name):
-    with open(src.paths.raw_data_path / exp_name / f"EX{exp_name.split('_')[0]}.log", "r") as f:
-        lines = f.readlines()
-        for line in lines:
-            if "exp_description" in line:
-                return line
-    return None
+
 
 
 def calculate_freezing_idxs(grayscales_evolution):

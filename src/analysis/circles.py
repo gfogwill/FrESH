@@ -4,6 +4,31 @@ import pathlib
 import os
 import random
 
+from src import paths
+
+
+def auto_crop(img):
+    template_image = cv2.imread(str(paths.etc_path / 'template_image.png'))
+
+    # Get the height and width of the template image
+    template_height, template_width = template_image.shape[:2]
+
+    # Perform template matching
+    match_result = cv2.matchTemplate(img, template_image, cv2.TM_CCOEFF_NORMED)
+
+    # Get the location of the best match
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(match_result)
+
+    # Calculate the top-left and bottom-right coordinates of the ROI
+    top_left = max_loc
+    bottom_right = (top_left[0] + template_width, top_left[1] + template_height)
+
+    # Draw a rectangle around the ROI
+    # cv2.rectangle(img, top_left, bottom_right, (0, 0, 255), 2)
+    cropper_img = img[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
+
+    return cropper_img
+
 
 def sort_circles(circles, n_cols):
     """
