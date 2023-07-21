@@ -182,7 +182,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.FFwidget.clear()
         self.FFwidget.plot(self.t, self.ff)
 
-        # ToDo:
         # Normalization factor to L^-1
         X = nu * v_wash / (v_air / filter_fraction)
 

@@ -55,7 +55,7 @@ class ExperimentMetadata:
         self.experiment_type = experiment_type
         self.label = label
 
-        self.sampler_ID = sampler_id
+        self.sampler_id = sampler_id
         self.sampler_status = sampler_status
         self.filter_position = filter_position
         self.air_volume = air_volume
@@ -86,7 +86,7 @@ class ExperimentMetadata:
         ValueError
             If one or more required fields are missing.
         """
-        required_fields = ["experiment_type"]
+        required_fields = ["label"]
         missing_fields = [field for field in required_fields if getattr(self, field) is None]
         if missing_fields:
             raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
@@ -125,6 +125,7 @@ class FrESHExperiment:
         if os.path.exists(metadata_path):
             with open(metadata_path, "r") as metadata_file:
                 metadata_dict = json.load(metadata_file)
+                metadata_dict = {k.lower(): v for k, v in metadata_dict.items()}
                 self.metadata = ExperimentMetadata(**metadata_dict)
                 return self.metadata
         else:
@@ -188,9 +189,6 @@ def calculate_frame_temperatures(img_files, exp_name):
             t.append(line[2])
 
     return t
-
-
-
 
 
 def calculate_freezing_idxs(grayscales_evolution):
