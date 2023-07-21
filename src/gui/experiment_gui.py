@@ -10,7 +10,6 @@ import json
 import numpy as np
 import pyqtgraph as pg
 
-
 import PyQt5
 from PyQt5 import QtGui, QtWidgets, uic, QtCore
 from PyQt5.QtGui import QPixmap
@@ -18,12 +17,13 @@ from PyQt5.QtCore import QTimer, pyqtSlot, Qt
 from PyQt5.QtWidgets import *
 
 from src import paths, __version__
-from src.daq import mccdaq
-from src.gui.video import VideoSettingsUi
+
 from src.gui.threads import VideoThread, DataWorker, TempThread
+from src.gui.video import VideoSettingsUi
+
+from src.daq import mccdaq
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq.IniLoader import IniLoader
-
 
 VIDEO_DISPLAY_WIDTH = 525
 VIDEO_DISPLAY_HEIGHT = 359
@@ -50,7 +50,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
     def __init__(self, experiment, *args, **kwargs):
         super(ExperimentUi, self).__init__(*args, **kwargs)
 
-        uic.loadUi('experiment.ui', self)
+        uic.loadUi(paths.src_module_dir / 'gui' / 'experiment.ui', self)
 
         self.experiment = experiment
         self.bath_temp = []
