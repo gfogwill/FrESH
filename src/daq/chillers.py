@@ -8,6 +8,7 @@ import logging
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 from src.daq import mccdaq
 
+
 def read_command(connection, command: str):
 
     connection.write(command.encode('ASCII'))
@@ -46,6 +47,9 @@ class LAUDARK20:
         data = {'BT': bt, 'SP': sp, 'RTD0': s0, 'RTD1': s1, 't1': t1, 't2': t2, 'TEMP': temp, 'RH': rh, 't5': t5}
 
         return data
+
+    def set_temperature(self, t_target):
+        self.daq.set_temperature(t_target)
 
 
 class LAUDARP1845:

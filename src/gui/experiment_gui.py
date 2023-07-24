@@ -270,7 +270,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
     def set_temp(self):
         t = float(self.temp_set.text())
         logging.info(f'Setting temperature to: {t}')
-        self.data_worker.daq.set_temperature(t)
+        self.data_worker.chiller.set_temperature(t)
 
     @pyqtSlot(np.ndarray)
     def update_image(self, cv_img):
