@@ -87,7 +87,8 @@ class LAUDARP1845:
                     'RH': rh,
                     't5': t5}
 
-            self.read_data_signal.emit(data)
+            return data
+            # self.read_data_signal.emit(data)
         except (ValueError, TypeError):
             logging.info('No values!')
 
