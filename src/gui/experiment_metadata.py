@@ -192,7 +192,7 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
 
             exp_list = []
             for i, metadata in enumerate(self.metadata_experiments, 1):
-                exp_name = paths.raw_data_path / f"{date_str}_{metadata.label}_{i}"
+                exp_name = paths.raw_data_path / f"{date_str}_{metadata.label}"
                 experiment = FrESHExperiment(exp_name)
                 experiment.set_metadata(metadata)
                 exp_list.append(experiment)

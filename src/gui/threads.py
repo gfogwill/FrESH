@@ -56,15 +56,7 @@ class DataWorker(QThread):
         s0, s1 = self.adam.GetAllTemps()
         bt, sp, t1, t2, temp, rh, t5 = self.daq.read_all_temp()
 
-        data = {'BT': bt,
-                'SP': sp,
-                'RTD0': s0,
-                'RTD1': s1,
-                't1': t1,
-                't2': t2,
-                'TEMP': temp,
-                'RH': rh,
-                't5': t5}
+        data = {'BT': bt, 'SP': sp, 'RTD0': s0, 'RTD1': s1, 't1': t1, 't2': t2, 'TEMP': temp, 'RH': rh, 't5': t5}
 
         # if data['BT'] < -1:
         #     print("Seting temp to 2")
