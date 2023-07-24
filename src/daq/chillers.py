@@ -48,7 +48,7 @@ class LAUDARK20:
         return data
 
 
-class LAUDA1845:
+class LAUDARP1845:
     """
     LAUDA class is used to interact with a USB connected LAUDA PROline RP 1845 chiller to perform functions such
     as setting the temperature and reading the path temperature and set point temperature

@@ -7,7 +7,6 @@ from PyQt5.QtCore import QThread, pyqtSignal, QObject, QTimer, QEventLoop
 
 from PyQt5 import QtTest
 
-
 from src.daq.IniLoader import IniLoader
 from src import paths
 from src.daq import chillers
