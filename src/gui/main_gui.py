@@ -73,8 +73,10 @@ def main():
     window.show()
     sys.exit(app.exec_())
 
-
+logger = logging.getLogger('dual_logger')
+logger.setLevel(logging.DEBUG)
 if __name__ == '__main__':
+
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_fmt)
     main()

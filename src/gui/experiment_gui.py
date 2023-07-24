@@ -47,12 +47,12 @@ def convert_cv_qt(cv_img):
 
 
 class ExperimentUi(QtWidgets.QMainWindow):
-    def __init__(self, experiment, *args, **kwargs):
+    def __init__(self, exp_list, *args, **kwargs):
         super(ExperimentUi, self).__init__(*args, **kwargs)
 
         uic.loadUi(paths.src_module_dir / 'gui' / 'experiment.ui', self)
 
-        self.experiment = experiment
+        self.exp_list = exp_list
         self.bath_temp = []
         self.setpoint = []
         self.adam0 = []
@@ -123,13 +123,18 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.VideoSettingsUi.show()
 
     def save_pic(self):
-        fo = self.experiment.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.jpg", time.localtime())
         ret, cv_img = self.video_thread.cap.read()
-        # cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
-        cv2.imwrite(str(fo), cv_img)
+
+        for experiment in self.exp_list:
+            fo = experiment.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.jpg", time.localtime())
+            # cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
+            cv2.imwrite(str(fo), cv_img)
 
     def setup_saving(self):
         log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        logger = logging.getLogger('')
+
+        windows_title = ''
 
         if not self.saveCheckBox.isChecked():
             self.timer2.stop()
@@ -139,28 +144,27 @@ class ExperimentUi(QtWidgets.QMainWindow):
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
 
-        self.setWindowTitle(f"{self.experiment.metadata.label}")
+        for experiment in self.exp_list:
+            logger.addHandler(experiment.experiment_path / f'{experiment.metadata.label}.log')
 
-        logging.basicConfig(level=logging.INFO,
-                            format=log_fmt,
-                            filename=self.experiment.experiment_path / f'{self.experiment.metadata.label}.log',
-                            filemode='w')
+            with open(experiment.experiment_path / "sensors_data.csv", "a") as fo:
+                fo.write(f'datetime, 'f'SP,' f'BT,' f'RTD0,' f'RTD1,' f'TEMP,' f'RH\n')
+
+            logging.info(f'Sensors data file created: {experiment.experiment_path / "sensors_data.csv"}')
+
+            windows_title += experiment.metadata.label
+            windows_title += ' - '
+
+        self.setWindowTitle(windows_title)
 
         logging.info(f"Software version: {__version__}")
-        logging.info(f"Experiment directory created: {self.experiment.experiment_path}")
 
-        with open(self.experiment.experiment_path / "sensors_data.csv", "a") as fo:
-            fo.write(f'datetime,'
-                     f'SP,'
-                     f'BT,'
-                     f'RTD0,'
-                     f'RTD1,'
-                     f'TEMP,'
-                     f'RH\n')
+        # logging.info(f"Experiment directory created: {self.experiment.experiment_path}")
 
-        logging.info(f'Sensors data file created: {self.experiment.experiment_path / "sensors_data.csv"}')
-
-        # logging.info(f'Experiment metadata:\n\n{json.dumps(self.experiment, indent=4)}\n\n')
+        # logging.basicConfig(level=logging.INFO,
+        #                     format=log_fmt,
+        #                     filename=self.experiment.experiment_path / f'{self.experiment.metadata.label}.log',
+        #                     filemode='w')
 
         self.timer2 = QTimer()
         self.timer2.setInterval(self.pictureIntervalSpinBox.value() * 1000)
@@ -221,15 +225,10 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.RH.append((t, RH))
 
         if self.saveCheckBox.isChecked():
-            with open(self.experiment.experiment_path / "sensors_data.csv", "a") as fo:
-                fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
-                         f'{SP:.2f},'
-                         f'{BT:.2f},'
-                         f'{RTD0:.2f},'
-                         f'{RTD1:.2f},'
-                         f'{TEMP:.2f},'
-                         f'{RH:.2f}'
-                         '\n')
+            for experiment in self.exp_list:
+                with open(experiment.experiment_path / "sensors_data.csv", "a") as fo:
+                    fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
+                             f'{SP:.2f},' f'{BT:.2f},' f'{RTD0:.2f},' f'{RTD1:.2f},' f'{TEMP:.2f},' f'{RH:.2f}\n')
 
         self.update_temp_plot()
 
