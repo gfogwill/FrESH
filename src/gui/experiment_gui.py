@@ -65,8 +65,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.line3 = None
         self.line4 = None
 
-        self.daq = None
-        self.adam = None
         self.video_thread = None
         self.image_frame = None
 
@@ -167,7 +165,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         logging.info(f"Software version: {__version__}")
 
         # logging.info(f"Experiment directory created: {self.experiment.experiment_path}")
-
 
         self.timer2 = QTimer()
         self.timer2.setInterval(self.pictureIntervalSpinBox.value() * 1000)
