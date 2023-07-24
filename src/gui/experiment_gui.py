@@ -144,8 +144,15 @@ class ExperimentUi(QtWidgets.QMainWindow):
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
 
+        logging.basicConfig(level=logging.INFO,
+                            format=log_fmt,
+                            filemode='w')
+
         for experiment in self.exp_list:
-            logger.addHandler(experiment.experiment_path / f'{experiment.metadata.label}.log')
+            file_handler = logging.FileHandler(experiment.experiment_path / f'{experiment.metadata.label}.log')
+            file_handler.setLevel(logging.INFO)
+            file_handler.setFormatter(logging.Formatter(log_fmt))
+            logger.addHandler(file_handler)
 
             with open(experiment.experiment_path / "sensors_data.csv", "a") as fo:
                 fo.write(f'datetime, 'f'SP,' f'BT,' f'RTD0,' f'RTD1,' f'TEMP,' f'RH\n')
@@ -161,10 +168,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         # logging.info(f"Experiment directory created: {self.experiment.experiment_path}")
 
-        # logging.basicConfig(level=logging.INFO,
-        #                     format=log_fmt,
-        #                     filename=self.experiment.experiment_path / f'{self.experiment.metadata.label}.log',
-        #                     filemode='w')
 
         self.timer2 = QTimer()
         self.timer2.setInterval(self.pictureIntervalSpinBox.value() * 1000)
