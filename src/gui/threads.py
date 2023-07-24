@@ -35,14 +35,17 @@ class DataWorker(QThread):
         logging.info("Connecting ADAM")
         # Connect to ADAM-4015
         ini = IniLoader.load('perezfo', paths.etc_path / 'test.ini')
+
         conn = ADAMConnection(ini['SERIAL'])
         self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
-        logging.info("ADAM Connected")
 
+        logging.info("ADAM Connected")
         logging.info("Connecting MC-DAQ")
+
         # Connect MC-DAQ (USB-1808) and set the initial temperature
         self.daq = mccdaq.Daq()
         self.daq.set_starting_temp(self.init_temp)
+
         logging.info("MC-DAQ Connected")
 
         self.dataCollectionTimer.start(1000)

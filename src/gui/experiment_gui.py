@@ -23,7 +23,7 @@ from src.gui.video import VideoSettingsUi
 
 from src.daq import mccdaq
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
-from src.daq.IniLoader import IniLoader
+# from src.daq.IniLoader import IniLoader
 
 VIDEO_DISPLAY_WIDTH = 525
 VIDEO_DISPLAY_HEIGHT = 359
@@ -139,16 +139,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
 
-        # date_str = time.strftime('%Y%m%d%H%M', time.localtime())
-        # self.experiment_path = paths.raw_data_path / f"{date_str}_{self.exp_metadata['label']}"
-
         self.setWindowTitle(f"{self.experiment.metadata.label}")
-
-        # try:
-        #     os.mkdir(self.experiment_path)
-        #     os.mkdir(self.experiment_path / 'pics')
-        # except FileExistsError:
-        #     logging.error(f"Experiment already exist: {self.experiment_path}")
 
         logging.basicConfig(level=logging.INFO,
                             format=log_fmt,
