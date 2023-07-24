@@ -21,13 +21,12 @@ def read_command(connection, command: str):
 
 class LAUDARK20:
     def __init__(self, ini):
-
-        pass
+        self.ini = ini
 
     def connect(self):
         logging.info("Connecting ADAM")
 
-        conn = ADAMConnection(ini['SERIAL'])
+        conn = ADAMConnection(self.ini['SERIAL'])
         self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
 
         logging.info("ADAM Connected")
