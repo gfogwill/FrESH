@@ -22,6 +22,7 @@ def read_command(connection, command: str):
 class LAUDARK20:
     def __init__(self, ini):
         self.ini = ini
+        self.init_temp = 0
 
     def connect(self):
         logging.info("Connecting ADAM")

@@ -20,7 +20,6 @@ class DataWorker(QThread):
 
     def __init__(self, init_temp=0):
         super().__init__()
-        self.init_temp = init_temp
 
         # Load ini file
         ini = IniLoader.load('perezfo', paths.etc_path / 'test.ini')
