@@ -76,7 +76,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.btn_connect_video.clicked.connect(self.connect_video)
 
         self.btn_connect_lauda = self.findChild(QtWidgets.QPushButton, 'connectLAUDAButton')
-        self.btn_connect_lauda.clicked.connect(self.connect_lauda)
+        self.btn_connect_lauda.clicked.connect(self.connect_chiller)
 
         self.btn_start_scan = self.findChild(QtWidgets.QPushButton, 'startScanButton')
         self.btn_start_scan.clicked.connect(self.start_scan)
@@ -184,7 +184,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         logging.info("Camera connected")
 
-    def connect_lauda(self):
+    def connect_chiller(self):
         # Setup thread for temperature I/O
         self.data_worker = DataWorker(float(self.temp_set.text()))
         self.data_worker.read_data_signal.connect(self.read_sensors_data)
