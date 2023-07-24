@@ -14,12 +14,14 @@ SINGLE_EXPERIMENT_UI_FILE = paths.src_module_dir / 'gui' / 'experiment_metadata.
 # Double experiment .ui file path
 DOUBLE_EXPERIMENT_UI_FILE = paths.src_module_dir / 'gui' / 'double_experiment_metadata.ui'
 
+MAIN_UI_FILE = paths.src_module_dir / 'gui' / 'main.ui'
+
 
 class MainUi(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainUi, self).__init__(*args, **kwargs)
 
-        uic.loadUi('main.ui', self)
+        uic.loadUi(MAIN_UI_FILE, self)
 
         # Find and connect the button
         self.button_new_wb = self.findChild(QtWidgets.QPushButton, 'newWBButton')
