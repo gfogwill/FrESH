@@ -124,6 +124,7 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
                                 return self._create_experiment_metadata(values, label)
 
         logging.warning(f"No raw data found for label: {label}")
+
         return None
 
     def _create_experiment_metadata(self, values, label):
