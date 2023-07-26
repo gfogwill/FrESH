@@ -126,9 +126,10 @@ class ExperimentUi(QtWidgets.QMainWindow):
         if len(self.exp_list) == 1:
             experiment = self.exp_list[0]
             fo = experiment.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.jpg", time.localtime())
+            cv_img = cv2.rotate(cv_img, cv2.ROTATE_90_CLOCKWISE)
             cv2.imwrite(str(fo), cv_img)
         elif len(self.exp_list) >= 2:
-            cv_img = cv2.rotate(cv_img, cv2.ROTATE_90_CLOCKWISE)
+            # cv_img = cv2.rotate(cv_img, cv2.ROTATE_90_CLOCKWISE)
             # cv_img = convert_qt_cv(self.image_frame.pixmap().toImage())
 
             croped = cv_img  # auto_crop(cv_img)
