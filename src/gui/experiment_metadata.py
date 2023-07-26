@@ -107,9 +107,12 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
             logging.error(f"Station not found for label: {label}")
             return None
 
-        date = datetime.strptime(label[3:], "%Y%m%d")
-        directory_path = paths.external_data_path / 'sampler_raw_data' / station['station_mapping']
-        date_str = date.strftime("%d.%m.%y")
+        try:
+            date = datetime.strptime(label[3:], "%Y%m%d")
+            directory_path = paths.external_data_path / 'sampler_raw_data' / station['station_mapping']
+            date_str = date.strftime("%d.%m.%y")
+        except ValueError:
+            return None
 
         for root, dirs, files in os.walk(directory_path):
             for file_name in files:
