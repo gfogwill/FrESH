@@ -115,7 +115,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def detect_circles(self):
         img = cv2.imread(str(self.img_files[0]))
 
-        img = auto_crop(img)
+#x        img = auto_crop(img)
+
+        img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         self.dcirc = circles.get_circles(gray,
@@ -135,8 +137,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.label_temp.setText('Temperature: ' + str(self.frame_t[frame]))
 
         img = cv2.imread(str(self.img_files[frame]))
-
-        img = auto_crop(img)
+        img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+        #img = auto_crop(img)
 
         if hasattr(self, "dcirc"):
             np_dcirc = np.uint16(np.around(self.dcirc))
@@ -198,7 +200,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         for img_file in img_files:
             img_path = str(img_file)
             img = cv2.imread(img_path)
-            img = auto_crop(img)
+#            img = auto_crop(img)
+            img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             # dcirc = circles.get_circles(gray, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
             res.append(circles.get_grayscales(gray, self.dcirc))
@@ -232,7 +235,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             logging.error(f"No pictures found in dir: {img_dir}")
 
         img = cv2.imread(str(self.img_files[0]))
-
+        img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
         #img = auto_crop(img)
 
         qt_img = convert_cv_qt(img)

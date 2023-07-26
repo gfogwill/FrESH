@@ -206,7 +206,8 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
             exp_description=description,
             v_wash=vol_wash,
             dil_factor=dil_factor,
-            filter_fraction=filter_fraction
+            filter_fraction=filter_fraction,
+            v_drop=5e-05
         )
 
     def _update_metadata_list(self):

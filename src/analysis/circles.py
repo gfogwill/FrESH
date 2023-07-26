@@ -131,8 +131,6 @@ def get_grayscales(image, circles, mask=True):
 def get_circles(img, minDist=40, param1=150, param2=10, minRadius=19, maxRadius=22, sort=True, plot=True):
     # https://docs.opencv.org/4.x/dd/d1a/group__imgproc__feature.html#ga47849c3be0d0406ad3ca45db65a25d2d
 
-    n_circs = None
-
     # while n_circs != 96:
     circles = cv2.HoughCircles(img,
                                cv2.HOUGH_GRADIENT,
