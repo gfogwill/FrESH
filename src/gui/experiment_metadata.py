@@ -164,6 +164,48 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
         text_dil_factor.setPlainText(str(metadata.dil_factor))
         text_filter_fraction.setPlainText(str(metadata.filter_fraction))
 
+    def _get_metadata_from_form(self, experiment_key):
+        text_label = self.findChild(QtWidgets.QPlainTextEdit, f'textLabel_{experiment_key}')
+        text_sampler_id = self.findChild(QtWidgets.QPlainTextEdit, f'textSamplerID_{experiment_key}')
+        text_air_volume = self.findChild(QtWidgets.QPlainTextEdit, f'textAirVolume_{experiment_key}')
+        text_start_time = self.findChild(QtWidgets.QPlainTextEdit, f'textStartTime_{experiment_key}')
+        text_end_time = self.findChild(QtWidgets.QPlainTextEdit, f'textEndTime_{experiment_key}')
+        text_temp = self.findChild(QtWidgets.QPlainTextEdit, f'textTemp_{experiment_key}')
+        text_press = self.findChild(QtWidgets.QPlainTextEdit, f'textPress_{experiment_key}')
+        text_description = self.findChild(QtWidgets.QPlainTextEdit, f'textDescription_{experiment_key}')
+        text_vol_wash = self.findChild(QtWidgets.QPlainTextEdit, f'textVolWash_{experiment_key}')
+        text_dil_factor = self.findChild(QtWidgets.QPlainTextEdit, f'textDilFactor_{experiment_key}')
+        text_filter_fraction = self.findChild(QtWidgets.QPlainTextEdit, f'textFilterFraction_{experiment_key}')
+
+        label = text_label.toPlainText().upper()
+        sampler_id = text_sampler_id.toPlainText()
+        air_volume = float(text_air_volume.toPlainText())
+        start_time = text_start_time.toPlainText()
+        end_time = text_end_time.toPlainText()
+        temp = float(text_temp.toPlainText())
+        press = float(text_press.toPlainText())
+        description = text_description.toPlainText()
+        vol_wash = float(text_vol_wash.toPlainText())
+        dil_factor = float(text_dil_factor.toPlainText())
+        filter_fraction = float(text_filter_fraction.toPlainText())
+
+        return ExperimentMetadata(
+            station=label[0:3],
+            experiment_type="filter",
+            label=label,
+            sampler_id=sampler_id,
+            sampler_status="Manually entered",
+            start_time=start_time,
+            end_time=end_time,
+            air_volume=air_volume,
+            temp=temp,
+            press=press,
+            exp_description=description,
+            v_wash=vol_wash,
+            dil_factor=dil_factor,
+            filter_fraction=filter_fraction
+        )
+
     def _update_metadata_list(self):
         self.metadata_experiments.clear()
 
@@ -173,6 +215,9 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
             metadata_A = self._retrieve_metadata(label_A.upper())
             if metadata_A is not None:
                 self.metadata_experiments.append(metadata_A)
+            else:
+                metadata_A = self._get_metadata_from_form('A')
+                self.metadata_experiments.append(metadata_A)
 
         # Check for experiment B if the button_search_B exists
         if self.button_search_B:
@@ -180,6 +225,9 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
             if label_B:
                 metadata_B = self._retrieve_metadata(label_B.upper())
                 if metadata_B is not None:
+                    self.metadata_experiments.append(metadata_B)
+                else:
+                    metadata_B = self._get_metadata_from_form('B')
                     self.metadata_experiments.append(metadata_B)
 
     def start_experiment(self):
