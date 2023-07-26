@@ -233,7 +233,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         img = cv2.imread(str(self.img_files[0]))
 
-        img = auto_crop(img)
+        #img = auto_crop(img)
 
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)

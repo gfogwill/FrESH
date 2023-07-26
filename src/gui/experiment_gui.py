@@ -138,7 +138,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
             split_width = width // len(self.exp_list)
 
             for i, experiment in enumerate(self.exp_list):
-                fo = experiment.experiment_path / 'pics' / time.strftime(f"%Y%m%d%H%M%S_{i}.jpg", time.localtime())
+                fo = experiment.experiment_path / 'pics' / time.strftime(f"%Y%m%d%H%M%S.jpg", time.localtime())
                 segment = croped[:, i * split_width : (i+1) * split_width]
                 cv2.imwrite(str(fo), segment)
 
