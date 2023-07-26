@@ -123,10 +123,24 @@ class ExperimentUi(QtWidgets.QMainWindow):
     def save_pic(self):
         ret, cv_img = self.video_thread.cap.read()
 
-        for experiment in self.exp_list:
+        if len(self.exp_list) == 1:
+            experiment = self.exp_list[0]
             fo = experiment.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.jpg", time.localtime())
-            # cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
             cv2.imwrite(str(fo), cv_img)
+        elif len(self.exp_list) >= 2:
+            cv_img = cv2.rotate(cv_img, cv2.ROTATE_90_CLOCKWISE)
+            # cv_img = convert_qt_cv(self.image_frame.pixmap().toImage())
+
+            croped = cv_img  # auto_crop(cv_img)
+
+            height, width = croped.shape[:2]
+            split_width = width // len(self.exp_list)
+
+            for i, experiment in enumerate(self.exp_list):
+                fo = experiment.experiment_path / 'pics' / time.strftime(f"%Y%m%d%H%M%S_{i}.jpg", time.localtime())
+                segment = croped[:, i * split_width : (i+1) * split_width]
+                cv2.imwrite(str(fo), segment)
+
 
     def setup_saving(self):
         log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
