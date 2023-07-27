@@ -184,9 +184,14 @@ def calculate_frame_temperatures(img_files, exp_name):
                          names=True,
                          converters={0: str2date})
     t = []
-    for line in data:
-        if line['datetime'] in times:
-            t.append(line[2])
+    for time in times:
+        matching_data = next((line[2] for line in data if line['datetime'] == time), None)
+        if matching_data is None:
+            # Find the nearest available temperature by finding the data point with the closest timestamp
+            nearest_data = min(data, key=lambda line: abs(line['datetime'] - time))
+            t.append(nearest_data[2])
+        else:
+            t.append(matching_data)
 
     return t
 
