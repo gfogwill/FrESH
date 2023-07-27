@@ -204,6 +204,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             # dcirc = circles.get_circles(gray, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
+
             res.append(circles.get_grayscales(gray, self.dcirc))
 
             img = circles.add_circles(gray, self.dcirc)
