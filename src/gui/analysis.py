@@ -115,9 +115,10 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def detect_circles(self):
         img = cv2.imread(str(self.img_files[0]))
 
-#x        img = auto_crop(img)
 
         img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+        img = auto_crop(img)
+
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         self.dcirc = circles.get_circles(gray,
@@ -138,7 +139,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         img = cv2.imread(str(self.img_files[frame]))
         img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
-        #img = auto_crop(img)
+        img = auto_crop(img)
 
         if hasattr(self, "dcirc"):
             np_dcirc = np.uint16(np.around(self.dcirc))
@@ -197,11 +198,12 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def process_images(self, img_files, minDist, param1, param2, minRadius, maxRadius):
         # function to process the images and return the grayscales
         res = []
+
         for img_file in img_files:
             img_path = str(img_file)
             img = cv2.imread(img_path)
-#            img = auto_crop(img)
             img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+            img = auto_crop(img)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             # dcirc = circles.get_circles(gray, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
 
@@ -237,7 +239,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         img = cv2.imread(str(self.img_files[0]))
         img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
-        #img = auto_crop(img)
+        img = auto_crop(img)
 
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)

@@ -139,7 +139,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
             for i, experiment in enumerate(self.exp_list):
                 fo = experiment.experiment_path / 'pics' / time.strftime(f"%Y%m%d%H%M%S.jpg", time.localtime())
-                segment = croped[:, i * split_width : (i+1) * split_width]
+                segment = croped[:, i * split_width: (i+1) * split_width]
                 cv2.imwrite(str(fo), segment)
 
 
@@ -219,9 +219,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
     def set_temp2(self, t):
         logging.info(f'Setting temperature to: {t}')
         try:
-            self.data_worker.daq.set_temperature(t)
+            self.data_worker.chiller.set_temperature(t)
         except AttributeError:
-            pass
+            logging.error("Error setting temperature!")
 
     @pyqtSlot(object)
     def read_sensors_data(self, data):
