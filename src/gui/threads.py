@@ -60,7 +60,7 @@ class TempThread(QThread):
 
         self.chill_temp_step = cooling_rate
         self.heat_temp_step = heating_rate
-        self.step_interval = 60  # in seconds
+        self.step_interval = 10  # in seconds
 
         self.tempRampTimer = QTimer()
         self.tempRampTimer.moveToThread(self)
