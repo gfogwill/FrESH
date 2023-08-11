@@ -13,7 +13,6 @@ from src.daq import chillers
 
 
 class DataWorker(QThread):
-    #TODO: Doc
 
     read_data_signal = pyqtSignal(object)
 
@@ -76,22 +75,21 @@ class TempThread(QThread):
         if self.chilling:
             self.last_sp -= self.chill_temp_step
             self.last_sp = round(self.last_sp, 2)
-            if self.last_sp == self.min_temp:
+            if self.last_sp <= self.min_temp:
                 self.chilling = False
         else:
             self.last_sp += self.heat_temp_step
             self.last_sp = round(self.last_sp, 2)
-            if self.last_sp == self.max_temp:
+            if self.last_sp >= self.max_temp:
                 self.chilling = True
 
         self.temp_signal.emit(self.last_sp)
 
 
 class VideoThread(QThread):
-
     """
         Subclass of QThread for capturing video from a webcam and emitting the frames as a numpy array.
-        """
+    """
     change_pixmap_signal = pyqtSignal(np.ndarray)
 
     detect_circles = False

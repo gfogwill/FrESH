@@ -142,7 +142,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
                 segment = croped[:, i * split_width: (i+1) * split_width]
                 cv2.imwrite(str(fo), segment)
 
-
     def setup_saving(self):
         log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         logger = logging.getLogger('')

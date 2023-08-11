@@ -72,7 +72,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.FFwidget.setLabel('left', 'Frozen Fraction', color='red', size=30)
 
-        #self.image_frame.scene().sigMouseClicked.connect(self.mouse_clicked)
+        # self.image_frame.scene().sigMouseClicked.connect(self.mouse_clicked)
         self.image_frame.mousePressEvent = self.mouse_clicked
 
         model = QtGui.QStandardItemModel()
@@ -115,10 +115,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def detect_circles(self):
         img = cv2.imread(str(self.img_files[0]))
 
-
         img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
         img = auto_crop(img)
-
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         self.dcirc = circles.get_circles(gray,
@@ -151,7 +149,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                 else:
                     cv2.circle(img, (i[0], i[1]), i[2], (0, 255, 0), 1)
                     cv2.putText(img, "{}".format(n), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 0), 1)
-
 
         # img = circles.add_circles(img, self.dcirc)
 
