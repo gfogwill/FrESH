@@ -241,6 +241,10 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
             for metadata in self.metadata_experiments:
                 metadata.check_required_fields()
 
+            if self.metadata_experiments[0].label == self.metadata_experiments[1].label:
+                logging.warning("Labels are the same!!\n Rename and try again.")
+                return
+
             date_str = time.strftime('%Y%m%d%H%M', time.localtime())
 
             exp_list = []
