@@ -203,6 +203,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.data_worker = DataWorker(float(self.temp_set.text()))
         self.data_worker.read_data_signal.connect(self.read_sensors_data)
         self.data_worker.start()
+        
 
     def start_scan(self):
         max_temp = float(self.maxTemp.text())
