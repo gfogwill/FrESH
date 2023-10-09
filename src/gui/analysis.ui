@@ -218,7 +218,7 @@
       <item row="0" column="2">
        <widget class="QSpinBox" name="spinBox_13">
         <property name="value">
-         <number>40</number>
+         <number>24</number>
         </property>
        </widget>
       </item>
@@ -232,7 +232,7 @@
       <item row="0" column="1">
        <widget class="QSlider" name="horizontalSlider_13">
         <property name="value">
-         <number>40</number>
+         <number>24</number>
         </property>
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -242,14 +242,14 @@
       <item row="3" column="2">
        <widget class="QSpinBox" name="spinBox_16">
         <property name="value">
-         <number>19</number>
+         <number>13</number>
         </property>
        </widget>
       </item>
       <item row="3" column="1">
        <widget class="QSlider" name="horizontalSlider_16">
         <property name="value">
-         <number>19</number>
+         <number>13</number>
         </property>
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -266,7 +266,7 @@
       <item row="4" column="1">
        <widget class="QSlider" name="horizontalSlider_17">
         <property name="value">
-         <number>21</number>
+         <number>15</number>
         </property>
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -290,7 +290,7 @@
       <item row="4" column="2">
        <widget class="QSpinBox" name="spinBox_17">
         <property name="value">
-         <number>20</number>
+         <number>15</number>
         </property>
        </widget>
       </item>
