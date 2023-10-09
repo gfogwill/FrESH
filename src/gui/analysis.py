@@ -132,6 +132,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
     def update_img(self):
         frame = self.framesSlider.value()
+        if self.img_files is None:
+            return
         self.frameNumber.setText('Image: ' + str(self.img_files[frame].stem))
         self.label_temp.setText('Temperature: ' + str(self.frame_t[frame]))
 
