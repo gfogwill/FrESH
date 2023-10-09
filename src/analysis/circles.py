@@ -9,6 +9,7 @@ from src import paths
 
 def auto_crop(img):
     template_image = cv2.imread(str(paths.etc_path / 'new_temp.png'))
+    template_image = cv2.imread(str(paths.etc_path / 'template_image_2.png'))
 
     # Get the height and width of the template image
     template_height, template_width = template_image.shape[:2]
@@ -34,7 +35,8 @@ def sort_circles(circles, n_cols):
     """
     Sorts an array of circles according to their positions.
 
-    Circles are first sorted by their row position (y-coordinate), then by their column position (x-coordinate) within each row. Rows are divided into groups of `NUM_COLS` circles.
+    Circles are first sorted by their row position (y-coordinate), then by their column position (x-coordinate)
+    within each row. Rows are divided into groups of `NUM_COLS` circles.
 
     Parameters
     ----------
@@ -140,7 +142,7 @@ def get_circles(img, minDist=40, param1=150, param2=10, minRadius=19, maxRadius=
                                maxRadius=maxRadius
                                )[0]
 
-        # n_circs = circles.shape[0]
+    # n_circs = circles.shape[0]
 
     if sort:
         circles = sort_circles(circles, n_cols=12)
