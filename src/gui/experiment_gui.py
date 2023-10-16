@@ -34,6 +34,9 @@ if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
 if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
     PyQt5.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
 
+qt_path = os.path.dirname(PyQt5.__file__)
+os.environ['QT_PLUGIN_PATH'] = os.path.join(qt_path, "Qt5/plugins/platforms")
+
 
 def convert_cv_qt(cv_img):
     """Convert from an opencv image to QPixmap"""
