@@ -1,3 +1,5 @@
+import logging
+
 import cv2
 import numpy as np
 import pathlib
@@ -7,18 +9,28 @@ import random
 from src import paths
 
 
-def auto_crop(img):
-    template_image = cv2.imread(str(paths.etc_path / 'new_temp.png'))
-    template_image = cv2.imread(str(paths.etc_path / 'template_image_2.png'))
+def auto_crop(img, template_img, rotation_angles=[0]):
+    # rotation_angles=np.arange(-1.4, 0.8, 0.05)
+    # Load the template image
+
+    template_image = cv2.imread(str(paths.etc_path / template_img))
 
     # Get the height and width of the template image
     template_height, template_width = template_image.shape[:2]
 
-    # Perform template matching
-    match_result = cv2.matchTemplate(img, template_image, cv2.TM_CCOEFF_NORMED)
+    # Initialize variables to keep track of the best match and angle
+    best_match = None
+
+    for angle in rotation_angles:
+        rotated_img = rotate_image(img, angle)
+        match_result = cv2.matchTemplate(rotated_img, template_image, cv2.TM_CCOEFF_NORMED)
+        _, max_val, _, max_loc = cv2.minMaxLoc(match_result)
+
+        if best_match is None or max_val > best_match[0]:
+            best_match = (max_val, max_loc, angle)
 
     # Get the location of the best match
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(match_result)
+    _, max_loc, best_angle = best_match
 
     # Calculate the top-left and bottom-right coordinates of the ROI
     top_left = max_loc
@@ -26,9 +38,21 @@ def auto_crop(img):
 
     # Draw a rectangle around the ROI
     # cv2.rectangle(img, top_left, bottom_right, (0, 0, 255), 2)
-    cropper_img = img[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
+    cropped_img = img[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
 
-    return cropper_img
+    # Rotate the cropped image with the best angle
+    cropped_img = rotate_image(cropped_img, best_angle)
+
+    return cropped_img
+
+
+def rotate_image(image, angle):
+
+    # Rotate the image by the specified angle
+    center = tuple(np.array(image.shape[1::-1]) / 2)
+    rot_mat = cv2.getRotationMatrix2D(center, angle, 1.0)
+    rotated_img = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+    return rotated_img
 
 
 def sort_circles(circles, n_cols):
@@ -128,18 +152,18 @@ def get_grayscales(image, circles, mask=True):
     return grayscales
 
 
-def get_circles(img, minDist=40, param1=150, param2=10, minRadius=19, maxRadius=22, sort=True, plot=True):
+def get_circles(img, min_distance=40, param1=150, param2=10, min_radius=19, max_radius=22, sort=True, plot=True):
     # https://docs.opencv.org/4.x/dd/d1a/group__imgproc__feature.html#ga47849c3be0d0406ad3ca45db65a25d2d
 
     # while n_circs != 96:
     circles = cv2.HoughCircles(img,
                                cv2.HOUGH_GRADIENT,
                                1,
-                               minDist=minDist,
+                               minDist=min_distance,
                                param1=param1,  # + random.randint(-30, 30)
                                param2=param2,  # + random.randint(-10, 10)
-                               minRadius=minRadius,
-                               maxRadius=maxRadius
+                               minRadius=min_radius,
+                               maxRadius=max_radius
                                )[0]
 
     # n_circs = circles.shape[0]
