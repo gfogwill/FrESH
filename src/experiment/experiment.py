@@ -105,6 +105,7 @@ class FrESHExperiment:
             os.mkdir(self.experiment_path / 'pics')
 
         else:
+            logging.info(f"Experiment found! Loading experiment: {self.experiment_path}")
             self.load_metadata()
 
     def set_metadata(self, metadata):
