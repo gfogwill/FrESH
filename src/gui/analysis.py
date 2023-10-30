@@ -15,6 +15,11 @@ import os
 import pathlib
 import numpy as np
 
+rotation_dict = {'-': None,
+                 '90 CCW': cv2.ROTATE_90_COUNTERCLOCKWISE,
+                 '90 CW': cv2.ROTATE_90_CLOCKWISE,
+                 '180': cv2.ROTATE_180}
+
 
 class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
@@ -30,6 +35,15 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.ff = []
         self.frame_t = []
 
+        self.template_img = None
+
+        self.hough_params = {
+            "min_distance": 24,
+            "param1": 150,
+            "param2": 15,
+            "min_radius": 13,
+            "max_radius": 15}
+
         uic.loadUi('analysis.ui', self)
 
         self.experiment_list_view = self.findChild(QtWidgets.QListView, 'experimentListView')
@@ -37,37 +51,43 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.button_load_experiment = self.findChild(QtWidgets.QPushButton, 'loadExperimentButton')
         self.button_load_experiment.clicked.connect(self.load_experiment)
 
-        self.button_run_analysis = self.findChild(QtWidgets.QPushButton, 'runButton')
-        self.button_run_analysis.clicked.connect(self.run_analysis)
+        # ToDo: put in another place the code
+        # self.button_run_analysis = self.findChild(QtWidgets.QPushButton, 'runButton')
+        # self.button_run_analysis.clicked.connect(self.run_analysis)
+
+        # self.button_detect = self.findChild(QtWidgets.QPushButton, "pushButton_Detect")
+        # self.button_detect.clicked.connect(self.detect_circles)
+
+        # self.button_detect = self.findChild(QtWidgets.QPushButton, "pushButton_Lock")
+        # self.button_detect.clicked.connect(self.lock_circles)
 
         self.button_save = self.findChild(QtWidgets.QPushButton, 'saveButton')
         self.button_save.clicked.connect(self.save)
 
-        self.button_detect = self.findChild(QtWidgets.QPushButton, "pushButton_Detect")
-        self.button_detect.clicked.connect(self.detect_circles)
-
-        self.button_detect = self.findChild(QtWidgets.QPushButton, "pushButton_Lock")
-        self.button_detect.clicked.connect(self.lock_circles)
-
         self.spinbox_delete = self.findChild(QtWidgets.QSpinBox, 'delete_spinbox')
 
-        self.button_delete = self.findChild(QtWidgets.QPushButton, 'deleteButton')
+        self.button_delete = self.findChild(QtWidgets.QPushButton, 'deleteDropletButton')
         self.button_delete.clicked.connect(self.delete_indx)
 
         self.label_deleted = self.findChild(QtWidgets.QLabel, 'deleted_label')
 
         self.image_frame = self.findChild(QtWidgets.QLabel, 'img_label')
-        self.image_frame.setFixedWidth(600)
-        self.image_frame.setFixedHeight(402)
         self.image_frame.setScaledContents(True)
+
+        self.templates_combobox = self.findChild(QtWidgets.QComboBox, 'comboBox_templates')
+        self.populate_combobox_templates()
+        self.templates_combobox.currentTextChanged.connect(self.update_template_img)
 
         self.label_temp = self.findChild(QtWidgets.QLabel, 'temp_label')
 
-        self.horizontalSlider_13.valueChanged['int'].connect(self.update_img)
-        self.horizontalSlider_14.valueChanged['int'].connect(self.update_img)
-        self.horizontalSlider_15.valueChanged['int'].connect(self.update_img)
-        self.horizontalSlider_16.valueChanged['int'].connect(self.update_img)
-        self.horizontalSlider_17.valueChanged['int'].connect(self.update_img)
+        self.rotation_combobox = self.findChild(QtWidgets.QComboBox, 'comboBox_rotation')
+
+        self.horizontalSlider_13.valueChanged['int'].connect(lambda value: self.update_dict_param("min_distance", value))
+        self.horizontalSlider_14.valueChanged['int'].connect(lambda value: self.update_dict_param("param1", value))
+        self.horizontalSlider_15.valueChanged['int'].connect(lambda value: self.update_dict_param("param2", value))
+        self.horizontalSlider_16.valueChanged['int'].connect(lambda value: self.update_dict_param("min_radius", value))
+        self.horizontalSlider_17.valueChanged['int'].connect(lambda value: self.update_dict_param("max_radius", value))
+
         self.framesSlider.valueChanged['int'].connect(self.update_img)
 
         self.FFwidget.setLabel('left', 'Frozen Fraction', color='red', size=30)
@@ -85,6 +105,21 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             item = QtGui.QStandardItem(i)
             item.setEditable(False)
             model.appendRow(item)
+
+    def populate_combobox_templates(self):
+        png_files = [file for file in os.listdir(paths.etc_path) if file.endswith(".png")]
+        self.templates_combobox.addItems(png_files)
+        self.template_img = self.templates_combobox.currentText()
+        self.update_template_img()
+
+    def update_template_img(self):
+        self.template_img = self.templates_combobox.currentText()
+        template_image = cv2.imread(str(paths.etc_path / self.template_img))
+        self.image_frame.setFixedWidth(template_image.shape[1])
+        self.image_frame.setFixedHeight(template_image.shape[0])
+
+    def update_dict_param(self, param_name, new_value):
+        self.hough_params[param_name] = new_value
 
     def mouse_clicked(self, evt):
         x = evt.pos().x()
@@ -115,17 +150,12 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def detect_circles(self):
         img = cv2.imread(str(self.img_files[0]))
 
-        img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
-        img = auto_crop(img)
+        img = cv2.rotate(img, rotation_dict[self.rotation_combobox.currentText()])
+        img = auto_crop(img, self.template_img)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        self.dcirc = circles.get_circles(gray,
-                                         minDist=self.horizontalSlider_13.value(),
-                                         param1=self.horizontalSlider_14.value(),
-                                         param2=self.horizontalSlider_15.value(),
-                                         minRadius=self.horizontalSlider_16.value(),
-                                         maxRadius=self.horizontalSlider_17.value(),
-                                         sort=True, plot=True)
+        self.dcirc = circles.get_circles(gray, **self.hough_params, sort=True, plot=True)
+
 
     def lock_circles(self):
         pass
@@ -138,8 +168,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.label_temp.setText('Temperature: ' + str(self.frame_t[frame]))
 
         img = cv2.imread(str(self.img_files[frame]))
-        img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
-        img = auto_crop(img)
+        img = cv2.rotate(img, rotation_dict[self.rotation_combobox.currentText()])
+        img = auto_crop(img, self.template_img)
 
         if hasattr(self, "dcirc"):
             np_dcirc = np.uint16(np.around(self.dcirc))
@@ -161,6 +191,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.FFwidget.plot(self.t, self.ff)
         self.FFwidget.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget.getAxis('left').range)
 
+        #self.FFwidget_grayscale.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget_grayscale.getAxis('left').range)
+
     def run_analysis(self):
         nu = self.experiment.metadata.dil_factor
         v_wash = self.experiment.metadata.v_wash
@@ -168,13 +200,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         v_air = self.experiment.metadata.air_volume
         filter_fraction = self.experiment.metadata.filter_fraction
 
-        minDist = self.horizontalSlider_13.value()
-        param1 = self.horizontalSlider_14.value()
-        param2 = self.horizontalSlider_15.value()
-        minRadius = self.horizontalSlider_16.value()
-        maxRadius = self.horizontalSlider_17.value()
-
-        self.grayscales_evolution = self.process_images(self.img_files, minDist, param1, param2, minRadius, maxRadius)
+        self.grayscales_evolution = self.process_images(self.img_files)
         self.freezing_idxs = calculate_freezing_idxs(self.grayscales_evolution)
         self.del_indx = [i - 1 for i in self.del_indx]
         self.freezing_idxs = np.delete(self.freezing_idxs, self.del_indx)
@@ -194,16 +220,17 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         # self.conc = - 1 * 1 * np.log(1 - np.array(self.ff)) / (v_drop * 1 * 1)
 
-    def process_images(self, img_files, minDist, param1, param2, minRadius, maxRadius):
+    def process_images(self, img_files):
         # function to process the images and return the grayscales
         res = []
 
         for img_file in img_files:
             img_path = str(img_file)
             img = cv2.imread(img_path)
-            img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
-            img = auto_crop(img)
+            img = cv2.rotate(img, rotation_dict[self.rotation_combobox.currentText()])
+            img = auto_crop(img, self.template_img)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
             # dcirc = circles.get_circles(gray, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
 
             res.append(circles.get_grayscales(gray, self.dcirc))
@@ -237,8 +264,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             logging.error(f"No pictures found in dir: {img_dir}")
 
         img = cv2.imread(str(self.img_files[0]))
-        img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
-        img = auto_crop(img)
+        img = cv2.rotate(img, rotation_dict[self.rotation_combobox.currentText()])
+        img = auto_crop(img, self.template_img)
 
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
