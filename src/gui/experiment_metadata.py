@@ -14,6 +14,7 @@ from datetime import datetime
 from src.gui.experiment_gui import ExperimentUi
 from src.experiment.experiment import FrESHExperiment, ExperimentMetadata
 from src import paths
+from src.daq.IniLoader import IniLoader
 
 
 stations_dict = {
@@ -192,6 +193,8 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
         dil_factor = float(text_dil_factor.toPlainText())
         filter_fraction = float(text_filter_fraction.toPlainText())
 
+        ini = IniLoader.load('perezfo', paths.etc_path / 'test.ini')
+
         return ExperimentMetadata(
             station=label[0:3],
             experiment_type="filter",
@@ -207,7 +210,8 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
             v_wash=vol_wash,
             dil_factor=dil_factor,
             filter_fraction=filter_fraction,
-            v_drop=5e-05
+            v_drop=5e-05,
+            chiller_model=ini['CHILLER']['MODEL']
         )
 
     def _update_metadata_list(self):
@@ -241,9 +245,10 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
             for metadata in self.metadata_experiments:
                 metadata.check_required_fields()
 
-            if self.metadata_experiments[0].label == self.metadata_experiments[1].label:
-                logging.warning("Labels are the same!!\n Rename and try again.")
-                return
+            if len(self.metadata_experiments) > 1:
+                if self.metadata_experiments[0].label == self.metadata_experiments[1].label:
+                    logging.warning("Labels are the same!!\n Rename and try again.")
+                    return
 
             date_str = time.strftime('%Y%m%d%H%M', time.localtime())
 
