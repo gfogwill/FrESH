@@ -48,7 +48,8 @@ class ExperimentMetadata:
     def __init__(self, sampling_time=None, sampling_interval=10, storage_temperature=-20, experiment_type=None,
                  station=None, label=None, sampler_id=None, sampler_status=None, air_volume=None, start_time=None,
                  end_time=None, flow=None, temp=None, press=None, exp_description=None, run=None, v_drop=None,
-                 v_wash=None, dil_factor=None, filter_fraction=None, filter_position=None):
+                 v_wash=None, dil_factor=None, filter_fraction=None, filter_position=None, chiller_model=None):
+
         # Collection
         self.station = station
         self.storage_temperature = storage_temperature
@@ -76,6 +77,8 @@ class ExperimentMetadata:
         self.v_wash = v_wash
         self.dil_factor = dil_factor
         self.filter_fraction = filter_fraction
+
+        self.chiller_model = chiller_model
 
     def check_required_fields(self):
         """
