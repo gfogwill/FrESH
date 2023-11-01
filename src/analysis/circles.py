@@ -10,7 +10,7 @@ from src import paths
 
 
 def auto_crop(img, template_img, rotation_angles=[0]):
-    # rotation_angles=np.arange(-1.4, 0.8, 0.05)
+    rotation_angles = np.arange(-1.4, 0.8, 0.05)
     # Load the template image
 
     template_image = cv2.imread(str(paths.etc_path / template_img))
@@ -52,6 +52,7 @@ def rotate_image(image, angle):
     center = tuple(np.array(image.shape[1::-1]) / 2)
     rot_mat = cv2.getRotationMatrix2D(center, angle, 1.0)
     rotated_img = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+
     return rotated_img
 
 
