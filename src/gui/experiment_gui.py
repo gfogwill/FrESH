@@ -207,7 +207,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.data_worker.read_data_signal.connect(self.read_sensors_data)
         self.data_worker.start()
         
-
     def start_scan(self):
         max_temp = float(self.maxTemp.text())
         min_temp = float(self.minTemp.text())
