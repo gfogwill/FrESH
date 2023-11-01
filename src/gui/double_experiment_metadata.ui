@@ -282,6 +282,9 @@
             <height>32</height>
            </size>
           </property>
+          <property name="tabChangesFocus">
+           <bool>true</bool>
+          </property>
          </widget>
         </item>
         <item>
@@ -305,6 +308,9 @@
           <height>32</height>
          </size>
         </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item row="10" column="1">
@@ -314,6 +320,9 @@
           <width>16777215</width>
           <height>32</height>
          </size>
+        </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -331,6 +340,9 @@
           <height>32</height>
          </size>
         </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item row="8" column="1">
@@ -346,6 +358,9 @@
           <width>16777200</width>
           <height>32</height>
          </size>
+        </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -363,6 +378,9 @@
           <height>32</height>
          </size>
         </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item row="6" column="1">
@@ -378,6 +396,9 @@
           <width>16777200</width>
           <height>32</height>
          </size>
+        </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -395,6 +416,9 @@
           <height>32</height>
          </size>
         </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item row="4" column="1">
@@ -411,6 +435,9 @@
           <height>32</height>
          </size>
         </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item row="3" column="1">
@@ -426,6 +453,9 @@
           <width>16777200</width>
           <height>32</height>
          </size>
+        </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -707,6 +737,9 @@
             <height>32</height>
            </size>
           </property>
+          <property name="tabChangesFocus">
+           <bool>true</bool>
+          </property>
          </widget>
         </item>
         <item>
@@ -736,6 +769,9 @@
           <height>32</height>
          </size>
         </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item row="4" column="1">
@@ -751,6 +787,9 @@
           <width>16777200</width>
           <height>32</height>
          </size>
+        </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -768,6 +807,9 @@
           <height>32</height>
          </size>
         </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item row="6" column="1">
@@ -783,6 +825,9 @@
           <width>16777200</width>
           <height>32</height>
          </size>
+        </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -800,6 +845,9 @@
           <height>32</height>
          </size>
         </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item row="8" column="1">
@@ -816,6 +864,9 @@
           <height>32</height>
          </size>
         </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item row="11" column="1">
@@ -826,6 +877,9 @@
           <height>32</height>
          </size>
         </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item row="10" column="1">
@@ -835,6 +889,9 @@
           <width>16777215</width>
           <height>32</height>
          </size>
+        </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -851,6 +908,9 @@
           <width>16777215</width>
           <height>32</height>
          </size>
+        </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
