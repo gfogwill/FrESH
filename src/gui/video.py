@@ -30,6 +30,7 @@ class VideoSettingsUi(QtWidgets.QMainWindow):
         self.checkBox_plotCircles.toggled.connect(self.update_plot_circles)
 
     def update_auto_WB(self):
+
         if self.checkBox_auto_WB.isChecked():
             self.video_thread.cap.set(cv2.CAP_PROP_AUTO_WB, 1)
         else:
@@ -42,6 +43,8 @@ class VideoSettingsUi(QtWidgets.QMainWindow):
             self.video_thread.plot_circles = False
 
     def read_current_settings(self):
+        self.video_thread.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
+
         self.horizontalSlider_1.setValue(int(self.video_thread.cap.get(cv2.CAP_PROP_BRIGHTNESS)))
         self.horizontalSlider_2.setValue(int(self.video_thread.cap.get(cv2.CAP_PROP_CONTRAST)))
         self.horizontalSlider_3.setValue(int(self.video_thread.cap.get(cv2.CAP_PROP_SATURATION)))
