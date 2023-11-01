@@ -202,9 +202,11 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.grayscales_evolution = self.process_images(self.img_files)
         self.freezing_idxs = calculate_freezing_idxs(self.grayscales_evolution)
+
         self.del_indx = [i - 1 for i in self.del_indx]
         self.freezing_idxs = np.delete(self.freezing_idxs, self.del_indx)
         freezing_times = calculate_freezing_times(self.img_files, self.freezing_idxs)
+
         self.t, self.ff = process_sensors_data(self.exp_name, self.freezing_idxs, freezing_times)
 
         self.FFwidget.clear()
