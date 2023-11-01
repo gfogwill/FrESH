@@ -19,6 +19,9 @@
      <layout class="QVBoxLayout" name="verticalLayout_2">
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,0,0,0,1">
+        <property name="spacing">
+         <number>4</number>
+        </property>
         <item>
          <widget class="QFrame" name="frame_raw">
           <property name="frameShape">
@@ -159,6 +162,13 @@
             </widget>
            </item>
           </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="Line" name="vertical_line">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
          </widget>
         </item>
         <item>
@@ -635,13 +645,6 @@
          </widget>
         </item>
         <item>
-         <widget class="Line" name="vertical_line">
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
-          </property>
-         </widget>
-        </item>
-        <item>
          <widget class="Line" name="vertical_line_2">
           <property name="orientation">
            <enum>Qt::Vertical</enum>
@@ -675,8 +678,14 @@
               <property name="bottomMargin">
                <number>0</number>
               </property>
+              <property name="spacing">
+               <number>0</number>
+              </property>
               <item row="0" column="0">
                <layout class="QVBoxLayout" name="verticalLayout_4">
+                <property name="spacing">
+                 <number>0</number>
+                </property>
                 <item>
                  <widget class="PlotWidget" name="FFwidget" native="true"/>
                 </item>
