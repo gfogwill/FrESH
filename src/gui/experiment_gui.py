@@ -10,7 +10,6 @@ import json
 import numpy as np
 import pyqtgraph as pg
 
-
 import PyQt5
 from PyQt5 import QtGui, QtWidgets, uic, QtCore
 from PyQt5.QtGui import QPixmap
@@ -18,12 +17,13 @@ from PyQt5.QtCore import QTimer, pyqtSlot, Qt
 from PyQt5.QtWidgets import *
 
 from src import paths, __version__
-from src.daq import mccdaq
-from src.gui.video import VideoSettingsUi
-from src.gui.threads import VideoThread, DataWorker, TempThread
-from src.daq.ADAMlib import ADAMConnection, ADAM4015
-from src.daq.IniLoader import IniLoader
 
+from src.gui.threads import VideoThread, DataWorker, TempThread
+from src.gui.video import VideoSettingsUi
+
+from src.daq import mccdaq
+from src.daq.ADAMlib import ADAMConnection, ADAM4015
+# from src.daq.IniLoader import IniLoader
 
 VIDEO_DISPLAY_WIDTH = 525
 VIDEO_DISPLAY_HEIGHT = 359
@@ -33,6 +33,9 @@ if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
 
 if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
     PyQt5.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
+
+qt_path = os.path.dirname(PyQt5.__file__)
+os.environ['QT_PLUGIN_PATH'] = os.path.join(qt_path, "Qt5/plugins/platforms")
 
 
 def convert_cv_qt(cv_img):
@@ -47,12 +50,12 @@ def convert_cv_qt(cv_img):
 
 
 class ExperimentUi(QtWidgets.QMainWindow):
-    def __init__(self, experiment, *args, **kwargs):
+    def __init__(self, exp_list, *args, **kwargs):
         super(ExperimentUi, self).__init__(*args, **kwargs)
 
-        uic.loadUi('experiment.ui', self)
+        uic.loadUi(paths.src_module_dir / 'gui' / 'experiment.ui', self)
 
-        self.experiment = experiment
+        self.exp_list = exp_list
         self.bath_temp = []
         self.setpoint = []
         self.adam0 = []
@@ -65,8 +68,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.line3 = None
         self.line4 = None
 
-        self.daq = None
-        self.adam = None
         self.video_thread = None
         self.image_frame = None
 
@@ -78,7 +79,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.btn_connect_video.clicked.connect(self.connect_video)
 
         self.btn_connect_lauda = self.findChild(QtWidgets.QPushButton, 'connectLAUDAButton')
-        self.btn_connect_lauda.clicked.connect(self.connect_lauda)
+        self.btn_connect_lauda.clicked.connect(self.connect_chiller)
 
         self.btn_start_scan = self.findChild(QtWidgets.QPushButton, 'startScanButton')
         self.btn_start_scan.clicked.connect(self.start_scan)
@@ -123,13 +124,32 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.VideoSettingsUi.show()
 
     def save_pic(self):
-        fo = self.experiment.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.jpg", time.localtime())
         ret, cv_img = self.video_thread.cap.read()
-        # cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
-        cv2.imwrite(str(fo), cv_img)
+
+        if len(self.exp_list) == 1:
+            experiment = self.exp_list[0]
+            fo = experiment.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.jpg", time.localtime())
+            cv_img = cv2.rotate(cv_img, cv2.ROTATE_90_CLOCKWISE)
+            cv2.imwrite(str(fo), cv_img)
+        elif len(self.exp_list) >= 2:
+            # cv_img = cv2.rotate(cv_img, cv2.ROTATE_90_CLOCKWISE)
+            # cv_img = convert_qt_cv(self.image_frame.pixmap().toImage())
+
+            croped = cv_img  # auto_crop(cv_img)
+
+            height, width = croped.shape[:2]
+            split_width = width // len(self.exp_list)
+
+            for i, experiment in enumerate(self.exp_list):
+                fo = experiment.experiment_path / 'pics' / time.strftime(f"%Y%m%d%H%M%S.jpg", time.localtime())
+                segment = croped[:, i * split_width: (i+1) * split_width]
+                cv2.imwrite(str(fo), segment)
 
     def setup_saving(self):
         log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        logger = logging.getLogger('')
+
+        windows_title = ''
 
         if not self.saveCheckBox.isChecked():
             self.timer2.stop()
@@ -139,37 +159,29 @@ class ExperimentUi(QtWidgets.QMainWindow):
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
 
-        # date_str = time.strftime('%Y%m%d%H%M', time.localtime())
-        # self.experiment_path = paths.raw_data_path / f"{date_str}_{self.exp_metadata['label']}"
-
-        self.setWindowTitle(f"{self.experiment.metadata.label}")
-
-        # try:
-        #     os.mkdir(self.experiment_path)
-        #     os.mkdir(self.experiment_path / 'pics')
-        # except FileExistsError:
-        #     logging.error(f"Experiment already exist: {self.experiment_path}")
-
         logging.basicConfig(level=logging.INFO,
                             format=log_fmt,
-                            filename=self.experiment.experiment_path / f'{self.experiment.metadata.label}.log',
                             filemode='w')
 
+        for experiment in self.exp_list:
+            file_handler = logging.FileHandler(experiment.experiment_path / f'{experiment.metadata.label}.log')
+            file_handler.setLevel(logging.INFO)
+            file_handler.setFormatter(logging.Formatter(log_fmt))
+            logger.addHandler(file_handler)
+
+            with open(experiment.experiment_path / "sensors_data.csv", "a") as fo:
+                fo.write(f'datetime, 'f'SP,' f'BT,' f'RTD0,' f'RTD1,' f'TEMP,' f'RH\n')
+
+            logging.info(f'Sensors data file created: {experiment.experiment_path / "sensors_data.csv"}')
+
+            windows_title += experiment.metadata.label
+            windows_title += ' - '
+
+        self.setWindowTitle(windows_title)
+
         logging.info(f"Software version: {__version__}")
-        logging.info(f"Experiment directory created: {self.experiment.experiment_path}")
 
-        with open(self.experiment.experiment_path / "sensors_data.csv", "a") as fo:
-            fo.write(f'datetime,'
-                     f'SP,'
-                     f'BT,'
-                     f'RTD0,'
-                     f'RTD1,'
-                     f'TEMP,'
-                     f'RH\n')
-
-        logging.info(f'Sensors data file created: {self.experiment.experiment_path / "sensors_data.csv"}')
-
-        # logging.info(f'Experiment metadata:\n\n{json.dumps(self.experiment, indent=4)}\n\n')
+        # logging.info(f"Experiment directory created: {self.experiment.experiment_path}")
 
         self.timer2 = QTimer()
         self.timer2.setInterval(self.pictureIntervalSpinBox.value() * 1000)
@@ -189,12 +201,12 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         logging.info("Camera connected")
 
-    def connect_lauda(self):
+    def connect_chiller(self):
         # Setup thread for temperature I/O
         self.data_worker = DataWorker(float(self.temp_set.text()))
         self.data_worker.read_data_signal.connect(self.read_sensors_data)
         self.data_worker.start()
-
+        
     def start_scan(self):
         max_temp = float(self.maxTemp.text())
         min_temp = float(self.minTemp.text())
@@ -209,9 +221,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
     def set_temp2(self, t):
         logging.info(f'Setting temperature to: {t}')
         try:
-            self.data_worker.daq.set_temperature(t)
+            self.data_worker.chiller.set_temperature(t)
         except AttributeError:
-            pass
+            logging.error("Error setting temperature!")
 
     @pyqtSlot(object)
     def read_sensors_data(self, data):
@@ -230,15 +242,10 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.RH.append((t, RH))
 
         if self.saveCheckBox.isChecked():
-            with open(self.experiment.experiment_path / "sensors_data.csv", "a") as fo:
-                fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
-                         f'{SP:.2f},'
-                         f'{BT:.2f},'
-                         f'{RTD0:.2f},'
-                         f'{RTD1:.2f},'
-                         f'{TEMP:.2f},'
-                         f'{RH:.2f}'
-                         '\n')
+            for experiment in self.exp_list:
+                with open(experiment.experiment_path / "sensors_data.csv", "a") as fo:
+                    fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
+                             f'{SP:.2f},' f'{BT:.2f},' f'{RTD0:.2f},' f'{RTD1:.2f},' f'{TEMP:.2f},' f'{RH:.2f}\n')
 
         self.update_temp_plot()
 
@@ -280,7 +287,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
     def set_temp(self):
         t = float(self.temp_set.text())
         logging.info(f'Setting temperature to: {t}')
-        self.data_worker.daq.set_temperature(t)
+        self.data_worker.chiller.set_temperature(t)
 
     @pyqtSlot(np.ndarray)
     def update_image(self, cv_img):

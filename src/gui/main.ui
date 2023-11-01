@@ -6,39 +6,78 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>370</width>
-    <height>264</height>
+    <width>332</width>
+    <height>298</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QPushButton" name="newExperimentButton">
+   <widget class="QWidget" name="formLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>120</x>
-      <y>20</y>
-      <width>141</width>
-      <height>51</height>
+      <x>30</x>
+      <y>50</y>
+      <width>283</width>
+      <height>141</height>
      </rect>
     </property>
-    <property name="text">
-     <string>New experiment</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="viewExperimentButton">
-    <property name="geometry">
-     <rect>
-      <x>120</x>
-      <y>110</y>
-      <width>141</width>
-      <height>61</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>View experiment</string>
-    </property>
+    <layout class="QFormLayout" name="formLayout">
+     <item row="0" column="0">
+      <widget class="QPushButton" name="newWBButton">
+       <property name="text">
+        <string>New WB</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QPushButton" name="viewWBButton">
+       <property name="text">
+        <string>View WB</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QPushButton" name="viewExperimentButton">
+       <property name="text">
+        <string>View filter</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QPushButton" name="viewOtherExperimentButton">
+       <property name="text">
+        <string>View other</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QPushButton" name="newSingleExperimentButton">
+         <property name="text">
+          <string>New Single</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="newDoubleExperimentButton">
+         <property name="text">
+          <string>New double</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="2" column="0">
+      <widget class="QPushButton" name="newOtherButton">
+       <property name="text">
+        <string>New other</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -46,7 +85,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>370</width>
+     <width>332</width>
      <height>22</height>
     </rect>
    </property>

@@ -48,14 +48,15 @@ class ExperimentMetadata:
     def __init__(self, sampling_time=None, sampling_interval=10, storage_temperature=-20, experiment_type=None,
                  station=None, label=None, sampler_id=None, sampler_status=None, air_volume=None, start_time=None,
                  end_time=None, flow=None, temp=None, press=None, exp_description=None, run=None, v_drop=None,
-                 v_wash=None, dil_factor=None, filter_fraction=None, filter_position=None):
+                 v_wash=None, dil_factor=None, filter_fraction=None, filter_position=None, chiller_model=None):
+
         # Collection
         self.station = station
         self.storage_temperature = storage_temperature
         self.experiment_type = experiment_type
         self.label = label
 
-        self.sampler_ID = sampler_id
+        self.sampler_id = sampler_id
         self.sampler_status = sampler_status
         self.filter_position = filter_position
         self.air_volume = air_volume
@@ -77,6 +78,8 @@ class ExperimentMetadata:
         self.dil_factor = dil_factor
         self.filter_fraction = filter_fraction
 
+        self.chiller_model = chiller_model
+
     def check_required_fields(self):
         """
         Checks whether the required fields are present in the metadata.
@@ -86,7 +89,7 @@ class ExperimentMetadata:
         ValueError
             If one or more required fields are missing.
         """
-        required_fields = ["experiment_type"]
+        required_fields = ["label"]
         missing_fields = [field for field in required_fields if getattr(self, field) is None]
         if missing_fields:
             raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
@@ -105,6 +108,7 @@ class FrESHExperiment:
             os.mkdir(self.experiment_path / 'pics')
 
         else:
+            logging.info(f"Experiment found! Loading experiment: {self.experiment_path}")
             self.load_metadata()
 
     def set_metadata(self, metadata):
@@ -125,6 +129,7 @@ class FrESHExperiment:
         if os.path.exists(metadata_path):
             with open(metadata_path, "r") as metadata_file:
                 metadata_dict = json.load(metadata_file)
+                metadata_dict = {k.lower(): v for k, v in metadata_dict.items()}
                 self.metadata = ExperimentMetadata(**metadata_dict)
                 return self.metadata
         else:
@@ -183,14 +188,16 @@ def calculate_frame_temperatures(img_files, exp_name):
                          names=True,
                          converters={0: str2date})
     t = []
-    for line in data:
-        if line['datetime'] in times:
-            t.append(line[2])
+    for time in times:
+        matching_data = next((line[2] for line in data if line['datetime'] == time), None)
+        if matching_data is None:
+            # Find the nearest available temperature by finding the data point with the closest timestamp
+            nearest_data = min(data, key=lambda line: abs(line['datetime'] - time))
+            t.append(nearest_data[2])
+        else:
+            t.append(matching_data)
 
     return t
-
-
-
 
 
 def calculate_freezing_idxs(grayscales_evolution):
