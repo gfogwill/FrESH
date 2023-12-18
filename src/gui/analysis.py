@@ -272,6 +272,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
 
+        self.framesSlider.setValue(0)
         self.framesSlider.setMaximum(self.img_files.__len__() - 1)
         self.frame_t = calculate_frame_temperatures(self.img_files, self.exp_name)
 
