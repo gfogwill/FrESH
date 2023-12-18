@@ -279,3 +279,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.run_analysis()
         self.update_img()
 
+        next_index = self.experiment_list_view.currentIndex().row() + 1
+        self.experiment_list_view.setCurrentIndex(self.experiment_list_view.model().index(next_index, 0))
+
+
+
