@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1203</width>
+    <width>1230</width>
     <height>893</height>
    </rect>
   </property>
@@ -40,7 +40,7 @@
            <item row="1" column="0">
             <widget class="QGroupBox" name="groupBox">
              <property name="title">
-              <string>Raw</string>
+              <string>Metadata</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_3">
               <item row="0" column="0">
@@ -48,32 +48,32 @@
                 <item row="0" column="0">
                  <widget class="QLabel" name="label_2">
                   <property name="text">
-                   <string>TextLabel</string>
+                   <string>Label</string>
                   </property>
                  </widget>
                 </item>
                 <item row="0" column="1">
-                 <widget class="QLineEdit" name="lineEdit"/>
+                 <widget class="QLineEdit" name="lineEdit_label"/>
                 </item>
                 <item row="1" column="0">
                  <widget class="QLabel" name="label">
                   <property name="text">
-                   <string>TextLabel</string>
+                   <string>Station</string>
                   </property>
                  </widget>
                 </item>
                 <item row="1" column="1">
-                 <widget class="QLineEdit" name="lineEdit_2"/>
+                 <widget class="QLineEdit" name="lineEdit_station"/>
                 </item>
                 <item row="2" column="0">
                  <widget class="QLabel" name="label_3">
                   <property name="text">
-                   <string>TextLabel</string>
+                   <string>Sampled vol.</string>
                   </property>
                  </widget>
                 </item>
                 <item row="2" column="1">
-                 <widget class="QLineEdit" name="lineEdit_3"/>
+                 <widget class="QLineEdit" name="lineEdit_airVol"/>
                 </item>
                 <item row="3" column="0">
                  <widget class="QLabel" name="label_4">
@@ -108,7 +108,7 @@
                 <item row="6" column="0">
                  <widget class="QLabel" name="label_obs">
                   <property name="text">
-                   <string>TextLabel</string>
+                   <string>Obs.:</string>
                   </property>
                  </widget>
                 </item>

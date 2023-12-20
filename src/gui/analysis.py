@@ -156,10 +156,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.dcirc = circles.get_circles(gray, **self.hough_params, sort=True, plot=True)
 
-
-    def lock_circles(self):
-        pass
-
     def update_img(self):
         frame = self.framesSlider.value()
         if self.img_files is None:
