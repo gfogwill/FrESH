@@ -149,8 +149,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
     def detect_circles(self):
         img = cv2.imread(str(self.img_files[0]))
-
-        img = cv2.rotate(img, rotation_dict[self.rotation_combobox.currentText()])
+        rotation_option = self.rotation_combobox.currentText()
+        if rotation_option != '-':
+            img = cv2.rotate(img, rotation_dict[rotation_option])
         img = auto_crop(img, self.template_img)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -164,7 +165,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.label_temp.setText('Temperature: ' + str(self.frame_t[frame]))
 
         img = cv2.imread(str(self.img_files[frame]))
-        img = cv2.rotate(img, rotation_dict[self.rotation_combobox.currentText()])
+        rotation_option = self.rotation_combobox.currentText()
+        if rotation_option != '-':
+            img = cv2.rotate(img, rotation_dict[rotation_option])
         img = auto_crop(img, self.template_img)
 
         if hasattr(self, "dcirc"):
@@ -225,7 +228,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         for img_file in img_files:
             img_path = str(img_file)
             img = cv2.imread(img_path)
-            img = cv2.rotate(img, rotation_dict[self.rotation_combobox.currentText()])
+            rotation_option = self.rotation_combobox.currentText()
+            if rotation_option != '-':
+                img = cv2.rotate(img, rotation_dict[rotation_option])
             img = auto_crop(img, self.template_img)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -262,7 +267,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             logging.error(f"No pictures found in dir: {img_dir}")
 
         img = cv2.imread(str(self.img_files[0]))
-        img = cv2.rotate(img, rotation_dict[self.rotation_combobox.currentText()])
+        rotation_option = self.rotation_combobox.currentText()
+        if rotation_option != '-':
+            img = cv2.rotate(img, rotation_dict[rotation_option])
         img = auto_crop(img, self.template_img)
 
         qt_img = convert_cv_qt(img)
