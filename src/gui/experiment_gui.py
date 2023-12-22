@@ -132,7 +132,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
             cv_img = cv2.rotate(cv_img, cv2.ROTATE_90_CLOCKWISE)
             cv2.imwrite(str(fo), cv_img)
         elif len(self.exp_list) >= 2:
-            # cv_img = cv2.rotate(cv_img, cv2.ROTATE_90_CLOCKWISE)
+            cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
             # cv_img = convert_qt_cv(self.image_frame.pixmap().toImage())
 
             croped = cv_img  # auto_crop(cv_img)
@@ -292,7 +292,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
     @pyqtSlot(np.ndarray)
     def update_image(self, cv_img):
         """Updates the image_label with a new opencv image"""
-        #cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
+        cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
         qt_img = convert_cv_qt(cv_img)
 
         self.image_frame.setPixmap(qt_img)

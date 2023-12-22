@@ -9,9 +9,10 @@ from src import paths
 from src.analysis import circles
 from src.gui.experiment_gui import convert_cv_qt
 from src.experiment.experiment import FrESHExperiment, process_sensors_data, calculate_frame_temperatures, \
-    calculate_freezing_idxs, calculate_freezing_times
+    calculate_freezing_idxs, calculate_freezing_times, calculate_freezing_temps
 
 import os
+import csv
 import pathlib
 import numpy as np
 
@@ -147,6 +148,12 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             for i in range(len(self.t)):
                 fo.write(f'{i}, {self.t[i]}, {self.ff[i]}, {self.conc_per_L[i]}, {self.conc_per_drop[i]} \n')
 
+        with open(paths.processed_data_path / self.exp_name / 'freezing_temps.csv', 'w', newline='') as csv_file:
+            csv_writer = csv.writer(csv_file)
+            csv_writer.writerow(['Index', 'Temperature'])
+            csv_writer.writerows(zip(*[iter(self.freezing_temps)] * 2))  # Group data into pairs
+
+
     def detect_circles(self):
         img = cv2.imread(str(self.img_files[0]))
         rotation_option = self.rotation_combobox.currentText()
@@ -205,6 +212,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.del_indx = [i - 1 for i in self.del_indx]
         self.freezing_idxs = np.delete(self.freezing_idxs, self.del_indx)
         freezing_times = calculate_freezing_times(self.img_files, self.freezing_idxs)
+
+        self.freezing_temps = calculate_freezing_temps(freezing_times, self.exp_name)
 
         self.t, self.ff = process_sensors_data(self.exp_name, self.freezing_idxs, freezing_times)
 
