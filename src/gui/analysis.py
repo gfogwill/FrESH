@@ -131,8 +131,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
     def filter_exp_names(self):
         # Get the filter text
-        filter_text = self.filter_line_edit.text().upper()  # Case-insensitive filtering
-
+        filter_texts = [filter_text.strip().upper() for filter_text in self.filter_line_edit.text().split('&')]
         # Clear the model
         self.model.clear()
 
@@ -141,7 +140,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         listdir.sort(reverse=True)
 
         for exp_name in listdir:
-            if filter_text in exp_name.upper():
+            if all(filter_text in exp_name.upper() for filter_text in filter_texts):
                 item = QtGui.QStandardItem(exp_name)
                 item.setEditable(False)
                 self.model.appendRow(item)
