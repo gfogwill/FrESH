@@ -5,7 +5,6 @@ from PyQt5 import QtWidgets, uic, QtGui
 
 import cv2
 
-from src.analysis.circles import auto_crop
 from src import paths
 from src.analysis import circles
 from src.gui.experiment_gui import convert_cv_qt
@@ -29,7 +28,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.conc = None
         self.exp_name = None
-        self.img_files = None
+
+        self.experiment = None
+
         self.selected_droplet = None
         self.grayscales_evolution = None
         self.del_indx = []
@@ -51,7 +52,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.experiment_list_view = self.findChild(QtWidgets.QListView, 'experimentListView')
         self.model = QtGui.QStandardItemModel(self.experiment_list_view)
         self.experiment_list_view.setModel(self.model)
-
 
         self.filter_line_edit = self.findChild(QtWidgets.QLineEdit, 'filter_line_edit')
         self.filter_line_edit.textChanged.connect(self.filter_exp_names)
@@ -89,6 +89,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.label_temp = self.findChild(QtWidgets.QLabel, 'temp_label')
 
         self.rotation_combobox = self.findChild(QtWidgets.QComboBox, 'comboBox_rotation')
+        self.rotation_combobox.currentTextChanged.connect(self.update_rotation)
 
         self.horizontalSlider_13.valueChanged['int'].connect(lambda value: self.update_dict_param("min_distance", value))
         self.horizontalSlider_14.valueChanged['int'].connect(lambda value: self.update_dict_param("param1", value))
@@ -100,19 +101,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.FFwidget.setLabel('left', 'Frozen Fraction', color='red', size=30)
 
-        # self.image_frame.scene().sigMouseClicked.connect(self.mouse_clicked)
         self.image_frame.mousePressEvent = self.mouse_clicked
-
-        # model = QtGui.QStandardItemModel()
-        # self.experiment_list_view.setModel(model)
-
-        # listdir = os.listdir(paths.raw_data_path)
-        # listdir.sort(reverse=True)
-        #
-        # for i in listdir:
-        #     item = QtGui.QStandardItem(i)
-        #     item.setEditable(False)
-        #     model.appendRow(item)
 
         self.load_exp_names()
 
@@ -149,11 +138,19 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         png_files = [file for file in os.listdir(paths.etc_path) if file.endswith(".png")]
         self.templates_combobox.addItems(png_files)
         self.template_img = self.templates_combobox.currentText()
-        self.update_template_img()
+        #self.update_template_img()
+
+    def update_rotation(self):
+        rotation = self.rotation_combobox.currentText()
+        self.experiment.metadata.rotation = rotation_dict[rotation]
 
     def update_template_img(self):
-        self.template_img = self.templates_combobox.currentText()
-        template_image = cv2.imread(str(paths.etc_path / self.template_img))
+        template_img = self.templates_combobox.currentText()
+
+        self.experiment.metadata.template_img = template_img
+
+        template_image = cv2.imread(str(paths.etc_path / template_img))
+
         self.image_frame.setFixedWidth(template_image.shape[1])
         self.image_frame.setFixedHeight(template_image.shape[0])
 
@@ -191,42 +188,13 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             csv_writer.writerow(['Index', 'Temperature'])
             csv_writer.writerows(zip(*[iter(self.freezing_temps)] * 2))  # Group data into pairs
 
-
-    def detect_circles(self):
-        img = cv2.imread(str(self.img_files[0]))
-        rotation_option = self.rotation_combobox.currentText()
-        if rotation_option != '-':
-            img = cv2.rotate(img, rotation_dict[rotation_option])
-        img = auto_crop(img, self.template_img)
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        self.dcirc = circles.get_circles(gray, **self.hough_params, sort=True, plot=True)
-
     def update_img(self):
         frame = self.framesSlider.value()
-        if self.img_files is None:
-            return
-        self.frameNumber.setText('Image: ' + str(self.img_files[frame].stem))
+
+        self.frameNumber.setText('Image: ' + str(self.experiment.img_files[frame].stem))
         self.label_temp.setText('Temperature: ' + str(self.frame_t[frame]))
 
-        img = cv2.imread(str(self.img_files[frame]))
-        rotation_option = self.rotation_combobox.currentText()
-        if rotation_option != '-':
-            img = cv2.rotate(img, rotation_dict[rotation_option])
-        img = auto_crop(img, self.template_img)
-
-        if hasattr(self, "dcirc"):
-            np_dcirc = np.uint16(np.around(self.dcirc))
-
-            for n, i in enumerate(np_dcirc):
-                if self.freezing_idxs[n] > frame:
-                    cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 255), 1)
-                    cv2.putText(img, "{}".format(n), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 0), 1)
-                else:
-                    cv2.circle(img, (i[0], i[1]), i[2], (0, 255, 0), 1)
-                    cv2.putText(img, "{}".format(n), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 0), 1)
-
-        # img = circles.add_circles(img, self.dcirc)
+        img = self.experiment.get_img(frame)
 
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
@@ -236,61 +204,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.FFwidget.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget.getAxis('left').range)
 
         #self.FFwidget_grayscale.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget_grayscale.getAxis('left').range)
-
-    def run_analysis(self):
-        nu = self.experiment.metadata.dil_factor
-        v_wash = self.experiment.metadata.v_wash
-        v_drop = self.experiment.metadata.v_drop
-        v_air = self.experiment.metadata.air_volume
-        filter_fraction = self.experiment.metadata.filter_fraction
-
-        self.grayscales_evolution = self.process_images(self.img_files)
-        self.freezing_idxs = calculate_freezing_idxs(self.grayscales_evolution)
-
-        self.del_indx = [i - 1 for i in self.del_indx]
-        self.freezing_idxs = np.delete(self.freezing_idxs, self.del_indx)
-        freezing_times = calculate_freezing_times(self.img_files, self.freezing_idxs)
-
-        self.freezing_temps = calculate_freezing_temps(freezing_times, self.exp_name)
-
-        self.t, self.ff = process_sensors_data(self.exp_name, self.freezing_idxs, freezing_times)
-
-        self.FFwidget.clear()
-        self.FFwidget.plot(self.t, self.ff)
-
-        # Normalization factor to L^-1
-        X = nu * v_wash / (v_air * filter_fraction)
-
-        # Concentration per sample
-        self.conc_per_drop = - np.log(1 - np.array(self.ff)) / v_drop
-        # Concentration per standar L of air
-        self.conc_per_L = self.conc_per_drop * X
-
-        # self.conc = - 1 * 1 * np.log(1 - np.array(self.ff)) / (v_drop * 1 * 1)
-
-    def process_images(self, img_files):
-        # function to process the images and return the grayscales
-        res = []
-
-        for img_file in img_files:
-            img_path = str(img_file)
-            img = cv2.imread(img_path)
-            rotation_option = self.rotation_combobox.currentText()
-            if rotation_option != '-':
-                img = cv2.rotate(img, rotation_dict[rotation_option])
-            img = auto_crop(img, self.template_img)
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-            # dcirc = circles.get_circles(gray, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
-
-            res.append(circles.get_grayscales(gray, self.dcirc))
-
-            img = circles.add_circles(gray, self.dcirc)
-
-            qt_img = convert_cv_qt(img)
-            self.image_frame.setPixmap(qt_img)
-
-        return np.array(res)
 
     def load_experiment(self):
         self.t = []
@@ -303,31 +216,16 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.experiment = FrESHExperiment(self.exp_name)
 
-        img_dir = paths.raw_data_path / self.exp_name / 'pics'
-
-        # get a list of all PNG files in the directory
-        self.img_files = [f for f in img_dir.iterdir() if f.is_file() and f.suffix == ".jpg"]
-        # sort the list of images
-        self.img_files.sort()
-
-        if self.img_files.__len__() == 0:
-            logging.error(f"No pictures found in dir: {img_dir}")
-
-        img = cv2.imread(str(self.img_files[0]))
-        rotation_option = self.rotation_combobox.currentText()
-        if rotation_option != '-':
-            img = cv2.rotate(img, rotation_dict[rotation_option])
-        img = auto_crop(img, self.template_img)
+        img = self.experiment.get_img(0)
 
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
 
         self.framesSlider.setValue(0)
-        self.framesSlider.setMaximum(self.img_files.__len__() - 1)
-        self.frame_t = calculate_frame_temperatures(self.img_files, self.exp_name)
+        self.framesSlider.setMaximum(self.experiment.img_files.__len__() - 1)
+        self.frame_t = calculate_frame_temperatures(self.experiment.img_files, self.exp_name)
 
-        self.detect_circles()
-        self.run_analysis()
+        # self.run_analysis()
         self.update_img()
 
         next_index = self.experiment_list_view.currentIndex().row() + 1

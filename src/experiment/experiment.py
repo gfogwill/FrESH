@@ -1,5 +1,7 @@
 import os
 import json
+import cv2
+
 from datetime import datetime
 
 import numpy as np
@@ -7,6 +9,7 @@ import yaml
 import logging
 
 from src import paths
+from src.analysis.circles import auto_crop
 
 
 class ExperimentMetadata:
@@ -48,7 +51,8 @@ class ExperimentMetadata:
     def __init__(self, sampling_time=None, sampling_interval=10, storage_temperature=-20, experiment_type=None,
                  station=None, label=None, sampler_id=None, sampler_status=None, air_volume=None, start_time=None,
                  end_time=None, flow=None, temp=None, press=None, exp_description=None, run=None, v_drop=None,
-                 v_wash=None, dil_factor=None, filter_fraction=None, filter_position=None, chiller_model=None):
+                 v_wash=None, dil_factor=None, filter_fraction=None, filter_position=None, chiller_model=None,
+                 template_img=None, rotation=None):
 
         # Collection
         self.station = station
@@ -72,6 +76,9 @@ class ExperimentMetadata:
 
         self.exp_description = exp_description
         self.run = run
+
+        self.template_img = template_img
+        self.rotation = rotation
 
         self.v_drop = v_drop
         self.v_wash = v_wash
@@ -98,6 +105,7 @@ class ExperimentMetadata:
 class FrESHExperiment:
     def __init__(self, experiment_name):
         self.exp_name = experiment_name
+        self.metadata = None
 
         self.experiment_path = paths.raw_data_path / experiment_name
 
@@ -109,7 +117,85 @@ class FrESHExperiment:
 
         else:
             logging.info(f"Experiment found! Loading experiment: {self.experiment_path}")
+            self.populate_image_list()
             self.load_metadata()
+
+    def run_analysis(self):
+        nu = self.metadata.dil_factor
+        v_wash = self.metadata.v_wash
+        v_drop = self.metadata.v_drop
+        v_air = self.metadata.air_volume
+        filter_fraction = self.metadata.filter_fraction
+
+        self.grayscales_evolution = self.process_images(self.img_files)
+        self.freezing_idxs = calculate_freezing_idxs(self.grayscales_evolution)
+
+        self.del_indx = [i - 1 for i in self.del_indx]
+        self.freezing_idxs = np.delete(self.freezing_idxs, self.del_indx)
+        freezing_times = calculate_freezing_times(self.img_files, self.freezing_idxs)
+
+        self.freezing_temps = calculate_freezing_temps(freezing_times, self.exp_name)
+
+        self.t, self.ff = process_sensors_data(self.exp_name, self.freezing_idxs, freezing_times)
+
+        self.FFwidget.clear()
+        self.FFwidget.plot(self.t, self.ff)
+
+        # Normalization factor to L^-1
+        X = nu * v_wash / (v_air * filter_fraction)
+
+        # Concentration per sample
+        self.conc_per_drop = - np.log(1 - np.array(self.ff)) / v_drop
+        # Concentration per standar L of air
+        self.conc_per_L = self.conc_per_drop * X
+
+        # self.conc = - 1 * 1 * np.log(1 - np.array(self.ff)) / (v_drop * 1 * 1)
+
+    def get_img(self, frame_index):
+        if self.img_files is None or frame_index < 0 or frame_index >= len(self.img_files):
+            return None
+
+        img = cv2.imread(str(self.img_files[frame_index]))
+
+        if self.metadata.rotation is not None:
+            img = cv2.rotate(img, self.metadata.rotation)
+
+        if self.metadata.template_img is not None:
+            img = auto_crop(img, self.metadata.template_img)
+
+        if hasattr(self, "dcirc"):
+            np_dcirc = np.uint16(np.around(self.dcirc))
+
+            for n, i in enumerate(np_dcirc):
+                if self.freezing_idxs[n] > frame_index:
+                    cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 255), 1)
+                    cv2.putText(img, "{}".format(n), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 0), 1)
+                else:
+                    cv2.circle(img, (i[0], i[1]), i[2], (0, 255, 0), 1)
+                    cv2.putText(img, "{}".format(n), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 0), 1)
+
+        return img
+
+    def detect_circles(self):
+        img = cv2.imread(str(self.img_files[0]))
+        rotation_option = self.rotation_combobox.currentText()
+        if rotation_option != '-':
+            img = cv2.rotate(img, rotation_dict[rotation_option])
+        img = auto_crop(img, self.template_img)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        self.circles_positions = circles.get_circles(gray, **self.hough_params, sort=True, plot=True)
+
+    def populate_image_list(self):
+        img_dir = paths.raw_data_path / self.exp_name / 'pics'
+
+        # get a list of all JPG files in the directory
+        self.img_files = [f for f in img_dir.iterdir() if f.is_file() and f.suffix == ".jpg"]
+        # sort the list of images
+        self.img_files.sort()
+
+        if self.img_files.__len__() == 0:
+            logging.error(f"No pictures found in dir: {img_dir}")
 
     def set_metadata(self, metadata):
         # implementation for collecting particles onto a membrane filter
