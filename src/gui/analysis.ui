@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1230</width>
+    <width>1278</width>
     <height>893</height>
    </rect>
   </property>
@@ -130,6 +130,9 @@
                <layout class="QVBoxLayout" name="verticalLayout_3">
                 <item>
                  <widget class="QListView" name="experimentListView"/>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="filter_line_edit"/>
                 </item>
                 <item>
                  <layout class="QHBoxLayout" name="horizontalLayout_3">

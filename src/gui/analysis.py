@@ -2,6 +2,7 @@ import logging
 
 from PyQt5 import QtWidgets, uic, QtGui
 
+
 import cv2
 
 from src.analysis.circles import auto_crop
@@ -48,6 +49,12 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         uic.loadUi('analysis.ui', self)
 
         self.experiment_list_view = self.findChild(QtWidgets.QListView, 'experimentListView')
+        self.model = QtGui.QStandardItemModel(self.experiment_list_view)
+        self.experiment_list_view.setModel(self.model)
+
+
+        self.filter_line_edit = self.findChild(QtWidgets.QLineEdit, 'filter_line_edit')
+        self.filter_line_edit.textChanged.connect(self.filter_exp_names)
 
         self.button_load_experiment = self.findChild(QtWidgets.QPushButton, 'loadExperimentButton')
         self.button_load_experiment.clicked.connect(self.load_experiment)
@@ -96,16 +103,48 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         # self.image_frame.scene().sigMouseClicked.connect(self.mouse_clicked)
         self.image_frame.mousePressEvent = self.mouse_clicked
 
-        model = QtGui.QStandardItemModel()
-        self.experiment_list_view.setModel(model)
+        # model = QtGui.QStandardItemModel()
+        # self.experiment_list_view.setModel(model)
 
+        # listdir = os.listdir(paths.raw_data_path)
+        # listdir.sort(reverse=True)
+        #
+        # for i in listdir:
+        #     item = QtGui.QStandardItem(i)
+        #     item.setEditable(False)
+        #     model.appendRow(item)
+
+        self.load_exp_names()
+
+    def load_exp_names(self):
+        # Clear the model
+        self.model.clear()
+
+        # Load and display exp_names
         listdir = os.listdir(paths.raw_data_path)
         listdir.sort(reverse=True)
 
-        for i in listdir:
-            item = QtGui.QStandardItem(i)
+        for exp_name in listdir:
+            item = QtGui.QStandardItem(exp_name)
             item.setEditable(False)
-            model.appendRow(item)
+            self.model.appendRow(item)
+
+    def filter_exp_names(self):
+        # Get the filter text
+        filter_text = self.filter_line_edit.text().upper()  # Case-insensitive filtering
+
+        # Clear the model
+        self.model.clear()
+
+        # Load and display filtered exp_names
+        listdir = os.listdir(paths.raw_data_path)
+        listdir.sort(reverse=True)
+
+        for exp_name in listdir:
+            if filter_text in exp_name.upper():
+                item = QtGui.QStandardItem(exp_name)
+                item.setEditable(False)
+                self.model.appendRow(item)
 
     def populate_combobox_templates(self):
         png_files = [file for file in os.listdir(paths.etc_path) if file.endswith(".png")]
