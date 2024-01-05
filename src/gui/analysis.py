@@ -15,6 +15,7 @@ import os
 import csv
 import pathlib
 import numpy as np
+from datetime import datetime
 
 rotation_dict = {'-': None,
                  '90 CCW': cv2.ROTATE_90_COUNTERCLOCKWISE,
@@ -26,8 +27,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
         super(ExperimentAnalysisUi, self).__init__(*args, **kwargs)
 
-        self.conc = None
-        self.exp_name = None
+        self.metadata_modified = False  # Flag to track if metadata has been modified
 
         self.experiment = None
 
@@ -58,6 +58,30 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.button_load_experiment = self.findChild(QtWidgets.QPushButton, 'loadExperimentButton')
         self.button_load_experiment.clicked.connect(self.load_experiment)
+
+        # self.label_text_edit = self.findChild(QtWidgets.QLineEdit, 'lineEdit_label')
+        # self.station_text_edit = self.findChild(QtWidgets.QLineEdit, 'station_text_edit')
+        # self.airVol_text_edit = self.findChild(QtWidgets.QLineEdit, 'lineEdit_airVol')
+
+        # List of attribute names
+        attribute_names = [
+            "station", "label", "sampler_id",
+            "sampler_status", "filter_position", "air_volume", "start_time", "end_time",
+            "sampling_time", "sampling_interval", "flow", "temp", "press", "exp_description",
+            "run", "v_drop", "v_wash", "dil_factor", "filter_fraction", "chiller_model"
+        ]
+
+        # Generate lines for finding child widgets
+        for attribute_name in attribute_names:
+            setattr(self, f"{attribute_name}_text_edit", self.findChild(QtWidgets.QLineEdit, f'{attribute_name}_text_edit'))
+
+        self.type_combobox = self.findChild(QtWidgets.QComboBox, 'comboBox_type')
+
+        # Connect textChanged signals to update_metadata_modified method
+        for attribute_name in attribute_names:
+            widget = getattr(self, f"{attribute_name}_text_edit")
+            widget.textChanged.connect(lambda: self.update_metadata_modified(attribute_name))
+
 
         # ToDo: put in another place the code
         # self.button_run_analysis = self.findChild(QtWidgets.QPushButton, 'runButton')
@@ -118,6 +142,74 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             item.setEditable(False)
             self.model.appendRow(item)
 
+    def load_metadata_into_gui(self):
+        # Load metadata into text edits
+        metadata = self.experiment.metadata  # Assuming your FrESHExperiment class has a metadata attribute
+
+        # # Assuming your text edits have names that match the metadata attributes
+        # self.station_text_edit.setText(metadata.station)
+        # self.airVol_text_edit.setText(f"{metadata.air_volume:.2f}")
+        # # self.sampling_time_text_edit.setText(metadata.sampling_time)
+        #
+        # # Connect text edits to update_metadata method
+        # self.station_text_edit.textChanged.connect(lambda: self.update_metadata('station'))
+        # self.airVol_text_edit.textChanged.connect(lambda: self.update_metadata('airVol'))
+        # # self.sampling_time_text_edit.textChanged.connect(lambda: self.update_metadata('sampling_time'))
+
+        # Mapping of attribute names to their corresponding text edit widgets
+
+        attribute_to_widget_mapping = {
+            "station": self.station_text_edit,
+            "experiment_type": self.experiment_type_text_edit,
+            "label": self.label_text_edit,
+            "sampler_id": self.sampler_id_text_edit,
+            "sampler_status": self.sampler_status_text_edit,
+            "filter_position": self.filter_position_text_edit,
+            "air_volume": self.air_volume_text_edit,
+            "start_time": self.start_time_text_edit,
+            "end_time": self.end_time_text_edit,
+            "sampling_time": self.sampling_time_text_edit,
+            "sampling_interval": self.sampling_interval_text_edit,
+            "flow": self.flow_text_edit,
+            "temp": self.temp_text_edit,
+            "press": self.press_text_edit,
+            "exp_description": self.exp_description_text_edit,
+            "run": self.run_text_edit,
+            "v_drop": self.v_drop_text_edit,
+            "v_wash": self.v_wash_text_edit,
+            "dil_factor": self.dil_factor_text_edit,
+            "filter_fraction": self.filter_fraction_text_edit,
+            "chiller_model": self.chiller_model_text_edit,
+        }
+        for attribute_name, widget in attribute_to_widget_mapping.items():
+            if widget is None:
+                continue
+            if hasattr(metadata, attribute_name):
+                value = getattr(metadata, attribute_name)
+
+                # Special handling for date and time attributes
+                if attribute_name.endswith("_time") and isinstance(value, datetime):
+                    value = value.strftime("%Y-%m-%d %H:%M") if value else ""
+
+                # Update the text edit
+                widget.setText(str(value))
+
+                # Connect text edits to update_metadata method
+                widget.textChanged.connect(
+                    lambda value=value, attribute_name=attribute_name: self.update_metadata(attribute_name, value))
+
+    def update_metadata(self, attribute_name, new_value):
+        # Update the corresponding attribute in the metadata object
+        metadata = self.experiment.metadata
+
+        if hasattr(metadata, attribute_name):
+            # Special handling for date and time attributes
+            if attribute_name.endswith("_time"):
+                new_value = datetime.strptime(new_value, "%Y-%m-%d %H:%M") if new_value else None
+
+            setattr(metadata, attribute_name, new_value)
+
+
     def filter_exp_names(self):
         # Get the filter text
         filter_texts = [filter_text.strip().upper() for filter_text in self.filter_line_edit.text().split('&')]
@@ -157,6 +249,11 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def update_dict_param(self, param_name, new_value):
         self.hough_params[param_name] = new_value
 
+    def update_metadata_modified(self, attribute_name):
+        # Update the metadata_modified flag and show an alert to the user
+        self.metadata_modified = True
+        self.show_metadata_alert()
+
     def mouse_clicked(self, evt):
         x = evt.pos().x()
         y = evt.pos().y()
@@ -183,10 +280,26 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             for i in range(len(self.t)):
                 fo.write(f'{i}, {self.t[i]}, {self.ff[i]}, {self.conc_per_L[i]}, {self.conc_per_drop[i]} \n')
 
-        with open(paths.processed_data_path / self.exp_name / 'freezing_temps.csv', 'w', newline='') as csv_file:
+        with open(paths.interim_data_path / self.exp_name / 'freezing_temps.csv', 'w', newline='') as csv_file:
             csv_writer = csv.writer(csv_file)
             csv_writer.writerow(['Index', 'Temperature'])
             csv_writer.writerows(zip(*[iter(self.freezing_temps)] * 2))  # Group data into pairs
+
+        # Save metadata to a file
+        if self.metadata_modified:
+            # Perform the save operation (replace this with your actual saving logic)
+            self.experiment.save_metadata_to_file()  # You need to implement this method in your FrESHExperiment class
+            self.metadata_modified = False
+            self.hide_metadata_alert()
+
+    def show_metadata_alert(self):
+        # Show an alert to inform the user that metadata has been modified
+        QMessageBox.information(self, "Metadata Modified", "Metadata has been modified. Press 'Save' to apply changes.")
+
+    def hide_metadata_alert(self):
+        # Hide the metadata modification alert
+        QMessageBox.information(self, "Metadata Saved", "Metadata has been saved successfully.")
+
 
     def update_img(self):
         frame = self.framesSlider.value()
@@ -216,6 +329,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.experiment = FrESHExperiment(self.exp_name)
 
+        self.load_metadata_into_gui()
+
         img = self.experiment.get_img(0)
 
         qt_img = convert_cv_qt(img)
@@ -228,8 +343,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         # self.run_analysis()
         self.update_img()
 
-        next_index = self.experiment_list_view.currentIndex().row() + 1
-        self.experiment_list_view.setCurrentIndex(self.experiment_list_view.model().index(next_index, 0))
 
-
+        # next_index = self.experiment_list_view.currentIndex().row() + 1
+        # self.experiment_list_view.setCurrentIndex(self.experiment_list_view.model().index(next_index, 0))
 

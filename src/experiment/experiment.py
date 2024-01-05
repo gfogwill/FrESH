@@ -107,16 +107,16 @@ class FrESHExperiment:
         self.exp_name = experiment_name
         self.metadata = None
 
-        self.experiment_path = paths.raw_data_path / experiment_name
+        experiment_path = paths.raw_data_path / experiment_name
 
         # create experiment directory if it doesn't exist
-        if not os.path.exists(self.experiment_path):
-            logging.info(f"Creating new experiment: {self.experiment_path}")
-            os.mkdir(self.experiment_path)
-            os.mkdir(self.experiment_path / 'pics')
+        if not os.path.exists(experiment_path):
+            logging.info(f"Creating new experiment: {experiment_path}")
+            os.mkdir(experiment_path)
+            os.mkdir(experiment_path / 'pics')
 
         else:
-            logging.info(f"Experiment found! Loading experiment: {self.experiment_path}")
+            logging.info(f"Experiment found! Loading experiment: {experiment_path}")
             self.populate_image_list()
             self.load_metadata()
 
@@ -206,6 +206,12 @@ class FrESHExperiment:
     def _save_metadata(self):
         # saves metadata to a JSON file
         metadata_path = os.path.join(self.experiment_path, f"metadata.json")
+        with open(metadata_path, "w") as metadata_file:
+            json.dump(self.metadata.__dict__, metadata_file, indent=4)
+
+    def save_metadata_to_file(self):
+        # saves metadata to a JSON file
+        metadata_path = os.path.join(paths.interim_data_path / self.exp_name, f"metadata.json")
         with open(metadata_path, "w") as metadata_file:
             json.dump(self.metadata.__dict__, metadata_file, indent=4)
 
