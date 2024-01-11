@@ -205,7 +205,7 @@ class FrESHExperiment:
 
     def _save_metadata(self):
         # saves metadata to a JSON file
-        metadata_path = os.path.join(self.experiment_path, f"metadata.json")
+        metadata_path = os.path.join(paths.raw_data_path / self.exp_name, f"metadata.json")
         with open(metadata_path, "w") as metadata_file:
             json.dump(self.metadata.__dict__, metadata_file, indent=4)
 
