@@ -107,6 +107,8 @@ class FrESHExperiment:
         self.exp_name = experiment_name
         self.metadata = None
 
+        self.is_analyzed = False
+
         experiment_path = paths.raw_data_path / experiment_name
 
         # create experiment directory if it doesn't exist
@@ -149,9 +151,34 @@ class FrESHExperiment:
         # Concentration per standar L of air
         self.conc_per_L = self.conc_per_drop * X
 
-        # self.conc = - 1 * 1 * np.log(1 - np.array(self.ff)) / (v_drop * 1 * 1)
+    def process_images(self, img_files):
+        # function to process the images and return the grayscales
+        res = []
+
+        for img_file in img_files:
+            img_path = str(img_file)
+            img = cv2.imread(img_path)
+            rotation_option = self.rotation_combobox.currentText()
+
+            if rotation_option != '-':
+                img = cv2.rotate(img, rotation_dict[rotation_option])
+
+            img = auto_crop(img, self.template_img)
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+            # dcirc = circles.get_circles(gray, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
+
+            res.append(circles.get_grayscales(gray, self.dcirc))
+
+            img = circles.add_circles(gray, self.dcirc)
+
+            qt_img = convert_cv_qt(img)
+            self.image_frame.setPixmap(qt_img)
+
+        return np.array(res)
 
     def get_img(self, frame_index):
+
         if self.img_files is None or frame_index < 0 or frame_index >= len(self.img_files):
             return None
 
@@ -205,7 +232,7 @@ class FrESHExperiment:
 
     def _save_metadata(self):
         # saves metadata to a JSON file
-        metadata_path = os.path.join(self.experiment_path, f"metadata.json")
+        metadata_path = os.path.join(paths.raw_data_path / self.exp_name, f"metadata.json")
         with open(metadata_path, "w") as metadata_file:
             json.dump(self.metadata.__dict__, metadata_file, indent=4)
 
@@ -217,7 +244,7 @@ class FrESHExperiment:
 
     def load_metadata(self):
         # loads metadata from a JSON file
-        metadata_path = os.path.join(self.experiment_path, f"metadata.json")
+        metadata_path = os.path.join(paths.raw_data_path / self.exp_name, f"metadata.json")
         if os.path.exists(metadata_path):
             with open(metadata_path, "r") as metadata_file:
                 metadata_dict = json.load(metadata_file)
@@ -237,11 +264,11 @@ class FrESHExperiment:
     def export_metadata(self, export_format="json"):
         # exports metadata to a file in the specified format (JSON or YAML)
         if export_format == "json":
-            export_path = os.path.join(self.experiment_path, f"metadata.json")
+            export_path = os.path.join(paths.raw_data_path / self.exp_name, f"metadata.json")
             with open(export_path, "w") as export_file:
                 json.dump(self.metadata.__dict__, export_file, indent=4)
         elif export_format == "yaml":
-            export_path = os.path.join(self.experiment_path, f"metadata.yaml")
+            export_path = os.path.join(paths.raw_data_path / self.exp_name, f"metadata.yaml")
             with open(export_path, "w") as export_file:
                 yaml.dump(self.metadata.__dict__, export_file, default_flow_style=False)
         else:

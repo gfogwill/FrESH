@@ -67,8 +67,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         attribute_names = [
             "station", "label", "sampler_id",
             "sampler_status", "filter_position", "air_volume", "start_time", "end_time",
-            "sampling_time", "sampling_interval", "flow", "temp", "press", "exp_description",
-            "run", "v_drop", "v_wash", "dil_factor", "filter_fraction", "chiller_model"
         ]
 
         # Generate lines for finding child widgets
@@ -168,18 +166,11 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             "air_volume": self.air_volume_text_edit,
             "start_time": self.start_time_text_edit,
             "end_time": self.end_time_text_edit,
-            "sampling_time": self.sampling_time_text_edit,
-            "sampling_interval": self.sampling_interval_text_edit,
             "flow": self.flow_text_edit,
             "temp": self.temp_text_edit,
             "press": self.press_text_edit,
             "exp_description": self.exp_description_text_edit,
-            "run": self.run_text_edit,
-            "v_drop": self.v_drop_text_edit,
-            "v_wash": self.v_wash_text_edit,
-            "dil_factor": self.dil_factor_text_edit,
-            "filter_fraction": self.filter_fraction_text_edit,
-            "chiller_model": self.chiller_model_text_edit,
+
         }
         for attribute_name, widget in attribute_to_widget_mapping.items():
             if widget is None:
@@ -272,18 +263,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.label_deleted.setText("Delete droplets : " + str(self.del_indx))
 
     def save(self):
-        p = pathlib.Path(paths.processed_data_path / self.exp_name)
-        p.mkdir(parents=True, exist_ok=True)
-
-        with open(paths.processed_data_path / self.exp_name / 'report.csv', 'w') as fo:
-            fo.write(f'index, temp, ff, conc_per_L, conc_per_drop\n')
-            for i in range(len(self.t)):
-                fo.write(f'{i}, {self.t[i]}, {self.ff[i]}, {self.conc_per_L[i]}, {self.conc_per_drop[i]} \n')
-
-        with open(paths.interim_data_path / self.exp_name / 'freezing_temps.csv', 'w', newline='') as csv_file:
-            csv_writer = csv.writer(csv_file)
-            csv_writer.writerow(['Index', 'Temperature'])
-            csv_writer.writerows(zip(*[iter(self.freezing_temps)] * 2))  # Group data into pairs
+        i = pathlib.Path(paths.interim_data_path / self.exp_name)
+        i.mkdir(parents=True, exist_ok=True)
 
         # Save metadata to a file
         if self.metadata_modified:
@@ -292,14 +273,27 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             self.metadata_modified = False
             self.hide_metadata_alert()
 
+        p = pathlib.Path(paths.processed_data_path / self.exp_name)
+        p.mkdir(parents=True, exist_ok=True)
+
+        if self.experiment.is_analyzed:
+            with open(paths.processed_data_path / self.exp_name / 'report.csv', 'w') as fo:
+                fo.write(f'index, temp, ff, conc_per_L, conc_per_drop\n')
+                for i in range(len(self.t)):
+                    fo.write(f'{i}, {self.t[i]}, {self.ff[i]}, {self.conc_per_L[i]}, {self.conc_per_drop[i]} \n')
+
+            with open(paths.interim_data_path / self.exp_name / 'freezing_temps.csv', 'w', newline='') as csv_file:
+                csv_writer = csv.writer(csv_file)
+                csv_writer.writerow(['Index', 'Temperature'])
+                csv_writer.writerows(zip(*[iter(self.freezing_temps)] * 2))  # Group data into pairs
+
     def show_metadata_alert(self):
         # Show an alert to inform the user that metadata has been modified
-        QMessageBox.information(self, "Metadata Modified", "Metadata has been modified. Press 'Save' to apply changes.")
+        self.setWindowTitle(self.exp_name + "*")
 
     def hide_metadata_alert(self):
         # Hide the metadata modification alert
-        QMessageBox.information(self, "Metadata Saved", "Metadata has been saved successfully.")
-
+        self.setWindowTitle(self.exp_name)
 
     def update_img(self):
         frame = self.framesSlider.value()
@@ -342,8 +336,10 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         # self.run_analysis()
         self.update_img()
+        self.hide_metadata_alert()
 
-
+        if not self.experiment.is_analyzed:
+            self.experiment.run_analysis()
         # next_index = self.experiment_list_view.currentIndex().row() + 1
         # self.experiment_list_view.setCurrentIndex(self.experiment_list_view.model().index(next_index, 0))
 
