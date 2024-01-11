@@ -141,7 +141,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
             split_width = width // len(self.exp_list)
 
             for i, experiment in enumerate(self.exp_list):
-                fo = experiment.experiment_path / 'pics' / time.strftime(f"%Y%m%d%H%M%S.jpg", time.localtime())
+                fo = paths.raw_data_path / experiment.exp_name/ 'pics' / time.strftime(f"%Y%m%d%H%M%S.jpg", time.localtime())
                 segment = croped[:, i * split_width: (i+1) * split_width]
                 cv2.imwrite(str(fo), segment)
 
@@ -164,15 +164,15 @@ class ExperimentUi(QtWidgets.QMainWindow):
                             filemode='w')
 
         for experiment in self.exp_list:
-            file_handler = logging.FileHandler(experiment.experiment_path / f'{experiment.metadata.label}.log')
+            file_handler = logging.FileHandler(paths.raw_data_path / experiment.exp_name / f'{experiment.metadata.label}.log')
             file_handler.setLevel(logging.INFO)
             file_handler.setFormatter(logging.Formatter(log_fmt))
             logger.addHandler(file_handler)
 
-            with open(experiment.experiment_path / "sensors_data.csv", "a") as fo:
+            with open(paths.raw_data_path / experiment.exp_name / "sensors_data.csv", "a") as fo:
                 fo.write(f'datetime, 'f'SP,' f'BT,' f'RTD0,' f'RTD1,' f'TEMP,' f'RH\n')
 
-            logging.info(f'Sensors data file created: {experiment.experiment_path / "sensors_data.csv"}')
+            logging.info(f'Sensors data file created: {paths.raw_data_path / experiment.exp_name / "sensors_data.csv"}')
 
             windows_title += experiment.metadata.label
             windows_title += ' - '
@@ -243,7 +243,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         if self.saveCheckBox.isChecked():
             for experiment in self.exp_list:
-                with open(experiment.experiment_path / "sensors_data.csv", "a") as fo:
+                with open(paths.raw_data_path / experiment.exp_name / "sensors_data.csv", "a") as fo:
                     fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
                              f'{SP:.2f},' f'{BT:.2f},' f'{RTD0:.2f},' f'{RTD1:.2f},' f'{TEMP:.2f},' f'{RH:.2f}\n')
 
