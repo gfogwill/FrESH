@@ -213,16 +213,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.video_thread.start()
 
         logging.info("Camera connected")
-        #
-        # # Setup video widget
-        # self.image_frame = self.findChild(QtWidgets.QLabel, 'videoLabel')
-        # self.video_thread = VideoThread(self.cameraID.value())
-        # # connect its signal to the update_image slot
-        # self.video_thread.change_pixmap_signal.connect(self.update_image)
-        # # start the thread
-        # self.video_thread.start()
-        #
-        # logging.info("Camera connected")
+
 
     def connect_chiller(self):
         # Setup thread for temperature I/O
