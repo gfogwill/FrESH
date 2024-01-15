@@ -84,6 +84,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.btn_start_scan = self.findChild(QtWidgets.QPushButton, 'startScanButton')
         self.btn_start_scan.clicked.connect(self.start_scan)
 
+        self.btn_stop_scan = self.findChild(QtWidgets.QPushButton, 'stopScanButton')
+        self.btn_stop_scan.clicked.connect(self.stop_scan)
+
         self.btn_exit = self.findChild(QtWidgets.QPushButton, 'exitButton')
         self.btn_exit.clicked.connect(self.exit)
 
@@ -236,6 +239,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate)
         self.temp_worker.temp_signal.connect(self.set_temp2)
         self.temp_worker.start()
+
+    def stop_scan(self):
+        self.temp_worker.stop()
 
     @pyqtSlot(object)
     def set_temp2(self, t):
