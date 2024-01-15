@@ -6,10 +6,9 @@ from PyQt5 import QtWidgets, uic, QtGui
 import cv2
 
 from src import paths
-from src.analysis import circles
-from src.gui.experiment_gui import convert_cv_qt
 from src.experiment.experiment import FrESHExperiment, process_sensors_data, calculate_frame_temperatures, \
     calculate_freezing_idxs, calculate_freezing_times, calculate_freezing_temps
+from src.gui.experiment_gui import convert_cv_qt
 
 import os
 import csv
@@ -40,13 +39,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.template_img = None
 
-        self.hough_params = {
-            "min_distance": 24,
-            "param1": 150,
-            "param2": 15,
-            "min_radius": 13,
-            "max_radius": 15}
-
         uic.loadUi('analysis.ui', self)
 
         self.experiment_list_view = self.findChild(QtWidgets.QListView, 'experimentListView')
@@ -58,10 +50,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.button_load_experiment = self.findChild(QtWidgets.QPushButton, 'loadExperimentButton')
         self.button_load_experiment.clicked.connect(self.load_experiment)
-
-        # self.label_text_edit = self.findChild(QtWidgets.QLineEdit, 'lineEdit_label')
-        # self.station_text_edit = self.findChild(QtWidgets.QLineEdit, 'station_text_edit')
-        # self.airVol_text_edit = self.findChild(QtWidgets.QLineEdit, 'lineEdit_airVol')
 
         # List of attribute names
         attribute_names = [
@@ -80,10 +68,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             widget = getattr(self, f"{attribute_name}_text_edit")
             widget.textChanged.connect(lambda: self.update_metadata_modified(attribute_name))
 
-
         # ToDo: put in another place the code
-        # self.button_run_analysis = self.findChild(QtWidgets.QPushButton, 'runButton')
-        # self.button_run_analysis.clicked.connect(self.run_analysis)
+        self.button_run_analysis = self.findChild(QtWidgets.QPushButton, 'runButton')
+        self.button_run_analysis.clicked.connect(self.run_analysis)
 
         # self.button_detect = self.findChild(QtWidgets.QPushButton, "pushButton_Detect")
         # self.button_detect.clicked.connect(self.detect_circles)
@@ -127,6 +114,16 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.load_exp_names()
 
+    def run_analysis(self):
+        self.experiment.run_analysis()
+
+        frame = self.framesSlider.value()
+
+        if self.experiment.is_analyzed:
+            self.FFwidget.clear()
+            self.FFwidget.plot(self.experiment.t, self.experiment.ff)
+            self.FFwidget.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget.getAxis('left').range)
+
     def load_exp_names(self):
         # Clear the model
         self.model.clear()
@@ -140,21 +137,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             item.setEditable(False)
             self.model.appendRow(item)
 
-    def load_metadata_into_gui(self):
+    def load_metadata_into_gui(self, metadata):
         # Load metadata into text edits
-        metadata = self.experiment.metadata  # Assuming your FrESHExperiment class has a metadata attribute
-
-        # # Assuming your text edits have names that match the metadata attributes
-        # self.station_text_edit.setText(metadata.station)
-        # self.airVol_text_edit.setText(f"{metadata.air_volume:.2f}")
-        # # self.sampling_time_text_edit.setText(metadata.sampling_time)
-        #
-        # # Connect text edits to update_metadata method
-        # self.station_text_edit.textChanged.connect(lambda: self.update_metadata('station'))
-        # self.airVol_text_edit.textChanged.connect(lambda: self.update_metadata('airVol'))
-        # # self.sampling_time_text_edit.textChanged.connect(lambda: self.update_metadata('sampling_time'))
-
-        # Mapping of attribute names to their corresponding text edit widgets
 
         attribute_to_widget_mapping = {
             "station": self.station_text_edit,
@@ -170,8 +154,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             "temp": self.temp_text_edit,
             "press": self.press_text_edit,
             "exp_description": self.exp_description_text_edit,
-
         }
+
         for attribute_name, widget in attribute_to_widget_mapping.items():
             if widget is None:
                 continue
@@ -200,7 +184,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
             setattr(metadata, attribute_name, new_value)
 
-
     def filter_exp_names(self):
         # Get the filter text
         filter_texts = [filter_text.strip().upper() for filter_text in self.filter_line_edit.text().split('&')]
@@ -221,7 +204,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         png_files = [file for file in os.listdir(paths.etc_path) if file.endswith(".png")]
         self.templates_combobox.addItems(png_files)
         self.template_img = self.templates_combobox.currentText()
-        #self.update_template_img()
 
     def update_rotation(self):
         rotation = self.rotation_combobox.currentText()
@@ -238,7 +220,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.image_frame.setFixedHeight(template_image.shape[0])
 
     def update_dict_param(self, param_name, new_value):
-        self.hough_params[param_name] = new_value
+        self.experiment.metadata.hough_params[param_name] = new_value
 
     def update_metadata_modified(self, attribute_name):
         # Update the metadata_modified flag and show an alert to the user
@@ -248,11 +230,13 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def mouse_clicked(self, evt):
         x = evt.pos().x()
         y = evt.pos().y()
-        self.selected_droplet = np.argmin(np.linalg.norm(self.dcirc[:, :2] - np.array([x, y]), axis=1))
-        print(f'clicked plot X: {x}, Y: {y}, circle: {self.selected_droplet}')
 
-        self.FFwidget_grayscale.clear()
-        self.FFwidget_grayscale.plot(self.frame_t, self.grayscales_evolution[:, self.selected_droplet])
+        if hasattr(self.experiment, "circles_positions"):
+            self.selected_droplet = np.argmin(np.linalg.norm(self.experiment.circles_positions[:, :2] - np.array([x, y]), axis=1))
+            print(f'clicked plot X: {x}, Y: {y}, circle: {self.selected_droplet}')
+
+            self.FFwidget_grayscale.clear()
+            self.FFwidget_grayscale.plot(self.frame_t, self.experiment.grayscales_evolution[:, self.selected_droplet])
 
     def delete_indx(self):
         value = self.spinbox_delete.value()
@@ -279,13 +263,14 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         if self.experiment.is_analyzed:
             with open(paths.processed_data_path / self.exp_name / 'report.csv', 'w') as fo:
                 fo.write(f'index, temp, ff, conc_per_L, conc_per_drop\n')
-                for i in range(len(self.t)):
-                    fo.write(f'{i}, {self.t[i]}, {self.ff[i]}, {self.conc_per_L[i]}, {self.conc_per_drop[i]} \n')
+                for i in range(len(self.experiment.t)):
+                    fo.write(f'{i}, {self.experiment.t[i]}, {self.experiment.ff[i]}, {self.experiment.conc_per_L[i]}, '
+                             f'{self.experiment.conc_per_drop[i]} \n')
 
             with open(paths.interim_data_path / self.exp_name / 'freezing_temps.csv', 'w', newline='') as csv_file:
                 csv_writer = csv.writer(csv_file)
                 csv_writer.writerow(['Index', 'Temperature'])
-                csv_writer.writerows(zip(*[iter(self.freezing_temps)] * 2))  # Group data into pairs
+                csv_writer.writerows(zip(*[iter(self.experiment.freezing_temps)] * 2))  # Group data into pairs
 
     def show_metadata_alert(self):
         # Show an alert to inform the user that metadata has been modified
@@ -306,28 +291,24 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
 
-        self.FFwidget.clear()
-        self.FFwidget.plot(self.t, self.ff)
-        self.FFwidget.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget.getAxis('left').range)
-
-        #self.FFwidget_grayscale.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget_grayscale.getAxis('left').range)
+        if self.experiment.is_analyzed:
+            self.FFwidget.clear()
+            self.FFwidget.plot(self.experiment.t, self.experiment.ff)
+            self.FFwidget.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget.getAxis('left').range)
 
     def load_experiment(self):
-        self.t = []
-        self.ff = []
-        self.del_indx = []
-
         self.exp_name = self.experiment_list_view.currentIndex().data()
 
         self.setWindowTitle(self.exp_name)
 
         self.experiment = FrESHExperiment(self.exp_name)
 
-        self.load_metadata_into_gui()
+        self.load_metadata_into_gui(self.experiment.metadata)
 
         img = self.experiment.get_img(0)
 
         qt_img = convert_cv_qt(img)
+
         self.image_frame.setPixmap(qt_img)
 
         self.framesSlider.setValue(0)
@@ -338,8 +319,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.update_img()
         self.hide_metadata_alert()
 
-        if not self.experiment.is_analyzed:
-            self.experiment.run_analysis()
+        #if not self.experiment.is_analyzed:
+        #    self.experiment.run_analysis()
         # next_index = self.experiment_list_view.currentIndex().row() + 1
         # self.experiment_list_view.setCurrentIndex(self.experiment_list_view.model().index(next_index, 0))
 
