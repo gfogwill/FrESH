@@ -23,13 +23,6 @@ class MainUi(QtWidgets.QMainWindow):
 
         uic.loadUi(MAIN_UI_FILE, self)
 
-        # Find and connect the button
-        self.button_new_wb = self.findChild(QtWidgets.QPushButton, 'newWBButton')
-        self.button_new_wb.clicked.connect(self.start_wb)
-
-        self.button_view_wb = self.findChild(QtWidgets.QPushButton, 'viewWBButton')
-        self.button_view_wb.clicked.connect(self.view_wb)
-
         self.button_new_single_experiment = self.findChild(QtWidgets.QPushButton, 'newSingleExperimentButton')
         self.button_new_single_experiment.clicked.connect(self.start_single_experiment)
 
@@ -38,16 +31,6 @@ class MainUi(QtWidgets.QMainWindow):
 
         self.button_view_experiment = self.findChild(QtWidgets.QPushButton, 'viewExperimentButton')
         self.button_view_experiment.clicked.connect(self.view_experiment)
-
-    def start_wb(self):
-        self.hide()
-
-        pass
-
-    def view_wb(self):
-        self.hide()
-
-        pass
 
     def start_single_experiment(self):
         self.hide()

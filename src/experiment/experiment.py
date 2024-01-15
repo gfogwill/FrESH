@@ -9,7 +9,9 @@ import yaml
 import logging
 
 from src import paths
+from src.analysis import circles
 from src.analysis.circles import auto_crop
+from src.gui.experiment_gui import convert_cv_qt
 
 
 class ExperimentMetadata:
@@ -52,7 +54,7 @@ class ExperimentMetadata:
                  station=None, label=None, sampler_id=None, sampler_status=None, air_volume=None, start_time=None,
                  end_time=None, flow=None, temp=None, press=None, exp_description=None, run=None, v_drop=None,
                  v_wash=None, dil_factor=None, filter_fraction=None, filter_position=None, chiller_model=None,
-                 template_img=None, rotation=None):
+                 template_img='template_image_2.png', rotation=cv2.ROTATE_90_CLOCKWISE):
 
         # Collection
         self.station = station
@@ -87,6 +89,15 @@ class ExperimentMetadata:
 
         self.chiller_model = chiller_model
 
+        self.hough_params = {
+            "min_distance": 24,
+            "param1": 150,
+            "param2": 15,
+            "min_radius": 13,
+            "max_radius": 15}
+
+        self.del_index = []
+
     def check_required_fields(self):
         """
         Checks whether the required fields are present in the metadata.
@@ -108,6 +119,7 @@ class FrESHExperiment:
         self.metadata = None
 
         self.is_analyzed = False
+
 
         experiment_path = paths.raw_data_path / experiment_name
 
@@ -132,7 +144,7 @@ class FrESHExperiment:
         self.grayscales_evolution = self.process_images(self.img_files)
         self.freezing_idxs = calculate_freezing_idxs(self.grayscales_evolution)
 
-        self.del_indx = [i - 1 for i in self.del_indx]
+        self.del_indx = [i - 1 for i in self.metadata.del_index]
         self.freezing_idxs = np.delete(self.freezing_idxs, self.del_indx)
         freezing_times = calculate_freezing_times(self.img_files, self.freezing_idxs)
 
@@ -140,40 +152,45 @@ class FrESHExperiment:
 
         self.t, self.ff = process_sensors_data(self.exp_name, self.freezing_idxs, freezing_times)
 
-        self.FFwidget.clear()
-        self.FFwidget.plot(self.t, self.ff)
+        # self.FFwidget.clear()
+        # self.FFwidget.plot(self.t, self.ff)
 
         # Normalization factor to L^-1
         X = nu * v_wash / (v_air * filter_fraction)
 
         # Concentration per sample
         self.conc_per_drop = - np.log(1 - np.array(self.ff)) / v_drop
+
         # Concentration per standar L of air
         self.conc_per_L = self.conc_per_drop * X
+
+        self.is_analyzed = True
 
     def process_images(self, img_files):
         # function to process the images and return the grayscales
         res = []
 
+        self.detect_circles()
+
         for img_file in img_files:
             img_path = str(img_file)
             img = cv2.imread(img_path)
-            rotation_option = self.rotation_combobox.currentText()
+            rotation_option = self.metadata.rotation  # self.rotation_combobox.currentText()
 
             if rotation_option != '-':
-                img = cv2.rotate(img, rotation_dict[rotation_option])
+                img = cv2.rotate(img, rotation_option)
 
-            img = auto_crop(img, self.template_img)
+            img = auto_crop(img, self.metadata.template_img)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
             # dcirc = circles.get_circles(gray, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
 
-            res.append(circles.get_grayscales(gray, self.dcirc))
+            res.append(circles.get_grayscales(gray, self.circles_positions))
 
-            img = circles.add_circles(gray, self.dcirc)
+            # img = circles.add_circles(gray, self.circles_positions)
 
-            qt_img = convert_cv_qt(img)
-            self.image_frame.setPixmap(qt_img)
+#            qt_img = convert_cv_qt(img)
+#            self.image_frame.setPixmap(qt_img)
 
         return np.array(res)
 
@@ -190,8 +207,8 @@ class FrESHExperiment:
         if self.metadata.template_img is not None:
             img = auto_crop(img, self.metadata.template_img)
 
-        if hasattr(self, "dcirc"):
-            np_dcirc = np.uint16(np.around(self.dcirc))
+        if hasattr(self, "circles_positions"):
+            np_dcirc = np.uint16(np.around(self.circles_positions))
 
             for n, i in enumerate(np_dcirc):
                 if self.freezing_idxs[n] > frame_index:
@@ -205,13 +222,16 @@ class FrESHExperiment:
 
     def detect_circles(self):
         img = cv2.imread(str(self.img_files[0]))
-        rotation_option = self.rotation_combobox.currentText()
-        if rotation_option != '-':
-            img = cv2.rotate(img, rotation_dict[rotation_option])
-        img = auto_crop(img, self.template_img)
+
+        if self.metadata.rotation is not None:
+            img = cv2.rotate(img, self.metadata.rotation)
+
+        if self.metadata.template_img is not None:
+            img = auto_crop(img, self.metadata.template_img)
+
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        self.circles_positions = circles.get_circles(gray, **self.hough_params, sort=True, plot=True)
+        self.circles_positions = circles.get_circles(gray, **self.metadata.hough_params, sort=True, plot=True)
 
     def populate_image_list(self):
         img_dir = paths.raw_data_path / self.exp_name / 'pics'

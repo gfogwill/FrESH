@@ -10,7 +10,6 @@ from src import paths
 
 
 def auto_crop(img, template_img, rotation_angles=[0]):
-    #rotation_angles = np.arange(-1.4, 0.8, 0.05)
     # Load the template image
 
     template_image = cv2.imread(str(paths.etc_path / template_img))

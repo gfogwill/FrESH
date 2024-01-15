@@ -69,6 +69,12 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
 
         self.metadata_experiments = []
 
+        self.experiment_type_comboboxA = self.findChild(QtWidgets.QComboBox, 'comboBoxSampleType_A')
+        self.experiment_type_comboboxA.currentTextChanged.connect(lambda: self.update_experiment_type('A'))
+
+        self.experiment_type_comboboxB = self.findChild(QtWidgets.QComboBox, 'comboBoxSampleType_B')
+        self.experiment_type_comboboxB.currentTextChanged.connect(lambda: self.update_experiment_type('B'))
+
         # Connect the button signals to their respective slots
         self.button_confirm = self.findChild(QtWidgets.QDialogButtonBox, 'ConfirmbuttonBox')
         self.button_confirm.accepted.connect(self.start_experiment)
@@ -81,6 +87,37 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
             self.button_search_B.clicked.connect(lambda: self.search_experiment_metadata('B'))
         except AttributeError:
             self.button_search_B = None
+
+    def update_experiment_type(self, experiment_key):
+        experiment_type = self.findChild(QtWidgets.QComboBox, f'comboBoxSampleType_{experiment_key}').currentText()
+
+        if experiment_type == 'Filter':
+            self.findChild(QtWidgets.QPlainTextEdit, f'textSamplerID_{experiment_key}').setEnabled(True)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textAirVolume_{experiment_key}').setEnabled(True)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textStartTime_{experiment_key}').setEnabled(True)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textEndTime_{experiment_key}').setEnabled(True)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textTemp_{experiment_key}').setEnabled(True)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textPress_{experiment_key}').setEnabled(True)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textDilFactor_{experiment_key}').setEnabled(True)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textFilterFraction_{experiment_key}').setEnabled(True)
+        elif experiment_type == 'Field background':
+            self.findChild(QtWidgets.QPlainTextEdit, f'textSamplerID_{experiment_key}').setEnabled(True)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textAirVolume_{experiment_key}').setEnabled(False)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textStartTime_{experiment_key}').setEnabled(True)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textEndTime_{experiment_key}').setEnabled(True)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textTemp_{experiment_key}').setEnabled(False)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textPress_{experiment_key}').setEnabled(False)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textDilFactor_{experiment_key}').setEnabled(True)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textFilterFraction_{experiment_key}').setEnabled(True)
+        elif experiment_type == 'Water background':
+            self.findChild(QtWidgets.QPlainTextEdit, f'textSamplerID_{experiment_key}').setEnabled(False)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textAirVolume_{experiment_key}').setEnabled(False)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textStartTime_{experiment_key}').setEnabled(False)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textEndTime_{experiment_key}').setEnabled(False)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textTemp_{experiment_key}').setEnabled(False)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textPress_{experiment_key}').setEnabled(False)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textDilFactor_{experiment_key}').setEnabled(False)
+            self.findChild(QtWidgets.QPlainTextEdit, f'textFilterFraction_{experiment_key}').setEnabled(False)
 
     def search_experiment_metadata(self, experiment_key):
         text_label = self.findChild(QtWidgets.QPlainTextEdit, f'textLabel_{experiment_key}')
@@ -125,18 +162,18 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
                             fields = line.strip().split(";")
                             if len(fields) > 2 and fields[2].strip() == date_str.strip():
                                 values = line.strip().split(";")
-                                return self._create_experiment_metadata(values, label)
+                                return self._create_experiment_metadata(values, label, "filter")
 
         logging.warning(f"No raw data found for label: {label}")
 
         return None
 
-    def _create_experiment_metadata(self, values, label):
+    def _create_experiment_metadata(self, values, label, experiment_type):
         start_datetime = datetime.strptime(values[2] + ' ' + values[3], "%d.%m.%y %H:%M")
         end_datetime = datetime.strptime(values[4] + ' ' + values[5], "%d.%m.%y %H:%M")
         return ExperimentMetadata(
             station=label[0:3],
-            experiment_type="filter",
+            experiment_type=experiment_type,
             label=label,
             sampler_id=f"{stations_dict[label[0:3]]['sampler_id']}",
             sampler_status=values[1],
@@ -169,6 +206,8 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
         text_filter_fraction.setPlainText(str(metadata.filter_fraction))
 
     def _get_metadata_from_form(self, experiment_key):
+        experiment_type = self.findChild(QtWidgets.QComboBox, f'comboBoxSampleType_{experiment_key}').currentText()
+
         text_label = self.findChild(QtWidgets.QPlainTextEdit, f'textLabel_{experiment_key}')
         text_sampler_id = self.findChild(QtWidgets.QPlainTextEdit, f'textSamplerID_{experiment_key}')
         text_air_volume = self.findChild(QtWidgets.QPlainTextEdit, f'textAirVolume_{experiment_key}')
@@ -183,24 +222,23 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
 
         label = text_label.toPlainText().upper()
         sampler_id = text_sampler_id.toPlainText()
-        air_volume = float(text_air_volume.toPlainText())
+        air_volume = float(text_air_volume.toPlainText()) if text_air_volume.toPlainText() else None
         start_time = text_start_time.toPlainText()
         end_time = text_end_time.toPlainText()
-        temp = float(text_temp.toPlainText())
-        press = float(text_press.toPlainText())
+        temp = float(text_temp.toPlainText()) if text_temp.toPlainText() else None
+        press = float(text_press.toPlainText()) if text_press.toPlainText() else None
         description = text_description.toPlainText()
-        vol_wash = float(text_vol_wash.toPlainText())
-        dil_factor = float(text_dil_factor.toPlainText())
-        filter_fraction = float(text_filter_fraction.toPlainText())
+        vol_wash = float(text_vol_wash.toPlainText()) if text_vol_wash.toPlainText() else None
+        dil_factor = float(text_dil_factor.toPlainText()) if text_dil_factor.toPlainText() else None
+        filter_fraction = float(text_filter_fraction.toPlainText()) if text_filter_fraction.toPlainText() else None
 
         ini = IniLoader.load('perezfo', paths.etc_path / 'test.ini')
 
         return ExperimentMetadata(
             station=label[0:3],
-            experiment_type="filter",
+            experiment_type=experiment_type,
             label=label,
             sampler_id=sampler_id,
-            sampler_status="Manually entered",
             start_time=start_time,
             end_time=end_time,
             air_volume=air_volume,
