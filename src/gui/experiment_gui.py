@@ -191,8 +191,18 @@ class ExperimentUi(QtWidgets.QMainWindow):
     def connect_video(self):
         logging.info("Connecting Camera")
 
+        # Disconnect and stop the previous video thread if it exists
+        if hasattr(self, 'video_thread') and self.video_thread is not None:
+            # Disconnect the signal
+            self.video_thread.change_pixmap_signal.disconnect(self.update_image)
+            # Stop the thread
+            self.video_thread.stop()
+            # Wait for the thread to finish
+            self.video_thread.wait()
+
         # Setup video widget
         self.image_frame = self.findChild(QtWidgets.QLabel, 'videoLabel')
+        # Create a new video thread with the updated camera ID
         self.video_thread = VideoThread(self.cameraID.value())
         # connect its signal to the update_image slot
         self.video_thread.change_pixmap_signal.connect(self.update_image)
@@ -200,6 +210,16 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.video_thread.start()
 
         logging.info("Camera connected")
+        #
+        # # Setup video widget
+        # self.image_frame = self.findChild(QtWidgets.QLabel, 'videoLabel')
+        # self.video_thread = VideoThread(self.cameraID.value())
+        # # connect its signal to the update_image slot
+        # self.video_thread.change_pixmap_signal.connect(self.update_image)
+        # # start the thread
+        # self.video_thread.start()
+        #
+        # logging.info("Camera connected")
 
     def connect_chiller(self):
         # Setup thread for temperature I/O
