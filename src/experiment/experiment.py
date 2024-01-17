@@ -54,7 +54,8 @@ class ExperimentMetadata:
                  station=None, label=None, sampler_id=None, sampler_status=None, air_volume=None, start_time=None,
                  end_time=None, flow=None, temp=None, press=None, exp_description=None, run=None, v_drop=None,
                  v_wash=None, dil_factor=None, filter_fraction=None, filter_position=None, chiller_model=None,
-                 template_img='template_image_2.png', rotation=cv2.ROTATE_90_CLOCKWISE):
+                 template_img='template_image_2.png', rotation=cv2.ROTATE_90_CLOCKWISE, hough_params=None,
+                 del_index=[]):
 
         # Collection
         self.station = station
@@ -89,14 +90,17 @@ class ExperimentMetadata:
 
         self.chiller_model = chiller_model
 
-        self.hough_params = {
-            "min_distance": 24,
-            "param1": 150,
-            "param2": 15,
-            "min_radius": 13,
-            "max_radius": 15}
+        if hough_params is None:
+            self.hough_params = {
+                "min_distance": 24,
+                "param1": 150,
+                "param2": 15,
+                "min_radius": 13,
+                "max_radius": 15}
+        else:
+            self.hough_params = hough_params
 
-        self.del_index = []
+        self.del_index = del_index
 
     def check_required_fields(self):
         """
