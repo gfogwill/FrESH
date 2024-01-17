@@ -71,7 +71,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         # Connect buttons
         self.button_set_temp = self.findChild(QtWidgets.QPushButton, 'setTempButton')  # Find the button
-        self.button_set_temp.clicked.connect(self.set_temp)
+        self.button_set_temp.clicked.connect(lambda: self.set_temp2(float(self.temp_set.text())))
+        #self.button_set_temp.clicked.connect(self.set_temp)
 
         self.btn_connect_video = self.findChild(QtWidgets.QPushButton, 'connectVideoButton')
         self.btn_connect_video.clicked.connect(self.connect_video)
@@ -119,6 +120,32 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
 
         self.show()
+
+    def start_scan(self):
+        max_temp = float(self.maxTemp.text())
+        min_temp = float(self.minTemp.text())
+        cooling_rate = float(self.coolingRate.text())
+        heating_rate = float(self.heatingRate.text())
+
+        self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate)
+        self.temp_worker.temp_signal.connect(self.set_temp2)
+        self.temp_worker.start()
+
+    def stop_scan(self):
+        self.temp_worker.terminate()
+
+    def set_temp(self):
+        t = float(self.temp_set.text())
+        logging.info(f'Setting temperature to: {t}')
+        self.data_worker.chiller.set_temperature(t)
+
+    @pyqtSlot(object)
+    def set_temp2(self, t):
+        logging.info(f'Setting temperature to: {t}')
+        try:
+            self.data_worker.chiller.set_temperature(t)
+        except AttributeError:
+            logging.error("Error setting temperature!")
 
     def video_settings(self):
         self.VideoSettingsUi = VideoSettingsUi(self.video_thread)
@@ -217,27 +244,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.data_worker = DataWorker(float(self.temp_set.text()))
         self.data_worker.read_data_signal.connect(self.read_sensors_data)
         self.data_worker.start()
-        
-    def start_scan(self):
-        max_temp = float(self.maxTemp.text())
-        min_temp = float(self.minTemp.text())
-        cooling_rate = float(self.coolingRate.text())
-        heating_rate = float(self.heatingRate.text())
-
-        self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate)
-        self.temp_worker.temp_signal.connect(self.set_temp2)
-        self.temp_worker.start()
-
-    def stop_scan(self):
-        self.temp_worker.terminate()
-
-    @pyqtSlot(object)
-    def set_temp2(self, t):
-        logging.info(f'Setting temperature to: {t}')
-        try:
-            self.data_worker.chiller.set_temperature(t)
-        except AttributeError:
-            logging.error("Error setting temperature!")
 
     @pyqtSlot(object)
     def read_sensors_data(self, data):
@@ -292,11 +298,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.lcdSP.display(f"{self.setpoint[-1][1]:.02f}")
         self.lcdRTD1.display(f"{self.adam0[-1][1]:.02f}")
         self.lcdRTD2.display(f"{self.adam1[-1][1]:.02f}")
-
-    def set_temp(self):
-        t = float(self.temp_set.text())
-        logging.info(f'Setting temperature to: {t}')
-        self.data_worker.chiller.set_temperature(t)
 
     @pyqtSlot(np.ndarray)
     def update_image(self, cv_img):
