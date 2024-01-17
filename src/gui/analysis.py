@@ -224,6 +224,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
     def update_metadata_modified(self, attribute_name):
         # Update the metadata_modified flag and show an alert to the user
+        self.load_metadata_into_gui(self.experiment.metadata)
         self.metadata_modified = True
         self.show_metadata_alert()
 

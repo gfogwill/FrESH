@@ -214,7 +214,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         logging.info("Camera connected")
 
-
     def connect_chiller(self):
         # Setup thread for temperature I/O
         self.data_worker = DataWorker(float(self.temp_set.text()))
