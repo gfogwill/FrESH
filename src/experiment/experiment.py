@@ -107,6 +107,12 @@ class ExperimentMetadata:
         ValueError
             If one or more required fields are missing.
         """
+        try:
+            self.start_time = self.start_time.strftime('%Y-%m-%d %H:%M:%S')
+            self.end_time = self.end_time.strftime('%Y-%m-%d %H:%M:%S')
+        except AttributeError:
+            pass
+
         required_fields = ["label"]
         missing_fields = [field for field in required_fields if getattr(self, field) is None]
         if missing_fields:
@@ -258,6 +264,7 @@ class FrESHExperiment:
 
     def save_metadata_to_file(self):
         # saves metadata to a JSON file
+        self.metadata.check_required_fields()
         metadata_path = os.path.join(paths.interim_data_path / self.exp_name, f"metadata.json")
         with open(metadata_path, "w") as metadata_file:
             json.dump(self.metadata.__dict__, metadata_file, indent=4)
