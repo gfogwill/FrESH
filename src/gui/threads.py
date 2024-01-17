@@ -83,6 +83,11 @@ class TempThread(QThread):
             if self.last_sp >= self.max_temp:
                 self.chilling = True
 
+        if self.last_sp > 10:
+            logging.error("Maximum temperature reached!!!\n Setting temperature to 0 ºC")
+            self.temp_signal.emit(0)
+            self.terminate()
+
         self.temp_signal.emit(self.last_sp)
 
 
@@ -120,7 +125,6 @@ class VideoThread(QThread):
         while self._run_flag:
 
             ret, cv_img = self.cap.read()
-            #cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
 
             if ret:
                 self.change_pixmap_signal.emit(cv_img)
