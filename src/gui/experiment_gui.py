@@ -71,7 +71,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         # Connect buttons
         self.button_set_temp = self.findChild(QtWidgets.QPushButton, 'setTempButton')  # Find the button
-        self.button_set_temp.clicked.connect(lambda: self.set_temp2(float(self.temp_set.text())))
+        self.button_set_temp.clicked.connect(lambda: self.set_temp(float(self.temp_set.text())))
         #self.button_set_temp.clicked.connect(self.set_temp)
 
         self.btn_connect_video = self.findChild(QtWidgets.QPushButton, 'connectVideoButton')
@@ -128,19 +128,14 @@ class ExperimentUi(QtWidgets.QMainWindow):
         heating_rate = float(self.heatingRate.text())
 
         self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate)
-        self.temp_worker.temp_signal.connect(self.set_temp2)
+        self.temp_worker.temp_signal.connect(self.set_temp)
         self.temp_worker.start()
 
     def stop_scan(self):
         self.temp_worker.terminate()
 
-    def set_temp(self):
-        t = float(self.temp_set.text())
-        logging.info(f'Setting temperature to: {t}')
-        self.data_worker.chiller.set_temperature(t)
-
     @pyqtSlot(object)
-    def set_temp2(self, t):
+    def set_temp(self, t):
         logging.info(f'Setting temperature to: {t}')
         try:
             self.data_worker.chiller.set_temperature(t)
