@@ -231,7 +231,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.temp_worker.start()
 
     def stop_scan(self):
-        self.temp_worker.stop()
+        self.temp_worker.terminate()
 
     @pyqtSlot(object)
     def set_temp2(self, t):
