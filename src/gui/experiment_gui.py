@@ -60,8 +60,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.setpoint = []
         self.adam0 = []
         self.adam1 = []
-        self.TEMP = []
-        self.RH = []
 
         self.new_line1 = None
         self.line2 = None
@@ -173,7 +171,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
             logger.addHandler(file_handler)
 
             with open(paths.raw_data_path / experiment.exp_name / "sensors_data.csv", "a") as fo:
-                fo.write(f'datetime, 'f'SP,' f'BT,' f'RTD0,' f'RTD1,' f'TEMP,' f'RH\n')
+                fo.write(f'datetime, 'f'SP,' f'BT,' f'RTD0,' f'RTD1\n')
 
             logging.info(f'Sensors data file created: {paths.raw_data_path / experiment.exp_name / "sensors_data.csv"}')
 
@@ -248,20 +246,17 @@ class ExperimentUi(QtWidgets.QMainWindow):
         BT = data['BT']
         SP = data['SP']
         RTD0, RTD1 = data['RTD0'], data['RTD1']
-        TEMP, RH = data['TEMP'], data['RH']
 
         self.bath_temp.append((t, BT))
         self.setpoint.append((t, SP))
         self.adam0.append((t, RTD0))
         self.adam1.append((t, RTD1))
-        self.TEMP.append((t, TEMP))
-        self.RH.append((t, RH))
 
         if self.saveCheckBox.isChecked():
             for experiment in self.exp_list:
                 with open(paths.raw_data_path / experiment.exp_name / "sensors_data.csv", "a") as fo:
                     fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
-                             f'{SP:.2f},' f'{BT:.2f},' f'{RTD0:.2f},' f'{RTD1:.2f},' f'{TEMP:.2f},' f'{RH:.2f}\n')
+                             f'{SP:.2f},' f'{BT:.2f},' f'{RTD0:.2f},' f'{RTD1:.2f}\n')
 
         self.update_temp_plot()
 
