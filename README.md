@@ -21,8 +21,8 @@ Requirements for the software and other tools to build, test and push
 Clone the repository
 
 ```console
-$ git clone https://gitlab.fmi.fi/perezfo/icenucleicounter
-$ cd icenucleicounter
+$ git clone https://github.fmi.fi/perezfo/FrESH
+$ cd FrESH
 ```
 
 Now let's install the requirements. But before we do that, we **strongly**
