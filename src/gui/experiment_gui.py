@@ -126,7 +126,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         min_temp = float(self.minTemp.text())
         cooling_rate = float(self.coolingRate.text()) / 10
         heating_rate = float(self.heatingRate.text()) / 10
-        cycles = int(self.numCycles.text())
 
         self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate)
         self.temp_worker.temp_signal.connect(self.set_temp)
