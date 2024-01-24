@@ -1,5 +1,6 @@
 import logging
 from typing import Tuple, Any
+import time
 
 import cv2
 import numpy as np
@@ -47,69 +48,6 @@ class DataWorker(QThread):
 
 
 class TempThread(QThread):
-    temp_signal = pyqtSignal(float)
-
-    def __init__(self, max_temp, min_temp, cooling_rate, heating_rate, cycles=1, target_temp=None):
-        super().__init__()
-        self.max_temp = max_temp
-        self.min_temp = min_temp
-        self.cooling_rate = cooling_rate
-        self.heating_rate = heating_rate
-        self.cycles = cycles
-        self.target_temp = target_temp
-        self.stopped = False
-
-        self.timer = QTimer()
-        self.timer.moveToThread(self)
-        self.timer.timeout.connect(self.update_temp)
-
-    def run(self):
-        self.timer.start(1000)
-
-        for cycle in range(self.cycles):
-            if self.stopped:
-                break
-
-            if self.target_temp is not None:
-                self.go_to_target_temp(self.target_temp)
-                self.stay_at_target_temp()
-            else:
-                self.cool_to_min()
-                self.heat_to_max()
-
-    def go_to_target_temp(self, target_temp):
-        current_temp = self.max_temp if self.cooling_rate > 0 else self.min_temp
-
-        while not self.stopped:
-            if self.cooling_rate > 0 and current_temp <= target_temp:
-                break
-            elif self.heating_rate > 0 and current_temp >= target_temp:
-                break
-
-            current_temp += -self.cooling_rate if self.cooling_rate > 0 else self.heating_rate
-            self.temp_signal.emit(current_temp)
-            self.timer.waitForTimeout(1000)
-
-    def stay_at_target_temp(self):
-        # Implement any additional logic if needed
-        pass
-
-    def cool_to_min(self):
-        current_temp = self.max_temp
-        while current_temp > self.min_temp and not self.stopped:
-            current_temp -= self.cooling_rate
-            self.temp_signal.emit(current_temp)
-            self.timer.waitForTimeout(1000)
-
-    def heat_to_max(self):
-        current_temp = self.min_temp
-        while current_temp < self.max_temp and not self.stopped:
-            current_temp += self.heating_rate
-            self.temp_signal.emit(current_temp)
-            self.timer.waitForTimeout(1000)
-
-
-class TempThread_deprecated(QThread):
     temp_signal = pyqtSignal(object)
 
     def __init__(self, max_temp, min_temp, cooling_rate, heating_rate):
@@ -140,11 +78,14 @@ class TempThread_deprecated(QThread):
             self.last_sp = round(self.last_sp, 2)
             if self.last_sp <= self.min_temp:
                 self.chilling = False
+                time.sleep(2)
+
         else:
             self.last_sp += self.heat_temp_step
             self.last_sp = round(self.last_sp, 2)
             if self.last_sp >= self.max_temp:
                 self.chilling = True
+                time.sleep(1000*60)
 
         if self.last_sp < self.min_temp:
             logging.warning("Temperature below minimum limit. Setting to minimum.")
