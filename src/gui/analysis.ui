@@ -82,7 +82,7 @@
                 <item row="5" column="0">
                  <widget class="QLabel" name="label_4">
                   <property name="text">
-                   <string>ID</string>
+                   <string>Sampler ID</string>
                   </property>
                  </widget>
                 </item>
@@ -92,7 +92,7 @@
                 <item row="6" column="0">
                  <widget class="QLabel" name="label_5">
                   <property name="text">
-                   <string>Status</string>
+                   <string>Sampler Status</string>
                   </property>
                  </widget>
                 </item>

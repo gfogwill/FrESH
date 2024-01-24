@@ -130,7 +130,6 @@ class FrESHExperiment:
 
         self.is_analyzed = False
 
-
         experiment_path = paths.raw_data_path / experiment_name
 
         # create experiment directory if it doesn't exist
