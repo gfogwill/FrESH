@@ -47,6 +47,63 @@ class DataWorker(QThread):
 
 
 class TempThread(QThread):
+    temp_signal = pyqtSignal(float)
+
+    def __init__(self, max_temp, min_temp, cooling_rate, heating_rate, cycles=1, target_temp=None):
+        super().__init__()
+        self.max_temp = max_temp
+        self.min_temp = min_temp
+        self.cooling_rate = cooling_rate
+        self.heating_rate = heating_rate
+        self.cycles = cycles
+        self.target_temp = target_temp
+        self.stopped = False
+
+    def run(self):
+        for cycle in range(self.cycles):
+            if self.stopped:
+                break
+
+            if self.target_temp is not None:
+                self.go_to_target_temp(self.target_temp)
+                self.stay_at_target_temp()
+            else:
+                self.cool_to_min()
+                self.heat_to_max()
+
+    def go_to_target_temp(self, target_temp):
+        current_temp = self.max_temp if self.cooling_rate > 0 else self.min_temp
+
+        while not self.stopped:
+            if self.cooling_rate > 0 and current_temp <= target_temp:
+                break
+            elif self.heating_rate > 0 and current_temp >= target_temp:
+                break
+
+            current_temp += -self.cooling_rate if self.cooling_rate > 0 else self.heating_rate
+            self.temp_signal.emit(current_temp)
+            time.sleep(1)
+
+    def stay_at_target_temp(self):
+        # Implement any additional logic if needed
+        pass
+
+    def cool_to_min(self):
+        current_temp = self.max_temp
+        while current_temp > self.min_temp and not self.stopped:
+            current_temp -= self.cooling_rate
+            self.temp_signal.emit(current_temp)
+            time.sleep(1)
+
+    def heat_to_max(self):
+        current_temp = self.min_temp
+        while current_temp < self.max_temp and not self.stopped:
+            current_temp += self.heating_rate
+            self.temp_signal.emit(current_temp)
+            time.sleep(1)
+
+
+class TempThread_deprecated(QThread):
     temp_signal = pyqtSignal(object)
 
     def __init__(self, max_temp, min_temp, cooling_rate, heating_rate):

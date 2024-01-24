@@ -126,10 +126,24 @@ class ExperimentUi(QtWidgets.QMainWindow):
         min_temp = float(self.minTemp.text())
         cooling_rate = float(self.coolingRate.text())
         heating_rate = float(self.heatingRate.text())
+        cycles = int(self.numCycles.text())
 
-        self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate)
+        # Check which option is selected and start the TempThread accordingly
+        if self.radioGoToTemp.isChecked():
+            self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate)
+        elif self.radioStep.isChecked():
+            target_temp = float(self.targetTemp.text())  # Assuming there's an input field for the target temperature
+            self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate, target_temp=target_temp)
+        elif self.radioMultipleCycles.isChecked():
+            self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate, cycles)
+
         self.temp_worker.temp_signal.connect(self.set_temp)
         self.temp_worker.start()
+        logging.info("Temperature scan started!")
+
+        # self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate)
+        # self.temp_worker.temp_signal.connect(self.set_temp)
+        # self.temp_worker.start()
 
         logging.info("Temperature scan started!")
 
