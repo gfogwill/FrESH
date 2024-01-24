@@ -93,13 +93,14 @@ class TempThread(QThread):
         while current_temp > self.min_temp and not self.stopped:
             current_temp -= self.cooling_rate
             self.temp_signal.emit(current_temp)
+            time.sleep(1)
 
     def heat_to_max(self):
         current_temp = self.min_temp
         while current_temp < self.max_temp and not self.stopped:
             current_temp += self.heating_rate
             self.temp_signal.emit(current_temp)
-
+            time.sleep(1)
 
 class TempThread_deprecated(QThread):
     temp_signal = pyqtSignal(object)
