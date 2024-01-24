@@ -83,8 +83,15 @@ class TempThread(QThread):
             if self.last_sp >= self.max_temp:
                 self.chilling = True
 
-        if self.last_sp > 10:
-            logging.error("Maximum temperature reached!!!\n Setting temperature to 0 ºC")
+        if self.last_sp < self.min_temp:
+            logging.warning("Temperature below minimum limit. Setting to minimum.")
+            self.last_sp = self.min_temp
+            self.temp_signal.emit(0)
+            self.terminate()
+
+        if self.last_sp > self.max_temp:
+            logging.warning("Temperature above maximum limit. Setting to maximum.")
+            self.last_sp = self.max_temp
             self.temp_signal.emit(0)
             self.terminate()
 
