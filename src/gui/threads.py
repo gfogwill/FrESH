@@ -50,7 +50,7 @@ class DataWorker(QThread):
 class TempThread(QThread):
     temp_signal = pyqtSignal(object)
 
-    def __init__(self, max_temp, min_temp, cooling_rate, heating_rate):
+    def __init__(self, max_temp, min_temp, cooling_rate, heating_rate, cycles=1):
         super().__init__()
         self.chilling = True
         self.last_sp = max_temp
@@ -61,6 +61,8 @@ class TempThread(QThread):
         self.chill_temp_step = cooling_rate
         self.heat_temp_step = heating_rate
         self.step_interval = 6  # in seconds
+
+        self.cycles = cycles
 
         self.tempRampTimer = QTimer()
         self.tempRampTimer.moveToThread(self)
@@ -78,14 +80,12 @@ class TempThread(QThread):
             self.last_sp = round(self.last_sp, 2)
             if self.last_sp <= self.min_temp:
                 self.chilling = False
-                time.sleep(2)
 
         else:
             self.last_sp += self.heat_temp_step
             self.last_sp = round(self.last_sp, 2)
             if self.last_sp >= self.max_temp:
                 self.chilling = True
-                time.sleep(1000*60)
 
         if self.last_sp < self.min_temp:
             logging.warning("Temperature below minimum limit. Setting to minimum.")
