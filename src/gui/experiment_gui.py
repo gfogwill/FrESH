@@ -151,7 +151,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.temp_worker.terminate()
         logging.info("Scan terminated!")
 
-    @pyqtSlot(object)
+    @pyqtSlot(float)
     def set_temp(self, t):
         logging.info(f'Setting temperature to: {t}')
         try:
