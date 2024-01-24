@@ -59,7 +59,13 @@ class TempThread(QThread):
         self.target_temp = target_temp
         self.stopped = False
 
+        self.timer = QTimer()
+        self.timer.moveToThread(self)
+        self.timer.timeout.connect(self.update_temp)
+
     def run(self):
+        self.timer.start(1000)
+
         for cycle in range(self.cycles):
             if self.stopped:
                 break
@@ -82,7 +88,7 @@ class TempThread(QThread):
 
             current_temp += -self.cooling_rate if self.cooling_rate > 0 else self.heating_rate
             self.temp_signal.emit(current_temp)
-            time.sleep(1)
+            self.timer.waitForTimeout(1000)
 
     def stay_at_target_temp(self):
         # Implement any additional logic if needed
@@ -93,14 +99,15 @@ class TempThread(QThread):
         while current_temp > self.min_temp and not self.stopped:
             current_temp -= self.cooling_rate
             self.temp_signal.emit(current_temp)
-            time.sleep(1)
+            self.timer.waitForTimeout(1000)
 
     def heat_to_max(self):
         current_temp = self.min_temp
         while current_temp < self.max_temp and not self.stopped:
             current_temp += self.heating_rate
             self.temp_signal.emit(current_temp)
-            time.sleep(1)
+            self.timer.waitForTimeout(1000)
+
 
 class TempThread_deprecated(QThread):
     temp_signal = pyqtSignal(object)
