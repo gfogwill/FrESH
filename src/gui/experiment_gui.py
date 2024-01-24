@@ -71,7 +71,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         # Connect buttons
         self.button_set_temp = self.findChild(QtWidgets.QPushButton, 'setTempButton')  # Find the button
-        self.button_set_temp.clicked.connect(lambda: self.set_temp(float(self.temp_set.text())))
+        self.button_set_temp.clicked.connect(lambda: self.set_temp(float(self.targetTemp.text())))
         #self.button_set_temp.clicked.connect(self.set_temp)
 
         self.btn_connect_video = self.findChild(QtWidgets.QPushButton, 'connectVideoButton')
