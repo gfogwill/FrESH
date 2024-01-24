@@ -66,7 +66,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         # Connect textChanged signals to update_metadata_modified method
         for attribute_name in attribute_names:
             widget = getattr(self, f"{attribute_name}_text_edit")
-            widget.textChanged.connect(lambda: self.update_metadata_modified(attribute_name))
+            widget.textChanged.connect(lambda value, attr_name=attribute_name: self.update_metadata(attr_name, value))
+            # widget.textChanged.connect(lambda: self.update_metadata_modified(attribute_name))
 
         # ToDo: put in another place the code
         self.button_run_analysis = self.findChild(QtWidgets.QPushButton, 'runButton')
@@ -100,11 +101,11 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.rotation_combobox = self.findChild(QtWidgets.QComboBox, 'comboBox_rotation')
         self.rotation_combobox.currentTextChanged.connect(self.update_rotation)
 
-        self.horizontalSlider_13.valueChanged['int'].connect(lambda value: self.update_dict_param("min_distance", value))
-        self.horizontalSlider_14.valueChanged['int'].connect(lambda value: self.update_dict_param("param1", value))
-        self.horizontalSlider_15.valueChanged['int'].connect(lambda value: self.update_dict_param("param2", value))
-        self.horizontalSlider_16.valueChanged['int'].connect(lambda value: self.update_dict_param("min_radius", value))
-        self.horizontalSlider_17.valueChanged['int'].connect(lambda value: self.update_dict_param("max_radius", value))
+        self.horizontalSlider_13.valueChanged['int'].connect(lambda value: self.update_hough_dict_param("min_distance", value))
+        self.horizontalSlider_14.valueChanged['int'].connect(lambda value: self.update_hough_dict_param("param1", value))
+        self.horizontalSlider_15.valueChanged['int'].connect(lambda value: self.update_hough_dict_param("param2", value))
+        self.horizontalSlider_16.valueChanged['int'].connect(lambda value: self.update_hough_dict_param("min_radius", value))
+        self.horizontalSlider_17.valueChanged['int'].connect(lambda value: self.update_hough_dict_param("max_radius", value))
 
         self.framesSlider.valueChanged['int'].connect(self.update_img)
 
@@ -112,30 +113,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.image_frame.mousePressEvent = self.mouse_clicked
 
-        self.load_exp_names()
-
-    def run_analysis(self):
-        self.experiment.run_analysis()
-
-        frame = self.framesSlider.value()
-
-        if self.experiment.is_analyzed:
-            self.FFwidget.clear()
-            self.FFwidget.plot(self.experiment.t, self.experiment.ff)
-            self.FFwidget.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget.getAxis('left').range)
-
-    def load_exp_names(self):
-        # Clear the model
-        self.model.clear()
-
-        # Load and display exp_names
-        listdir = os.listdir(paths.raw_data_path)
-        listdir.sort(reverse=True)
-
-        for exp_name in listdir:
-            item = QtGui.QStandardItem(exp_name)
-            item.setEditable(False)
-            self.model.appendRow(item)
+        self.populate_experiment_list()
 
     def load_metadata_into_gui(self, metadata):
         # Load metadata into text edits
@@ -179,10 +157,70 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         if hasattr(metadata, attribute_name):
             # Special handling for date and time attributes
-            if attribute_name.endswith("_time"):
-                new_value = datetime.strptime(new_value, "%Y-%m-%d %H:%M") if new_value else None
+            # if attribute_name.endswith("_time"):
+            #     new_value = datetime.strptime(new_value, "%Y-%m-%d %H:%M") if new_value else None
 
             setattr(metadata, attribute_name, new_value)
+            self.show_metadata_alert()
+
+    def populate_combobox_templates(self):
+        png_files = [file for file in os.listdir(paths.etc_path) if file.endswith(".png")]
+        self.templates_combobox.addItems(png_files)
+        self.template_img = self.templates_combobox.currentText()
+
+    def update_template_img(self):
+        template_img = self.templates_combobox.currentText()
+
+        self.experiment.metadata.template_img = template_img
+        self.show_metadata_alert()
+
+        template_image = cv2.imread(str(paths.etc_path / template_img))
+
+        self.image_frame.setFixedWidth(template_image.shape[1])
+        self.image_frame.setFixedHeight(template_image.shape[0])
+
+    def update_rotation(self):
+        rotation = self.rotation_combobox.currentText()
+        print(rotation)
+        self.experiment.metadata.rotation = rotation_dict[rotation]
+        self.show_metadata_alert()
+
+    def run_analysis(self):
+        self.experiment.run_analysis()
+
+        frame = self.framesSlider.value()
+
+        if self.experiment.is_analyzed:
+            self.FFwidget.clear()
+            self.FFwidget.plot(self.experiment.t, self.experiment.ff)
+            self.FFwidget.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget.getAxis('left').range)
+
+    def populate_experiment_list(self):
+        # Clear the model
+        self.model.clear()
+
+        # Load and display exp_names
+        listdir = os.listdir(paths.raw_data_path)
+        listdir.sort(reverse=True)
+
+        for exp_name in listdir:
+            item = QtGui.QStandardItem(exp_name)
+            item.setEditable(False)
+            self.model.appendRow(item)
+
+    def update_hough_dict_param(self, param_name, new_value):
+        self.experiment.metadata.hough_params[param_name] = new_value
+
+    def mouse_clicked(self, evt):
+        x = evt.pos().x()
+        y = evt.pos().y()
+
+        if hasattr(self.experiment, "circles_positions"):
+            self.selected_droplet = np.argmin(np.linalg.norm(self.experiment.circles_positions[:, :2] - np.array([x, y]), axis=1))
+            print(f'clicked plot X: {x}, Y: {y}, circle: {self.selected_droplet}')
+
+            self.FFwidget_grayscale.clear()
+            self.FFwidget_grayscale.plot(self.frame_t, self.experiment.grayscales_evolution[:, self.selected_droplet])
 
     def filter_exp_names(self):
         # Get the filter text
@@ -199,45 +237,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                 item = QtGui.QStandardItem(exp_name)
                 item.setEditable(False)
                 self.model.appendRow(item)
-
-    def populate_combobox_templates(self):
-        png_files = [file for file in os.listdir(paths.etc_path) if file.endswith(".png")]
-        self.templates_combobox.addItems(png_files)
-        self.template_img = self.templates_combobox.currentText()
-
-    def update_rotation(self):
-        rotation = self.rotation_combobox.currentText()
-        self.experiment.metadata.rotation = rotation_dict[rotation]
-
-    def update_template_img(self):
-        template_img = self.templates_combobox.currentText()
-
-        self.experiment.metadata.template_img = template_img
-
-        template_image = cv2.imread(str(paths.etc_path / template_img))
-
-        self.image_frame.setFixedWidth(template_image.shape[1])
-        self.image_frame.setFixedHeight(template_image.shape[0])
-
-    def update_dict_param(self, param_name, new_value):
-        self.experiment.metadata.hough_params[param_name] = new_value
-
-    def update_metadata_modified(self, attribute_name):
-        # Update the metadata_modified flag and show an alert to the user
-        self.load_metadata_into_gui(self.experiment.metadata)
-        self.metadata_modified = True
-        self.show_metadata_alert()
-
-    def mouse_clicked(self, evt):
-        x = evt.pos().x()
-        y = evt.pos().y()
-
-        if hasattr(self.experiment, "circles_positions"):
-            self.selected_droplet = np.argmin(np.linalg.norm(self.experiment.circles_positions[:, :2] - np.array([x, y]), axis=1))
-            print(f'clicked plot X: {x}, Y: {y}, circle: {self.selected_droplet}')
-
-            self.FFwidget_grayscale.clear()
-            self.FFwidget_grayscale.plot(self.frame_t, self.experiment.grayscales_evolution[:, self.selected_droplet])
 
     def delete_indx(self):
         value = self.spinbox_delete.value()
@@ -275,10 +274,12 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
     def show_metadata_alert(self):
         # Show an alert to inform the user that metadata has been modified
+        self.metadata_modified = True
         self.setWindowTitle(self.exp_name + "*")
 
     def hide_metadata_alert(self):
         # Hide the metadata modification alert
+        self.metadata_modified = False
         self.setWindowTitle(self.exp_name)
 
     def update_img(self):
@@ -320,8 +321,12 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.update_img()
         self.hide_metadata_alert()
 
-        #if not self.experiment.is_analyzed:
-        #    self.experiment.run_analysis()
+        if not self.experiment.is_analyzed:
+            self.experiment.run_analysis()
+            if self.experiment.is_analyzed:
+                self.FFwidget.clear()
+                self.FFwidget.plot(self.experiment.t, self.experiment.ff)
+                self.FFwidget.plot([self.frame_t[0], self.frame_t[0]], self.FFwidget.getAxis('left').range)
         # next_index = self.experiment_list_view.currentIndex().row() + 1
         # self.experiment_list_view.setCurrentIndex(self.experiment_list_view.model().index(next_index, 0))
 
