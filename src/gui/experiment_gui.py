@@ -131,6 +131,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.temp_worker.temp_signal.connect(self.set_temp)
         self.temp_worker.start()
 
+        self.saveCheckBox.setChecked(True)
+
     def stop_scan(self):
         self.temp_worker.terminate()
         logging.info("Scan terminated!")
