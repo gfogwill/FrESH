@@ -133,7 +133,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
             self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate)
         elif self.radioStep.isChecked():
             target_temp = float(self.targetTemp.text())  # Assuming there's an input field for the target temperature
-            self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate, target_temp=target_temp)
+            self.set_temp(target_temp)
         elif self.radioMultipleCycles.isChecked():
             self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate, cycles)
 
