@@ -165,7 +165,10 @@ class FrESHExperiment:
         # self.FFwidget.plot(self.t, self.ff)
 
         # Normalization factor to L^-1
-        X = nu * v_wash / (v_air * filter_fraction)
+        try:
+            X = nu * v_wash / (v_air * filter_fraction)
+        except TypeError:
+            X = 1
 
         # Concentration per sample
         self.conc_per_drop = - np.log(1 - np.array(self.ff)) / v_drop
