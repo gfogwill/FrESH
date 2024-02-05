@@ -147,7 +147,7 @@ class FrESHExperiment:
         nu = self.metadata.dil_factor
         v_wash = self.metadata.v_wash
         v_drop = self.metadata.v_drop
-        v_air = self.metadata.air_volume
+        v_air = float(self.metadata.air_volume)
         filter_fraction = self.metadata.filter_fraction
 
         self.grayscales_evolution = self.process_images(self.img_files)
@@ -168,6 +168,7 @@ class FrESHExperiment:
         try:
             X = nu * v_wash / (v_air * filter_fraction)
         except TypeError:
+            logging.warning("Error calculating normalization factor.")
             X = 1
 
         # Concentration per sample
