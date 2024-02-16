@@ -1,5 +1,6 @@
 import logging
 from typing import Tuple, Any
+import time
 
 import cv2
 import numpy as np
@@ -49,7 +50,7 @@ class DataWorker(QThread):
 class TempThread(QThread):
     temp_signal = pyqtSignal(object)
 
-    def __init__(self, max_temp, min_temp, cooling_rate, heating_rate):
+    def __init__(self, max_temp, min_temp, cooling_rate, heating_rate, cycles=1):
         super().__init__()
         self.chilling = True
         self.last_sp = max_temp
@@ -60,6 +61,8 @@ class TempThread(QThread):
         self.chill_temp_step = cooling_rate
         self.heat_temp_step = heating_rate
         self.step_interval = 6  # in seconds
+
+        self.cycles = cycles
 
         self.tempRampTimer = QTimer()
         self.tempRampTimer.moveToThread(self)
@@ -77,11 +80,24 @@ class TempThread(QThread):
             self.last_sp = round(self.last_sp, 2)
             if self.last_sp <= self.min_temp:
                 self.chilling = False
+
         else:
             self.last_sp += self.heat_temp_step
             self.last_sp = round(self.last_sp, 2)
             if self.last_sp >= self.max_temp:
                 self.chilling = True
+
+        if self.last_sp < self.min_temp:
+            logging.warning("Temperature below minimum limit. Setting to minimum.")
+            self.last_sp = self.min_temp
+            self.temp_signal.emit(0)
+            self.terminate()
+
+        if self.last_sp > self.max_temp:
+            logging.warning("Temperature above maximum limit. Setting to maximum.")
+            self.last_sp = self.max_temp
+            self.temp_signal.emit(0)
+            self.terminate()
 
         self.temp_signal.emit(self.last_sp)
 
@@ -120,7 +136,6 @@ class VideoThread(QThread):
         while self._run_flag:
 
             ret, cv_img = self.cap.read()
-            cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
 
             if ret:
                 self.change_pixmap_signal.emit(cv_img)

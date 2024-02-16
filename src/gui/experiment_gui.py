@@ -60,8 +60,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.setpoint = []
         self.adam0 = []
         self.adam1 = []
-        self.TEMP = []
-        self.RH = []
 
         self.new_line1 = None
         self.line2 = None
@@ -73,7 +71,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         # Connect buttons
         self.button_set_temp = self.findChild(QtWidgets.QPushButton, 'setTempButton')  # Find the button
-        self.button_set_temp.clicked.connect(self.set_temp)
+        self.button_set_temp.clicked.connect(lambda: self.set_temp(float(self.targetTemp.text())))
+        #self.button_set_temp.clicked.connect(self.set_temp)
 
         self.btn_connect_video = self.findChild(QtWidgets.QPushButton, 'connectVideoButton')
         self.btn_connect_video.clicked.connect(self.connect_video)
@@ -83,6 +82,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         self.btn_start_scan = self.findChild(QtWidgets.QPushButton, 'startScanButton')
         self.btn_start_scan.clicked.connect(self.start_scan)
+
+        self.btn_stop_scan = self.findChild(QtWidgets.QPushButton, 'stopScanButton')
+        self.btn_stop_scan.clicked.connect(self.stop_scan)
 
         self.btn_exit = self.findChild(QtWidgets.QPushButton, 'exitButton')
         self.btn_exit.clicked.connect(self.exit)
@@ -119,6 +121,30 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         self.show()
 
+    def start_scan(self):
+        max_temp = float(self.maxTemp.text())
+        min_temp = float(self.minTemp.text())
+        cooling_rate = float(self.coolingRate.text()) / 10
+        heating_rate = float(self.heatingRate.text()) / 10
+
+        self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate)
+        self.temp_worker.temp_signal.connect(self.set_temp)
+        self.temp_worker.start()
+
+        self.saveCheckBox.setChecked(True)
+
+    def stop_scan(self):
+        self.temp_worker.terminate()
+        logging.info("Scan terminated!")
+
+    @pyqtSlot(object)
+    def set_temp(self, t):
+        logging.info(f'Setting temperature to: {t}')
+        try:
+            self.data_worker.chiller.set_temperature(t)
+        except AttributeError:
+            logging.error("Error setting temperature!")
+
     def video_settings(self):
         self.VideoSettingsUi = VideoSettingsUi(self.video_thread)
         self.VideoSettingsUi.show()
@@ -141,7 +167,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
             split_width = width // len(self.exp_list)
 
             for i, experiment in enumerate(self.exp_list):
-                fo = experiment.experiment_path / 'pics' / time.strftime(f"%Y%m%d%H%M%S.jpg", time.localtime())
+                fo = paths.raw_data_path / experiment.exp_name / 'pics' / time.strftime(f"%Y%m%d%H%M%S.jpg", time.localtime())
                 segment = croped[:, i * split_width: (i+1) * split_width]
                 cv2.imwrite(str(fo), segment)
 
@@ -164,15 +190,15 @@ class ExperimentUi(QtWidgets.QMainWindow):
                             filemode='w')
 
         for experiment in self.exp_list:
-            file_handler = logging.FileHandler(experiment.experiment_path / f'{experiment.metadata.label}.log')
+            file_handler = logging.FileHandler(paths.raw_data_path / experiment.exp_name / f'{experiment.metadata.label}.log')
             file_handler.setLevel(logging.INFO)
             file_handler.setFormatter(logging.Formatter(log_fmt))
             logger.addHandler(file_handler)
 
-            with open(experiment.experiment_path / "sensors_data.csv", "a") as fo:
-                fo.write(f'datetime, 'f'SP,' f'BT,' f'RTD0,' f'RTD1,' f'TEMP,' f'RH\n')
+            with open(paths.raw_data_path / experiment.exp_name / "sensors_data.csv", "a") as fo:
+                fo.write(f'datetime, 'f'SP,' f'BT,' f'RTD0,' f'RTD1\n')
 
-            logging.info(f'Sensors data file created: {experiment.experiment_path / "sensors_data.csv"}')
+            logging.info(f'Sensors data file created: {paths.raw_data_path / experiment.exp_name / "sensors_data.csv"}')
 
             windows_title += experiment.metadata.label
             windows_title += ' - '
@@ -191,8 +217,18 @@ class ExperimentUi(QtWidgets.QMainWindow):
     def connect_video(self):
         logging.info("Connecting Camera")
 
+        # Disconnect and stop the previous video thread if it exists
+        if hasattr(self, 'video_thread') and self.video_thread is not None:
+            # Disconnect the signal
+            self.video_thread.change_pixmap_signal.disconnect(self.update_image)
+            # Stop the thread
+            self.video_thread.stop()
+            # Wait for the thread to finish
+            self.video_thread.wait()
+
         # Setup video widget
         self.image_frame = self.findChild(QtWidgets.QLabel, 'videoLabel')
+        # Create a new video thread with the updated camera ID
         self.video_thread = VideoThread(self.cameraID.value())
         # connect its signal to the update_image slot
         self.video_thread.change_pixmap_signal.connect(self.update_image)
@@ -203,27 +239,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
     def connect_chiller(self):
         # Setup thread for temperature I/O
-        self.data_worker = DataWorker(float(self.temp_set.text()))
+        self.data_worker = DataWorker(float(self.targetTemp.text()))
         self.data_worker.read_data_signal.connect(self.read_sensors_data)
         self.data_worker.start()
-        
-    def start_scan(self):
-        max_temp = float(self.maxTemp.text())
-        min_temp = float(self.minTemp.text())
-        cooling_rate = float(self.coolingRate.text())
-        heating_rate = float(self.heatingRate.text())
-
-        self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate)
-        self.temp_worker.temp_signal.connect(self.set_temp2)
-        self.temp_worker.start()
-
-    @pyqtSlot(object)
-    def set_temp2(self, t):
-        logging.info(f'Setting temperature to: {t}')
-        try:
-            self.data_worker.chiller.set_temperature(t)
-        except AttributeError:
-            logging.error("Error setting temperature!")
 
     @pyqtSlot(object)
     def read_sensors_data(self, data):
@@ -232,20 +250,17 @@ class ExperimentUi(QtWidgets.QMainWindow):
         BT = data['BT']
         SP = data['SP']
         RTD0, RTD1 = data['RTD0'], data['RTD1']
-        TEMP, RH = data['TEMP'], data['RH']
 
         self.bath_temp.append((t, BT))
         self.setpoint.append((t, SP))
         self.adam0.append((t, RTD0))
         self.adam1.append((t, RTD1))
-        self.TEMP.append((t, TEMP))
-        self.RH.append((t, RH))
 
         if self.saveCheckBox.isChecked():
             for experiment in self.exp_list:
-                with open(experiment.experiment_path / "sensors_data.csv", "a") as fo:
+                with open(paths.raw_data_path / experiment.exp_name / "sensors_data.csv", "a") as fo:
                     fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
-                             f'{SP:.2f},' f'{BT:.2f},' f'{RTD0:.2f},' f'{RTD1:.2f},' f'{TEMP:.2f},' f'{RH:.2f}\n')
+                             f'{SP:.2f},' f'{BT:.2f},' f'{RTD0:.2f},' f'{RTD1:.2f}\n')
 
         self.update_temp_plot()
 
@@ -281,13 +296,6 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.lcdSP.display(f"{self.setpoint[-1][1]:.02f}")
         self.lcdRTD1.display(f"{self.adam0[-1][1]:.02f}")
         self.lcdRTD2.display(f"{self.adam1[-1][1]:.02f}")
-        self.lcdTEMP.display(str(f"{self.TEMP[-1][1]:.02f}"))
-        self.lcdRH.display(str(f"{self.RH[-1][1]:.02f}"))
-
-    def set_temp(self):
-        t = float(self.temp_set.text())
-        logging.info(f'Setting temperature to: {t}')
-        self.data_worker.chiller.set_temperature(t)
 
     @pyqtSlot(np.ndarray)
     def update_image(self, cv_img):
