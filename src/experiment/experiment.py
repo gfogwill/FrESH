@@ -272,7 +272,7 @@ class FrESHExperiment:
     def save_metadata_to_file(self):
         # saves metadata to a JSON file
         self.metadata.check_required_fields()
-        metadata_path = os.path.join(paths.interim_data_path / self.exp_name, f"metadata.json")
+        metadata_path = os.path.join(paths.raw_data_path / self.exp_name, f"metadata.json")
         with open(metadata_path, "w") as metadata_file:
             json.dump(self.metadata.__dict__, metadata_file, indent=4)
 
