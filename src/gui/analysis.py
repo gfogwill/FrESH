@@ -62,6 +62,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             setattr(self, f"{attribute_name}_text_edit", self.findChild(QtWidgets.QLineEdit, f'{attribute_name}_text_edit'))
 
         self.type_combobox = self.findChild(QtWidgets.QComboBox, 'comboBox_type')
+        self.type_combobox.currentTextChanged.connect(lambda value, attr_name='experiment_type': self.update_metadata(attr_name, value))
 
         # Connect textChanged signals to update_metadata_modified method
         for attribute_name in attribute_names:
