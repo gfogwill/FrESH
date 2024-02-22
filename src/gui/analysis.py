@@ -1,7 +1,7 @@
 import logging
 
 from PyQt5 import QtWidgets, uic, QtGui
-from PyQt5.QtWidgets import QComboBox, QLineEdit
+from PyQt5.QtWidgets import QComboBox, QLineEdit, QTextEdit
 
 import cv2
 
@@ -167,7 +167,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                     widget.currentTextChanged.connect(
                         lambda value=value, attribute_name=attribute_name: self.update_metadata(attribute_name, value))
 
-                elif isinstance(widget, QLineEdit):
+                elif isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
                     widget.setText(str(value))
                     # Connect QLineEdit signal
                     widget.textChanged.connect(
@@ -236,6 +236,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
     def update_hough_dict_param(self, param_name, new_value):
         self.experiment.metadata.hough_params[param_name] = new_value
+        self.experiment.detect_circles()
+        self.show_metadata_alert()
 
     def mouse_clicked(self, evt):
         x = evt.pos().x()
@@ -332,6 +334,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.experiment = FrESHExperiment(self.exp_name)
 
         self.load_metadata_into_gui(self.experiment.metadata)
+        self.experiment.detect_circles()
 
         img = self.experiment.get_img(0)
 

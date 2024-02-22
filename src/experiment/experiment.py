@@ -220,7 +220,7 @@ class FrESHExperiment:
         if self.metadata.template_img is not None:
             img = auto_crop(img, self.metadata.template_img)
 
-        if hasattr(self, "circles_positions"):
+        if hasattr(self, "freezing_idxs"):
             np_dcirc = np.uint16(np.around(self.circles_positions))
 
             for n, i in enumerate(np_dcirc):
@@ -230,6 +230,14 @@ class FrESHExperiment:
                 else:
                     cv2.circle(img, (i[0], i[1]), i[2], (0, 255, 0), 1)
                     cv2.putText(img, "{}".format(n), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 0), 1)
+
+        if hasattr(self, "circles_positions"):
+            np_dcirc = np.uint16(np.around(self.circles_positions))
+
+            for n, i in enumerate(np_dcirc):
+                cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 255), 1)
+                cv2.putText(img, "{}".format(n), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 0), 1)
+
 
         return img
 
