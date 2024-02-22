@@ -1,7 +1,7 @@
 import logging
 
 from PyQt5 import QtWidgets, uic, QtGui
-
+from PyQt5.QtWidgets import QComboBox, QLineEdit
 
 import cv2
 
@@ -120,19 +120,22 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         # Load metadata into text edits
 
         attribute_to_widget_mapping = {
-            "station": self.station_text_edit,
-            "experiment_type": self.experiment_type_text_edit,
             "label": self.label_text_edit,
+            "experiment_type": self.experiment_type_text_edit,
+            "start_time": self.start_time_text_edit,
+            "end_time": self.end_time_text_edit,
+            "station": self.station_text_edit,
             "sampler_id": self.sampler_id_text_edit,
             "sampler_status": self.sampler_status_text_edit,
             "filter_position": self.filter_position_text_edit,
             "air_volume": self.air_volume_text_edit,
-            "start_time": self.start_time_text_edit,
-            "end_time": self.end_time_text_edit,
+
             "flow": self.flow_text_edit,
             "temp": self.temp_text_edit,
             "press": self.press_text_edit,
             "exp_description": self.exp_description_text_edit,
+
+            "template_img": self.templates_combobox,
         }
 
         for attribute_name, widget in attribute_to_widget_mapping.items():
@@ -145,12 +148,31 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                 if attribute_name.endswith("_time") and isinstance(value, datetime):
                     value = value.strftime("%Y-%m-%d %H:%M") if value else ""
 
-                # Update the text edit
-                widget.setText(str(value))
+                # Update the widgets
+                if isinstance(widget, QComboBox):
+                    # Check if the value is already in the combo box items
+                    found = False
+                    for index in range(widget.count()):
+                        if widget.itemText(index) == str(value):
+                            widget.setCurrentIndex(index)
+                            found = True
+                            break
 
-                # Connect text edits to update_metadata method
-                widget.textChanged.connect(
-                    lambda value=value, attribute_name=attribute_name: self.update_metadata(attribute_name, value))
+                    # If the value is not found, add it as a new item
+                    if not found:
+                        widget.addItem(str(value))
+                        widget.setCurrentText(str(value))
+
+                    # Connect QComboBox signal
+                    widget.currentTextChanged.connect(
+                        lambda value=value, attribute_name=attribute_name: self.update_metadata(attribute_name, value))
+
+                elif isinstance(widget, QLineEdit):
+                    widget.setText(str(value))
+                    # Connect QLineEdit signal
+                    widget.textChanged.connect(
+                        lambda text, value=value, attribute_name=attribute_name: self.update_metadata(attribute_name,
+                                                                                                      text))
 
     def update_metadata(self, attribute_name, new_value):
         # Update the corresponding attribute in the metadata object
@@ -180,11 +202,14 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.image_frame.setFixedWidth(template_image.shape[1])
         self.image_frame.setFixedHeight(template_image.shape[0])
 
+        self.update_img()
+
     def update_rotation(self):
         rotation = self.rotation_combobox.currentText()
-        print(rotation)
+
         self.experiment.metadata.rotation = rotation_dict[rotation]
         self.show_metadata_alert()
+        self.update_img()
 
     def run_analysis(self):
         self.experiment.run_analysis()
