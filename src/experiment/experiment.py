@@ -238,7 +238,6 @@ class FrESHExperiment:
                 cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 255), 1)
                 cv2.putText(img, "{}".format(n), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 0), 1)
 
-
         return img
 
     def detect_circles(self):
