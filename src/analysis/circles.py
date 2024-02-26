@@ -22,6 +22,7 @@ def auto_crop(img, template_img, rotation_angles=[0]):
 
     for angle in rotation_angles:
         rotated_img = rotate_image(img, angle)
+
         match_result = cv2.matchTemplate(rotated_img, template_image, cv2.TM_CCOEFF_NORMED)
         _, max_val, _, max_loc = cv2.minMaxLoc(match_result)
 

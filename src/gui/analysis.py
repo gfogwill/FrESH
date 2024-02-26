@@ -117,8 +117,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.populate_experiment_list()
 
     def load_metadata_into_gui(self, metadata):
-        # Load metadata into text edits
-
         attribute_to_widget_mapping = {
             "label": self.label_text_edit,
             "experiment_type": self.experiment_type_text_edit,
@@ -136,8 +134,11 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             "exp_description": self.exp_description_text_edit,
 
             "template_img": self.templates_combobox,
+            "filter_fraction": self.filter_fraction_text_edit,
+            "dil_factor": self.dil_factor_text_edit,
         }
 
+        # Load metadata into text edits
         for attribute_name, widget in attribute_to_widget_mapping.items():
             if widget is None:
                 continue
@@ -333,7 +334,12 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.experiment = FrESHExperiment(self.exp_name)
 
+        self.framesSlider.setValue(0)
+        self.framesSlider.setMaximum(self.experiment.img_files.__len__() - 1)
+        self.frame_t = calculate_frame_temperatures(self.experiment.img_files, self.exp_name)
+
         self.load_metadata_into_gui(self.experiment.metadata)
+
         self.experiment.detect_circles()
 
         img = self.experiment.get_img(0)
@@ -341,10 +347,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         qt_img = convert_cv_qt(img)
 
         self.image_frame.setPixmap(qt_img)
-
-        self.framesSlider.setValue(0)
-        self.framesSlider.setMaximum(self.experiment.img_files.__len__() - 1)
-        self.frame_t = calculate_frame_temperatures(self.experiment.img_files, self.exp_name)
 
         # self.run_analysis()
         self.update_img()
