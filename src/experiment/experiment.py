@@ -190,7 +190,7 @@ class FrESHExperiment:
             img = cv2.imread(img_path)
             rotation_option = self.metadata.rotation  # self.rotation_combobox.currentText()
 
-            if rotation_option != '-':
+            if rotation_option is not None:
                 img = cv2.rotate(img, rotation_option)
 
             img = auto_crop(img, self.metadata.template_img)
@@ -220,6 +220,13 @@ class FrESHExperiment:
         if self.metadata.template_img is not None:
             img = auto_crop(img, self.metadata.template_img)
 
+        if hasattr(self, "circles_positions"):
+            np_dcirc = np.uint16(np.around(self.circles_positions))
+
+            for n, i in enumerate(np_dcirc):
+                cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 255), 1)
+                cv2.putText(img, "{}".format(n), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 0), 1)
+
         if hasattr(self, "freezing_idxs"):
             np_dcirc = np.uint16(np.around(self.circles_positions))
 
@@ -230,13 +237,6 @@ class FrESHExperiment:
                 else:
                     cv2.circle(img, (i[0], i[1]), i[2], (0, 255, 0), 1)
                     cv2.putText(img, "{}".format(n), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 0), 1)
-
-        if hasattr(self, "circles_positions"):
-            np_dcirc = np.uint16(np.around(self.circles_positions))
-
-            for n, i in enumerate(np_dcirc):
-                cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 255), 1)
-                cv2.putText(img, "{}".format(n), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 0), 1)
 
         return img
 
@@ -268,13 +268,7 @@ class FrESHExperiment:
         # implementation for collecting particles onto a membrane filter
         metadata.check_required_fields()
         self.metadata = metadata
-        self._save_metadata()
-
-    def _save_metadata(self):
-        # saves metadata to a JSON file
-        metadata_path = os.path.join(paths.raw_data_path / self.exp_name, f"metadata.json")
-        with open(metadata_path, "w") as metadata_file:
-            json.dump(self.metadata.__dict__, metadata_file, indent=4)
+        self.save_metadata_to_file()
 
     def save_metadata_to_file(self):
         # saves metadata to a JSON file
@@ -300,7 +294,7 @@ class FrESHExperiment:
         with open(import_path, "r") as import_file:
             metadata_dict = json.load(import_file)
             self.metadata = ExperimentMetadata(**metadata_dict)
-        self._save_metadata()
+        self.save_metadata_to_file()
 
     def export_metadata(self, export_format="json"):
         # exports metadata to a file in the specified format (JSON or YAML)
