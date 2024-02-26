@@ -244,12 +244,16 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         x = evt.pos().x()
         y = evt.pos().y()
 
+        frame = self.framesSlider.value()
+
         if hasattr(self.experiment, "circles_positions"):
             self.selected_droplet = np.argmin(np.linalg.norm(self.experiment.circles_positions[:, :2] - np.array([x, y]), axis=1))
             print(f'clicked plot X: {x}, Y: {y}, circle: {self.selected_droplet}')
 
             self.FFwidget_grayscale.clear()
             self.FFwidget_grayscale.plot(self.frame_t, self.experiment.grayscales_evolution[:, self.selected_droplet])
+
+        self.FFwidget_grayscale.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget_grayscale.getAxis('left').range)
 
     def filter_exp_names(self):
         # Get the filter text
@@ -279,10 +283,10 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         i = pathlib.Path(paths.interim_data_path / self.exp_name)
         i.mkdir(parents=True, exist_ok=True)
 
+        self.experiment.save_metadata_to_file()
+
         # Save metadata to a file
         if self.metadata_modified:
-            # Perform the save operation (replace this with your actual saving logic)
-            self.experiment.save_metadata_to_file()  # You need to implement this method in your FrESHExperiment class
             self.metadata_modified = False
             self.hide_metadata_alert()
 
@@ -326,6 +330,12 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             self.FFwidget.clear()
             self.FFwidget.plot(self.experiment.t, self.experiment.ff)
             self.FFwidget.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget.getAxis('left').range)
+
+        if hasattr(self.experiment, "circles_positions") and self.selected_droplet is not None:
+            self.FFwidget_grayscale.clear()
+            self.FFwidget_grayscale.plot(self.frame_t, self.experiment.grayscales_evolution[:, self.selected_droplet])
+            self.FFwidget_grayscale.plot([self.frame_t[frame], self.frame_t[frame]],
+                                     self.FFwidget_grayscale.getAxis('left').range)
 
     def load_experiment(self):
         self.exp_name = self.experiment_list_view.currentIndex().data()
