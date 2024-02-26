@@ -270,12 +270,26 @@ class FrESHExperiment:
         self.metadata = metadata
         self.save_metadata_to_file()
 
+    # def save_metadata_to_file(self):
+    #     # saves metadata to a JSON file
+    #     self.metadata.check_required_fields()
+    #     metadata_path = os.path.join(paths.raw_data_path / self.exp_name, f"metadata.json")
+    #     with open(metadata_path, "w") as metadata_file:
+    #         json.dump(self.metadata.__dict__, metadata_file, indent=4)
+
     def save_metadata_to_file(self):
         # saves metadata to a JSON file
         self.metadata.check_required_fields()
         metadata_path = os.path.join(paths.raw_data_path / self.exp_name, f"metadata.json")
         with open(metadata_path, "w") as metadata_file:
-            json.dump(self.metadata.__dict__, metadata_file, indent=4)
+            # Convert specific fields to float before saving
+            metadata_dict = self.metadata.__dict__
+            fields_to_convert_to_float = ["air_volume", "v_drop", "v_wash", "dil_factor", "filter_fraction"]
+            for field in fields_to_convert_to_float:
+                if field in metadata_dict and metadata_dict[field]:
+                    metadata_dict[field] = float(metadata_dict[field])
+
+            json.dump(metadata_dict, metadata_file, indent=4)
 
     def load_metadata(self):
         # loads metadata from a JSON file
