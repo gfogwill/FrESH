@@ -161,9 +161,6 @@ class FrESHExperiment:
 
         self.t, self.ff = process_sensors_data(self.exp_name, self.freezing_idxs, freezing_times)
 
-        # self.FFwidget.clear()
-        # self.FFwidget.plot(self.t, self.ff)
-
         # Normalization factor to L^-1
         try:
             X = nu * v_wash / (v_air * filter_fraction)
@@ -196,14 +193,7 @@ class FrESHExperiment:
             img = auto_crop(img, self.metadata.template_img)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-            # dcirc = circles.get_circles(gray, minDist, param1, param2, minRadius, maxRadius, sort=True, plot=False)
-
             res.append(circles.get_grayscales(gray, self.circles_positions))
-
-            # img = circles.add_circles(gray, self.circles_positions)
-
-#            qt_img = convert_cv_qt(img)
-#            self.image_frame.setPixmap(qt_img)
 
         return np.array(res)
 
