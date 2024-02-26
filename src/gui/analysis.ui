@@ -37,10 +37,54 @@
            <property name="rightMargin">
             <number>0</number>
            </property>
+           <item row="0" column="0">
+            <widget class="QGroupBox" name="groupBox_4">
+             <property name="title">
+              <string>GroupBox</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_8">
+              <item row="0" column="0">
+               <layout class="QVBoxLayout" name="verticalLayout_3">
+                <item>
+                 <widget class="QListView" name="experimentListView"/>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="filter_line_edit"/>
+                </item>
+                <item>
+                 <layout class="QHBoxLayout" name="horizontalLayout_3">
+                  <item>
+                   <widget class="QPushButton" name="runButton">
+                    <property name="text">
+                     <string>Run</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="loadExperimentButton">
+                    <property name="text">
+                     <string>Load</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="saveButton">
+                    <property name="text">
+                     <string>Save</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </item>
+               </layout>
+              </item>
+             </layout>
+            </widget>
+           </item>
            <item row="1" column="0">
             <widget class="QGroupBox" name="groupBox">
              <property name="title">
-              <string>Collection</string>
+              <string>Metadata</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_3">
               <item row="0" column="0">
@@ -58,6 +102,61 @@
                    <bool>true</bool>
                   </property>
                  </widget>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QLabel" name="label_7">
+                  <property name="text">
+                   <string>Type</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="1">
+                 <widget class="QComboBox" name="comboBox_type">
+                  <item>
+                   <property name="text">
+                    <string/>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>Filter</string>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>WB</string>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>Filter background</string>
+                   </property>
+                  </item>
+                 </widget>
+                </item>
+                <item row="2" column="0">
+                 <widget class="QLabel" name="label_23">
+                  <property name="text">
+                   <string>Time</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="1">
+                 <layout class="QHBoxLayout" name="horizontalLayout_8">
+                  <item>
+                   <widget class="QLineEdit" name="start_time_text_edit"/>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="label_22">
+                    <property name="text">
+                     <string>to</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLineEdit" name="end_time_text_edit"/>
+                  </item>
+                 </layout>
                 </item>
                 <item row="3" column="0">
                  <widget class="QLabel" name="label">
@@ -99,154 +198,75 @@
                 <item row="6" column="1">
                  <widget class="QLineEdit" name="sampler_status_text_edit"/>
                 </item>
-                <item row="8" column="0">
+                <item row="7" column="0">
                  <widget class="QLabel" name="label_17">
                   <property name="text">
                    <string>Filter pos.</string>
                   </property>
                  </widget>
                 </item>
-                <item row="8" column="1">
+                <item row="7" column="1">
                  <widget class="QLineEdit" name="filter_position_text_edit"/>
                 </item>
-                <item row="12" column="0">
-                 <widget class="QLabel" name="label_obs">
-                  <property name="text">
-                   <string>Obs.:</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="12" column="1">
-                 <widget class="QTextEdit" name="exp_description_text_edit"/>
-                </item>
-                <item row="2" column="0">
-                 <widget class="QLabel" name="label_23">
-                  <property name="text">
-                   <string>Time</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="2" column="1">
-                 <layout class="QHBoxLayout" name="horizontalLayout_8">
-                  <item>
-                   <widget class="QLineEdit" name="start_time_text_edit"/>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="label_22">
-                    <property name="text">
-                     <string>to</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLineEdit" name="end_time_text_edit"/>
-                  </item>
-                 </layout>
-                </item>
-                <item row="9" column="0">
+                <item row="8" column="0">
                  <widget class="QLabel" name="label_24">
                   <property name="text">
                    <string>Flow</string>
                   </property>
                  </widget>
                 </item>
-                <item row="9" column="1">
+                <item row="8" column="1">
                  <widget class="QLineEdit" name="flow_text_edit"/>
                 </item>
-                <item row="10" column="0">
+                <item row="9" column="0">
                  <widget class="QLabel" name="label_26">
                   <property name="text">
                    <string>Air pressure</string>
                   </property>
                  </widget>
                 </item>
-                <item row="10" column="1">
+                <item row="9" column="1">
                  <widget class="QLineEdit" name="press_text_edit"/>
                 </item>
-                <item row="11" column="0">
+                <item row="12" column="0">
+                 <widget class="QLabel" name="label_27">
+                  <property name="text">
+                   <string>Filter fraction</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="13" column="0">
+                 <widget class="QLabel" name="label_obs">
+                  <property name="text">
+                   <string>Obs.:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="13" column="1">
+                 <widget class="QTextEdit" name="exp_description_text_edit"/>
+                </item>
+                <item row="10" column="1">
+                 <widget class="QLineEdit" name="temp_text_edit"/>
+                </item>
+                <item row="10" column="0">
                  <widget class="QLabel" name="label_25">
                   <property name="text">
                    <string>Air temp.</string>
                   </property>
                  </widget>
                 </item>
-                <item row="11" column="1">
-                 <widget class="QLineEdit" name="temp_text_edit"/>
+                <item row="12" column="1">
+                 <widget class="QLineEdit" name="filter_fraction_text_edit"/>
                 </item>
-                <item row="1" column="0">
-                 <widget class="QLabel" name="label_7">
+                <item row="11" column="1">
+                 <widget class="QLineEdit" name="dil_factor_text_edit"/>
+                </item>
+                <item row="11" column="0">
+                 <widget class="QLabel" name="label_28">
                   <property name="text">
-                   <string>Type</string>
+                   <string>Dilution factor</string>
                   </property>
                  </widget>
-                </item>
-                <item row="1" column="1">
-                 <widget class="QComboBox" name="comboBox_type">
-                  <item>
-                   <property name="text">
-                    <string/>
-                   </property>
-                  </item>
-                  <item>
-                   <property name="text">
-                    <string>Filter</string>
-                   </property>
-                  </item>
-                  <item>
-                   <property name="text">
-                    <string>WB</string>
-                   </property>
-                  </item>
-                  <item>
-                   <property name="text">
-                    <string>Filter background</string>
-                   </property>
-                  </item>
-                 </widget>
-                </item>
-               </layout>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item row="0" column="0">
-            <widget class="QGroupBox" name="groupBox_4">
-             <property name="title">
-              <string>GroupBox</string>
-             </property>
-             <layout class="QGridLayout" name="gridLayout_8">
-              <item row="0" column="0">
-               <layout class="QVBoxLayout" name="verticalLayout_3">
-                <item>
-                 <widget class="QListView" name="experimentListView"/>
-                </item>
-                <item>
-                 <widget class="QLineEdit" name="filter_line_edit"/>
-                </item>
-                <item>
-                 <layout class="QHBoxLayout" name="horizontalLayout_3">
-                  <item>
-                   <widget class="QPushButton" name="runButton">
-                    <property name="text">
-                     <string>Run</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="loadExperimentButton">
-                    <property name="text">
-                     <string>Load</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="saveButton">
-                    <property name="text">
-                     <string>Save</string>
-                    </property>
-                   </widget>
-                  </item>
-                 </layout>
                 </item>
                </layout>
               </item>
@@ -479,19 +499,6 @@
                  </layout>
                 </item>
                 <item>
-                 <spacer name="verticalSpacer">
-                  <property name="orientation">
-                   <enum>Qt::Vertical</enum>
-                  </property>
-                  <property name="sizeHint" stdset="0">
-                   <size>
-                    <width>20</width>
-                    <height>40</height>
-                   </size>
-                  </property>
-                 </spacer>
-                </item>
-                <item>
                  <widget class="QComboBox" name="comboBox_rotation">
                   <item>
                    <property name="text">
@@ -708,6 +715,19 @@
                  </widget>
                 </item>
                 <item>
+                 <spacer name="verticalSpacer">
+                  <property name="orientation">
+                   <enum>Qt::Vertical</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>20</width>
+                    <height>40</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
                  <layout class="QHBoxLayout" name="horizontalLayout_4">
                   <property name="topMargin">
                    <number>0</number>
@@ -790,138 +810,138 @@
                 <item>
                  <widget class="PlotWidget" name="FFwidget_grayscale" native="true"/>
                 </item>
-                <item>
-                 <widget class="QWidget" name="widget_2" native="true">
-                  <widget class="QWidget" name="gridLayoutWidget">
-                   <property name="geometry">
-                    <rect>
-                     <x>70</x>
-                     <y>80</y>
-                     <width>280</width>
-                     <height>81</height>
-                    </rect>
-                   </property>
-                   <layout class="QGridLayout" name="gridLayout_12">
-                    <item row="1" column="3">
-                     <widget class="QLineEdit" name="lineEdit_3"/>
-                    </item>
-                    <item row="0" column="0">
-                     <widget class="QLabel" name="label_12">
-                      <property name="text">
-                       <string>Exp. Type</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item row="1" column="1">
-                     <widget class="QLineEdit" name="lineEdit_6"/>
-                    </item>
-                    <item row="0" column="1">
-                     <widget class="QLineEdit" name="experiment_type_text_edit"/>
-                    </item>
-                    <item row="1" column="0">
-                     <widget class="QLabel" name="label_15">
-                      <property name="text">
-                       <string>TextLabel</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item row="0" column="2">
-                     <widget class="QLabel" name="label_13">
-                      <property name="text">
-                       <string>asd</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item row="1" column="2">
-                     <widget class="QLabel" name="label_14">
-                      <property name="text">
-                       <string>TextLabel</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item row="0" column="3">
-                     <widget class="QLineEdit" name="lineEdit_2"/>
-                    </item>
-                   </layout>
-                  </widget>
-                  <widget class="QLineEdit" name="lineEdit_7">
-                   <property name="geometry">
-                    <rect>
-                     <x>311</x>
-                     <y>40</y>
-                     <width>59</width>
-                     <height>25</height>
-                    </rect>
-                   </property>
-                  </widget>
-                  <widget class="QLabel" name="label_16">
-                   <property name="geometry">
-                    <rect>
-                     <x>210</x>
-                     <y>40</y>
-                     <width>67</width>
-                     <height>25</height>
-                    </rect>
-                   </property>
-                   <property name="text">
-                    <string>TextLabel</string>
-                   </property>
-                  </widget>
-                  <widget class="QWidget" name="gridLayoutWidget_2">
-                   <property name="geometry">
-                    <rect>
-                     <x>70</x>
-                     <y>180</y>
-                     <width>280</width>
-                     <height>81</height>
-                    </rect>
-                   </property>
-                   <layout class="QGridLayout" name="gridLayout_13">
-                    <item row="1" column="3">
-                     <widget class="QLineEdit" name="lineEdit_9"/>
-                    </item>
-                    <item row="0" column="0">
-                     <widget class="QLabel" name="label_18">
-                      <property name="text">
-                       <string>Exp. Type</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item row="1" column="1">
-                     <widget class="QLineEdit" name="lineEdit_10"/>
-                    </item>
-                    <item row="0" column="1">
-                     <widget class="QLineEdit" name="experiment_type_text_edit_2"/>
-                    </item>
-                    <item row="1" column="0">
-                     <widget class="QLabel" name="label_19">
-                      <property name="text">
-                       <string>TextLabel</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item row="0" column="2">
-                     <widget class="QLabel" name="label_20">
-                      <property name="text">
-                       <string>asd</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item row="1" column="2">
-                     <widget class="QLabel" name="label_21">
-                      <property name="text">
-                       <string>TextLabel</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item row="0" column="3">
-                     <widget class="QLineEdit" name="lineEdit_11"/>
-                    </item>
-                   </layout>
-                  </widget>
-                 </widget>
-                </item>
                </layout>
+              </item>
+              <item row="1" column="0">
+               <widget class="QWidget" name="widget_2" native="true">
+                <widget class="QWidget" name="gridLayoutWidget">
+                 <property name="geometry">
+                  <rect>
+                   <x>70</x>
+                   <y>80</y>
+                   <width>280</width>
+                   <height>81</height>
+                  </rect>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_12">
+                  <item row="1" column="3">
+                   <widget class="QLineEdit" name="lineEdit_3"/>
+                  </item>
+                  <item row="0" column="0">
+                   <widget class="QLabel" name="label_12">
+                    <property name="text">
+                     <string>Exp. Type</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QLineEdit" name="lineEdit_6"/>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QLineEdit" name="experiment_type_text_edit"/>
+                  </item>
+                  <item row="1" column="0">
+                   <widget class="QLabel" name="label_15">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="2">
+                   <widget class="QLabel" name="label_13">
+                    <property name="text">
+                     <string>asd</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="2">
+                   <widget class="QLabel" name="label_14">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="3">
+                   <widget class="QLineEdit" name="lineEdit_2"/>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QLineEdit" name="lineEdit_7">
+                 <property name="geometry">
+                  <rect>
+                   <x>311</x>
+                   <y>40</y>
+                   <width>59</width>
+                   <height>25</height>
+                  </rect>
+                 </property>
+                </widget>
+                <widget class="QLabel" name="label_16">
+                 <property name="geometry">
+                  <rect>
+                   <x>210</x>
+                   <y>40</y>
+                   <width>67</width>
+                   <height>25</height>
+                  </rect>
+                 </property>
+                 <property name="text">
+                  <string>TextLabel</string>
+                 </property>
+                </widget>
+                <widget class="QWidget" name="gridLayoutWidget_2">
+                 <property name="geometry">
+                  <rect>
+                   <x>70</x>
+                   <y>180</y>
+                   <width>288</width>
+                   <height>81</height>
+                  </rect>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_13">
+                  <item row="1" column="2">
+                   <widget class="QLabel" name="label_21">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="3">
+                   <widget class="QLineEdit" name="lineEdit_11"/>
+                  </item>
+                  <item row="1" column="3">
+                   <widget class="QLineEdit" name="lineEdit_9"/>
+                  </item>
+                  <item row="0" column="0">
+                   <widget class="QLabel" name="label_18">
+                    <property name="text">
+                     <string>Exp. Type</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QLineEdit" name="lineEdit_10"/>
+                  </item>
+                  <item row="0" column="2">
+                   <widget class="QLabel" name="label_20">
+                    <property name="text">
+                     <string>asd</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="0">
+                   <widget class="QLabel" name="label_19">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QLineEdit" name="experiment_type_text_edit_2"/>
+                  </item>
+                 </layout>
+                </widget>
+               </widget>
               </item>
              </layout>
             </widget>
