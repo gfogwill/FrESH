@@ -88,6 +88,12 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.button_delete = self.findChild(QtWidgets.QPushButton, 'deleteDropletButton')
         self.button_delete.clicked.connect(self.delete_indx)
 
+        self.button_scan_start = self.findChild(QtWidgets.QPushButton, 'set_scan_start_button')
+        self.button_scan_start.clicked.connect(self.update_scan_start)
+
+        self.button_scan_end = self.findChild(QtWidgets.QPushButton, 'set_scan_end_button')
+        self.button_scan_end.clicked.connect(self.update_scan_end)
+
         self.label_deleted = self.findChild(QtWidgets.QLabel, 'deleted_label')
 
         self.image_frame = self.findChild(QtWidgets.QLabel, 'img_label')
@@ -116,6 +122,19 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.populate_experiment_list()
 
+    def update_scan_start(self):
+        frame = self.framesSlider.value()
+
+        self.experiment.scan_start_timestamp = str(self.experiment.img_files[frame].stem)
+        self.load_experiment()
+
+    def update_scan_end(self):
+        frame = self.framesSlider.value()
+
+        self.experiment.scan_end_timestamp = str(self.experiment.img_files[frame].stem)
+
+        self.load_experiment()
+
     def load_metadata_into_gui(self, metadata):
         attribute_to_widget_mapping = {
             "label": self.label_text_edit,
@@ -135,9 +154,10 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
             "template_img": self.templates_combobox,
             "filter_fraction": self.filter_fraction_text_edit,
+            "v_wash": self.wash_vol_text_edit,
             "dil_factor": self.dil_factor_text_edit,
-        }
 
+        }
         # Load metadata into text edits
         for attribute_name, widget in attribute_to_widget_mapping.items():
             if widget is None:
@@ -166,14 +186,13 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
                     # Connect QComboBox signal
                     widget.currentTextChanged.connect(
-                        lambda value=value, attribute_name=attribute_name: self.update_metadata(attribute_name, value))
+                    lambda value=value, attribute_name=attribute_name: self.update_metadata(attribute_name, value))
 
                 elif isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
                     widget.setText(str(value))
                     # Connect QLineEdit signal
                     widget.textChanged.connect(
-                        lambda text, value=value, attribute_name=attribute_name: self.update_metadata(attribute_name,
-                                                                                                      text))
+                        lambda text, value=value, attribute_name=attribute_name: self.update_metadata(attribute_name, text))
 
     def update_metadata(self, attribute_name, new_value):
         # Update the corresponding attribute in the metadata object
@@ -321,7 +340,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.frameNumber.setText('Image: ' + str(self.experiment.img_files[frame].stem))
         self.label_temp.setText('Temperature: ' + str(self.frame_t[frame]))
 
-        img = self.experiment.get_img(frame)
+        img = self.experiment.get_img(frame, self.selected_droplet)
 
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
