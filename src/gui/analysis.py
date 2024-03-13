@@ -116,27 +116,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.framesSlider.valueChanged['int'].connect(self.update_img)
 
-        self.FFwidget.setLabel('left', 'Frozen Fraction', color='red', size=30)
-
-        self.image_frame.mousePressEvent = self.mouse_clicked
-
-        self.populate_experiment_list()
-
-    def update_scan_start(self):
-        frame = self.framesSlider.value()
-
-        self.experiment.scan_start_timestamp = str(self.experiment.img_files[frame].stem)
-        self.load_experiment()
-
-    def update_scan_end(self):
-        frame = self.framesSlider.value()
-
-        self.experiment.scan_end_timestamp = str(self.experiment.img_files[frame].stem)
-
-        self.load_experiment()
-
-    def load_metadata_into_gui(self, metadata):
-        attribute_to_widget_mapping = {
+        self.attribute_to_widget_mapping = {
             "label": self.label_text_edit,
             "experiment_type": self.experiment_type_text_edit,
             "start_time": self.start_time_text_edit,
@@ -158,8 +138,30 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             "dil_factor": self.dil_factor_text_edit,
 
         }
+
+        self.FFwidget.setLabel('left', 'Frozen Fraction', color='red', size=30)
+
+        self.image_frame.mousePressEvent = self.mouse_clicked
+
+        self.populate_experiment_list()
+
+    def update_scan_start(self):
+        frame = self.framesSlider.value()
+
+        self.experiment.scan_start_timestamp = str(self.experiment.img_files[frame].stem)
+        self.load_experiment()
+
+    def update_scan_end(self):
+        frame = self.framesSlider.value()
+
+        self.experiment.scan_end_timestamp = str(self.experiment.img_files[frame].stem)
+
+        self.load_experiment()
+
+    def load_metadata_into_gui(self, metadata):
+
         # Load metadata into text edits
-        for attribute_name, widget in attribute_to_widget_mapping.items():
+        for attribute_name, widget in self.attribute_to_widget_mapping.items():
             if widget is None:
                 continue
             if hasattr(metadata, attribute_name):
@@ -188,11 +190,12 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                     widget.currentTextChanged.connect(
                     lambda value=value, attribute_name=attribute_name: self.update_metadata(attribute_name, value))
 
-                elif isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
+                #elif isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
+                else:
                     widget.setText(str(value))
                     # Connect QLineEdit signal
                     widget.textChanged.connect(
-                        lambda text, value=value, attribute_name=attribute_name: self.update_metadata(attribute_name, text))
+                        lambda text=value, attribute_name=attribute_name: self.update_metadata(attribute_name, text))
 
     def update_metadata(self, attribute_name, new_value):
         # Update the corresponding attribute in the metadata object

@@ -15,94 +15,43 @@ from src.gui.experiment_gui import convert_cv_qt
 
 
 class ExperimentMetadata:
-    """
-    Represents metadata for a FrESH experiment.
+    def __init__(self, **kwargs):
+        # Default values for metadata fields
+        self.sampling_time = kwargs.get('sampling_time', None)
+        self.sampling_interval = kwargs.get('sampling_interval', 10)
+        self.storage_temperature = kwargs.get('storage_temperature', -20)
+        self.experiment_type = kwargs.get('experiment_type', None)
+        self.station = kwargs.get('station', None)
+        self.label = kwargs.get('label', None)
+        self.sampler_id = kwargs.get('sampler_id', None)
+        self.sampler_status = kwargs.get('sampler_status', None)
+        self.air_volume = kwargs.get('air_volume', None)
+        self.start_time = kwargs.get('start_time', None)
+        self.end_time = kwargs.get('end_time', None)
+        self.flow = kwargs.get('flow', None)
+        self.temp = kwargs.get('temp', None)
+        self.press = kwargs.get('press', None)
+        self.exp_description = kwargs.get('exp_description', None)
+        self.run = kwargs.get('run', None)
+        self.template_img = kwargs.get('template_img', 'template_image_2.png')
+        self.rotation = kwargs.get('rotation', cv2.ROTATE_90_CLOCKWISE)
+        self.hough_params = kwargs.get('hough_params', {
+            "min_distance": 24,
+            "param1": 150,
+            "param2": 15,
+            "min_radius": 13,
+            "max_radius": 15
+        })
+        self.del_index = kwargs.get('del_index', [])
+        self.scan_start_timestamp = kwargs.get('scan_start_timestamp', None)
+        self.scan_end_timestamp = kwargs.get('scan_end_timestamp', None)
+        self.v_drop = kwargs.get('v_drop', None)
+        self.v_wash = kwargs.get('v_wash', None)
+        self.dil_factor = kwargs.get('dil_factor', None)
+        self.filter_fraction = kwargs.get('filter_fraction', None)
+        self.filter_position = kwargs.get('filter_position', None)
+        self.chiller_model = kwargs.get('chiller_model', None)
 
-    Attributes
-    ----------
-    station : str
-        The station where the sample was collected.
-    sampling_time : str
-        The sampling time for the experiment.
-    sampling_interval : int
-        The sampling interval for the experiment.
-    storage_temperature : int
-        The storage temperature for the experiment.
-    experiment_type : str
-        The type of the experiment .
-    label : str, optional
-        The label for the sample.
-    sampler_ID : str, optional
-        The ID of the sampler.
-    air_volume : str, optional
-        The volume of air sampled (if applicable).
-    start_time : str, optional
-        The start time of the experiment.
-    end_time : str, optional
-        The end time of the experiment.
-    temp : str, optional
-        The temperature during the experiment.
-    press : str, optional
-        The pressure during the experiment.
-    exp_description : str, optional
-        A description of the experiment.
-    run : str, optional
-        The run number for the experiment.
-    """
-
-    def __init__(self, sampling_time=None, sampling_interval=10, storage_temperature=-20, experiment_type=None,
-                 station=None, label=None, sampler_id=None, sampler_status=None, air_volume=None, start_time=None,
-                 end_time=None, flow=None, temp=None, press=None, exp_description=None, run=None, v_drop=None,
-                 v_wash=None, dil_factor=None, filter_fraction=None, filter_position=None, chiller_model=None,
-                 template_img='template_image_2.png', rotation=cv2.ROTATE_90_CLOCKWISE, hough_params=None,
-                 del_index=[], scan_start_timestamp=None, scan_end_timestamp=None):
-
-        # Collection
-        self.station = station
-        self.storage_temperature = storage_temperature
-        self.experiment_type = experiment_type
-        self.label = label
-
-        self.sampler_id = sampler_id
-        self.sampler_status = sampler_status
-        self.filter_position = filter_position
-        self.air_volume = air_volume
-
-        self.start_time = start_time
-        self.end_time = end_time
-        self.sampling_time = sampling_time
-        self.sampling_interval = sampling_interval
-
-        self.flow = flow
-        self.temp = temp
-        self.press = press
-
-        self.exp_description = exp_description
-        self.run = run
-
-        self.template_img = template_img
-        self.rotation = rotation
-
-        self.v_drop = v_drop
-        self.v_wash = v_wash
-        self.dil_factor = dil_factor
-        self.filter_fraction = filter_fraction
-
-        self.chiller_model = chiller_model
-
-        if hough_params is None:
-            self.hough_params = {
-                "min_distance": 24,
-                "param1": 150,
-                "param2": 15,
-                "min_radius": 13,
-                "max_radius": 15}
-        else:
-            self.hough_params = hough_params
-
-        self.del_index = del_index
-        self.scan_start_timestamp = scan_start_timestamp
-        self.scan_end_timestamp = scan_end_timestamp
 
     def check_required_fields(self):
         """
