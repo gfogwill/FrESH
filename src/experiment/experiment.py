@@ -55,7 +55,7 @@ class ExperimentMetadata:
                  end_time=None, flow=None, temp=None, press=None, exp_description=None, run=None, v_drop=None,
                  v_wash=None, dil_factor=None, filter_fraction=None, filter_position=None, chiller_model=None,
                  template_img='template_image_2.png', rotation=cv2.ROTATE_90_CLOCKWISE, hough_params=None,
-                 del_index=[]):
+                 del_index=[], scan_start_timestamp=None, scan_end_timestamp=None):
 
         # Collection
         self.station = station
@@ -101,6 +101,8 @@ class ExperimentMetadata:
             self.hough_params = hough_params
 
         self.del_index = del_index
+        self.scan_start_timestamp = scan_start_timestamp
+        self.scan_end_timestamp = scan_end_timestamp
 
     def check_required_fields(self):
         """
@@ -143,23 +145,46 @@ class FrESHExperiment:
             self.populate_image_list()
             self.load_metadata()
 
+    def get_experiment_image_list(self):
+        img_file_list = self.img_files
+        if self.metadata.scan_start_timestamp is not None:
+            filtered_img_files = [file for file in img_file_list if self.is_valid_timestamp(file)]
+        else:
+            filtered_img_files = img_file_list
+
+        return filtered_img_files
+
+    def is_valid_timestamp(self, file):
+        # Extract timestamp from the filename
+        timestamp_str = file.split(".")[0]  # Remove extension
+
+        # Convert timestamp strings to datetime objects
+        timestamp = datetime.strptime(timestamp_str, "%Y%m%d%H%M%S")
+        start_timestamp = datetime.strptime(self.scan_start_timestamp, "%Y%m%d%H%M%S")
+        end_timestamp = datetime.strptime(self.scan_end_timestamp, "%Y%m%d%H%M%S")
+
+        return start_timestamp <= timestamp <= end_timestamp
+
+
     def run_analysis(self):
+        img_file_list = self.get_experiment_image_list()
+
+        self.grayscales_evolution = self.process_images(img_file_list)
+        self.freezing_idxs = calculate_freezing_idxs(self.grayscales_evolution)
+
+        self.del_indx = [i - 1 for i in self.metadata.del_index]
+        self.freezing_idxs = np.delete(self.freezing_idxs, self.del_indx)
+        freezing_times = calculate_freezing_times(img_file_list, self.freezing_idxs)
+
+        self.freezing_temps = calculate_freezing_temps(freezing_times, self.exp_name)
+
+        self.t, self.ff = process_sensors_data(self.exp_name, self.freezing_idxs, freezing_times)
+
         nu = self.metadata.dil_factor
         v_wash = self.metadata.v_wash
         v_drop = self.metadata.v_drop
         v_air = float(self.metadata.air_volume)
         filter_fraction = self.metadata.filter_fraction
-
-        self.grayscales_evolution = self.process_images(self.img_files)
-        self.freezing_idxs = calculate_freezing_idxs(self.grayscales_evolution)
-
-        self.del_indx = [i - 1 for i in self.metadata.del_index]
-        self.freezing_idxs = np.delete(self.freezing_idxs, self.del_indx)
-        freezing_times = calculate_freezing_times(self.img_files, self.freezing_idxs)
-
-        self.freezing_temps = calculate_freezing_temps(freezing_times, self.exp_name)
-
-        self.t, self.ff = process_sensors_data(self.exp_name, self.freezing_idxs, freezing_times)
 
         # Normalization factor to L^-1
         try:
@@ -197,7 +222,7 @@ class FrESHExperiment:
 
         return np.array(res)
 
-    def get_img(self, frame_index):
+    def get_img(self, frame_index, selected_droplet=None):
 
         if self.img_files is None or frame_index < 0 or frame_index >= len(self.img_files):
             return None
@@ -214,7 +239,11 @@ class FrESHExperiment:
             np_dcirc = np.uint16(np.around(self.circles_positions))
 
             for n, i in enumerate(np_dcirc):
-                cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 255), 1)
+                if selected_droplet is not None and selected_droplet == n:
+                    circle_width = 2
+                else:
+                    circle_width = 1
+                cv2.circle(img, (i[0], i[1]), i[2], (0, 0, 255), circle_width)
                 cv2.putText(img, "{}".format(n), (i[0], i[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 0), 1)
 
         if hasattr(self, "freezing_idxs"):
@@ -355,8 +384,8 @@ def calculate_freezing_idxs(grayscales_evolution):
     # function to calculate the freezing indices
     freezing_idxs = []
     for i in range(grayscales_evolution.shape[-1]):
-        grayscales_diffs = [s - t for s, t in zip(grayscales_evolution[:, i], grayscales_evolution[1:, i])]
-        freezing_idxs.append(np.argmax(grayscales_diffs) + 1)
+        grayscales_diffs = [- s + t for s, t in zip(grayscales_evolution[:, i], grayscales_evolution[1:, i])]
+        freezing_idxs.append(np.argmax(np.abs(grayscales_diffs)) + 1)
     return freezing_idxs
 
 
