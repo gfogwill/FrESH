@@ -228,26 +228,6 @@
                 <item row="9" column="1">
                  <widget class="QLineEdit" name="press_text_edit"/>
                 </item>
-                <item row="13" column="0">
-                 <widget class="QLabel" name="label_27">
-                  <property name="text">
-                   <string>Filter fraction</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="14" column="0">
-                 <widget class="QLabel" name="label_obs">
-                  <property name="text">
-                   <string>Obs.:</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="14" column="1">
-                 <widget class="QTextEdit" name="exp_description_text_edit"/>
-                </item>
-                <item row="10" column="1">
-                 <widget class="QLineEdit" name="temp_text_edit"/>
-                </item>
                 <item row="10" column="0">
                  <widget class="QLabel" name="label_25">
                   <property name="text">
@@ -255,11 +235,8 @@
                   </property>
                  </widget>
                 </item>
-                <item row="13" column="1">
-                 <widget class="QLineEdit" name="filter_fraction_text_edit"/>
-                </item>
-                <item row="11" column="1">
-                 <widget class="QLineEdit" name="dil_factor_text_edit"/>
+                <item row="10" column="1">
+                 <widget class="QLineEdit" name="temp_text_edit"/>
                 </item>
                 <item row="11" column="0">
                  <widget class="QLabel" name="label_28">
@@ -268,15 +245,48 @@
                   </property>
                  </widget>
                 </item>
+                <item row="11" column="1">
+                 <widget class="QLineEdit" name="dil_factor_text_edit"/>
+                </item>
                 <item row="12" column="0">
                  <widget class="QLabel" name="label_29">
                   <property name="text">
-                   <string>Wash vol.</string>
+                   <string>Wash vol. [L]</string>
                   </property>
                  </widget>
                 </item>
                 <item row="12" column="1">
                  <widget class="QLineEdit" name="wash_vol_text_edit"/>
+                </item>
+                <item row="14" column="0">
+                 <widget class="QLabel" name="label_27">
+                  <property name="text">
+                   <string>Filter fraction</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="14" column="1">
+                 <widget class="QLineEdit" name="filter_fraction_text_edit"/>
+                </item>
+                <item row="15" column="0">
+                 <widget class="QLabel" name="label_obs">
+                  <property name="text">
+                   <string>Obs.:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="15" column="1">
+                 <widget class="QTextEdit" name="exp_description_text_edit"/>
+                </item>
+                <item row="13" column="0">
+                 <widget class="QLabel" name="label_30">
+                  <property name="text">
+                   <string>Drop vol. [uL]</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="13" column="1">
+                 <widget class="QLineEdit" name="v_drop_text_edit"/>
                 </item>
                </layout>
               </item>

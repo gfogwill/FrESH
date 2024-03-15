@@ -1,13 +1,14 @@
 import logging
 
-from PyQt5 import QtWidgets, uic, QtGui
+from PyQt5 import QtWidgets, uic, QtGui, QtCore
 from PyQt5.QtWidgets import QComboBox, QLineEdit, QTextEdit
+from functools import partial
 
 import cv2
 
 from src import paths
 from src.experiment.experiment import FrESHExperiment, process_sensors_data, calculate_frame_temperatures, \
-    calculate_freezing_idxs, calculate_freezing_times, calculate_freezing_temps
+    calculate_freezing_idxs, calculate_freezing_times, calculate_freezing_temps, ExperimentMetadata
 from src.gui.experiment_gui import convert_cv_qt
 
 import os
@@ -54,21 +55,24 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         # List of attribute names
         attribute_names = [
             "station", "label", "sampler_id",
-            "sampler_status", "filter_position", "air_volume", "start_time", "end_time",
+            "sampler_status", "filter_position", "air_volume", "start_time", "end_time", "v_drop"
         ]
 
         # Generate lines for finding child widgets
         for attribute_name in attribute_names:
             setattr(self, f"{attribute_name}_text_edit", self.findChild(QtWidgets.QLineEdit, f'{attribute_name}_text_edit'))
 
-        self.type_combobox = self.findChild(QtWidgets.QComboBox, 'comboBox_type')
-        self.type_combobox.currentTextChanged.connect(lambda value, attr_name='experiment_type': self.update_metadata(attr_name, value))
-
         # Connect textChanged signals to update_metadata_modified method
         for attribute_name in attribute_names:
             widget = getattr(self, f"{attribute_name}_text_edit")
-            widget.textChanged.connect(lambda value, attr_name=attribute_name: self.update_metadata(attr_name, value))
-            # widget.textChanged.connect(lambda: self.update_metadata_modified(attribute_name))
+            # widget.textChanged.connect(lambda value, attr_name=attribute_name: self.update_metadata(attr_name, value))
+            widget.textChanged.connect(lambda: self.show_metadata_alert)
+
+        self.type_combobox = self.findChild(QtWidgets.QComboBox, 'comboBox_type')
+        self.type_combobox.currentTextChanged.connect(lambda value, attr_name='experiment_type': self.update_metadata(attr_name, value))
+
+        self.exp_description_line_edit = self.findChild(QtWidgets.QTextEdit, "exp_description_text_edit")
+        self.exp_description_line_edit.textChanged.connect(self.show_metadata_alert)
 
         # ToDo: put in another place the code
         self.button_run_analysis = self.findChild(QtWidgets.QPushButton, 'runButton')
@@ -133,6 +137,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             "exp_description": self.exp_description_text_edit,
 
             "template_img": self.templates_combobox,
+            "v_drop": self.v_drop_text_edit,
             "filter_fraction": self.filter_fraction_text_edit,
             "v_wash": self.wash_vol_text_edit,
             "dil_factor": self.dil_factor_text_edit,
@@ -144,6 +149,32 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.image_frame.mousePressEvent = self.mouse_clicked
 
         self.populate_experiment_list()
+
+    def load_metadata_from_gui(self):
+        metadata = ExperimentMetadata()  # Assuming ExperimentMetadata is a class to hold metadata
+
+        # Load metadata from text edits
+        for attribute_name, widget in self.attribute_to_widget_mapping.items():
+            if widget is None:
+                continue
+
+            if isinstance(widget, QComboBox):
+                value = widget.currentText()
+            elif isinstance(widget, (QLineEdit, QTextEdit)):
+                value = widget.toPlainText() if isinstance(widget, QTextEdit) else widget.text()
+            else:
+                continue
+
+            # Special handling for date and time attributes
+            if attribute_name.endswith("_time"):
+                value = datetime.strptime(value, "%Y-%m-%d %H:%M") if value else None
+
+            setattr(metadata, attribute_name, value)
+
+        return metadata
+
+    def update_metadata_description(self):
+        self.update_metadata('exp_description', self.exp_description_line_edit.toPlainText())
 
     def update_scan_start(self):
         frame = self.framesSlider.value()
@@ -198,6 +229,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                         lambda text=value, attribute_name=attribute_name: self.update_metadata(attribute_name, text))
 
     def update_metadata(self, attribute_name, new_value):
+        # logging.debug(print("Updating metadata:", attribute_name, new_value))
+
         # Update the corresponding attribute in the metadata object
         metadata = self.experiment.metadata
 
@@ -304,6 +337,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def save(self):
         i = pathlib.Path(paths.interim_data_path / self.exp_name)
         i.mkdir(parents=True, exist_ok=True)
+
+        self.experiment.metadata = self.load_metadata_from_gui()
 
         self.experiment.save_metadata_to_file()
 

@@ -52,7 +52,6 @@ class ExperimentMetadata:
         self.filter_position = kwargs.get('filter_position', None)
         self.chiller_model = kwargs.get('chiller_model', None)
 
-
     def check_required_fields(self):
         """
         Checks whether the required fields are present in the metadata.
@@ -63,8 +62,8 @@ class ExperimentMetadata:
             If one or more required fields are missing.
         """
         try:
-            self.start_time = self.start_time.strftime('%Y-%m-%d %H:%M:%S')
-            self.end_time = self.end_time.strftime('%Y-%m-%d %H:%M:%S')
+            self.start_time = self.start_time.strftime('%Y-%m-%d %H:%M')
+            self.end_time = self.end_time.strftime('%Y-%m-%d %H:%M')
         except AttributeError:
             pass
 
