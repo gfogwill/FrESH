@@ -179,14 +179,15 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def update_scan_start(self):
         frame = self.framesSlider.value()
 
-        self.experiment.scan_start_timestamp = str(self.experiment.img_files[frame].stem)
+        self.experiment.metadata.scan_start_timestamp = str(self.experiment.img_files[frame].stem)
+        self.experiment.save_metadata_to_file()
         self.load_experiment()
 
     def update_scan_end(self):
         frame = self.framesSlider.value()
 
-        self.experiment.scan_end_timestamp = str(self.experiment.img_files[frame].stem)
-
+        self.experiment.metadata.scan_end_timestamp = str(self.experiment.img_files[frame].stem)
+        self.experiment.save_metadata_to_file()
         self.load_experiment()
 
     def load_metadata_into_gui(self, metadata):

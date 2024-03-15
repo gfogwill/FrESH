@@ -90,29 +90,51 @@ class FrESHExperiment:
 
         else:
             logging.info(f"Experiment found! Loading experiment: {experiment_path}")
-            self.populate_image_list()
             self.load_metadata()
+            self.img_files = self.get_experiment_image_list()
 
     def get_experiment_image_list(self):
-        img_file_list = self.img_files
+        img_dir = paths.raw_data_path / self.exp_name / 'pics'
+
+        # get a list of all JPG files in the directory
+        img_file_list = [f for f in img_dir.iterdir() if f.is_file() and f.suffix == ".jpg"]
+        # sort the list of images
+        img_file_list.sort()
+
+        if img_file_list.__len__() == 0:
+            logging.error(f"No pictures found in dir: {img_dir}")
+
+        # Return the complete list if start_timestamp or end_timestamp are not defined
+        if not (hasattr(self.metadata, 'scan_start_timestamp') and hasattr(self.metadata, 'scan_end_timestamp')):
+            return img_file_list
+
         if self.metadata.scan_start_timestamp is not None:
-            filtered_img_files = [file for file in img_file_list if self.is_valid_timestamp(file)]
-        else:
-            filtered_img_files = img_file_list
+            # Filter out images before start_timestamp
+            start_timestamp = datetime.strptime(self.metadata.scan_start_timestamp, "%Y%m%d%H%M%S")
+            img_file_list = [file for file in img_file_list if self.is_valid_timestamp(file, start_timestamp, None)]
 
-        return filtered_img_files
+        if self.metadata.scan_end_timestamp is not None:
+            # Filter out images after end_timestamp
+            end_timestamp = datetime.strptime(self.metadata.scan_end_timestamp, "%Y%m%d%H%M%S")
+            img_file_list = [file for file in img_file_list if self.is_valid_timestamp(file, None, end_timestamp)]
 
-    def is_valid_timestamp(self, file):
+        return img_file_list
+
+    def is_valid_timestamp(self, file, start_timestamp, end_timestamp):
         # Extract timestamp from the filename
-        timestamp_str = file.split(".")[0]  # Remove extension
+        timestamp_str = file.stem  # Remove extension
 
         # Convert timestamp strings to datetime objects
         timestamp = datetime.strptime(timestamp_str, "%Y%m%d%H%M%S")
-        start_timestamp = datetime.strptime(self.scan_start_timestamp, "%Y%m%d%H%M%S")
-        end_timestamp = datetime.strptime(self.scan_end_timestamp, "%Y%m%d%H%M%S")
 
-        return start_timestamp <= timestamp <= end_timestamp
-
+        if start_timestamp is not None and end_timestamp is not None:
+            return start_timestamp <= timestamp <= end_timestamp
+        elif start_timestamp is not None:
+            return start_timestamp <= timestamp
+        elif end_timestamp is not None:
+            return timestamp <= end_timestamp
+        else:
+            return True
 
     def run_analysis(self):
         img_file_list = self.get_experiment_image_list()
@@ -219,17 +241,6 @@ class FrESHExperiment:
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         self.circles_positions = circles.get_circles(gray, **self.metadata.hough_params, sort=True, plot=True)
-
-    def populate_image_list(self):
-        img_dir = paths.raw_data_path / self.exp_name / 'pics'
-
-        # get a list of all JPG files in the directory
-        self.img_files = [f for f in img_dir.iterdir() if f.is_file() and f.suffix == ".jpg"]
-        # sort the list of images
-        self.img_files.sort()
-
-        if self.img_files.__len__() == 0:
-            logging.error(f"No pictures found in dir: {img_dir}")
 
     def set_metadata(self, metadata):
         # implementation for collecting particles onto a membrane filter
