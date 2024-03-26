@@ -151,7 +151,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.populate_experiment_list()
 
     def load_metadata_from_gui(self):
-        metadata = ExperimentMetadata()  # Assuming ExperimentMetadata is a class to hold metadata
+        # metadata = ExperimentMetadata()  # Assuming ExperimentMetadata is a class to hold metadata
 
         # Load metadata from text edits
         for attribute_name, widget in self.attribute_to_widget_mapping.items():
@@ -169,9 +169,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             if attribute_name.endswith("_time"):
                 value = datetime.strptime(value, "%Y-%m-%d %H:%M") if value else None
 
-            setattr(metadata, attribute_name, value)
+            setattr(self.experiment.metadata, attribute_name, value)
 
-        return metadata
+        return self.experiment.metadata
 
     def update_metadata_description(self):
         self.update_metadata('exp_description', self.exp_description_line_edit.toPlainText())
@@ -396,6 +396,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                                      self.FFwidget_grayscale.getAxis('left').range)
 
     def load_experiment(self):
+        self.selected_droplet = None
         self.exp_name = self.experiment_list_view.currentIndex().data()
 
         self.setWindowTitle(self.exp_name)

@@ -3,6 +3,7 @@ import json
 import cv2
 
 from datetime import datetime
+from itertools import takewhile
 
 import numpy as np
 import yaml
@@ -303,6 +304,7 @@ def process_sensors_data(exp_name, freezing_idxs, freezing_times):
                          dtype=None,
                          names=True,
                          converters={0: str2date})
+    data = list(takewhile(lambda x: x['SP'] > -30, data))
 
     t = []
     ff = []
@@ -326,6 +328,7 @@ def calculate_frame_temperatures(img_files, exp_name):
                          dtype=None,
                          names=True,
                          converters={0: str2date})
+    data = list(takewhile(lambda x: x['SP'] > -30, data))
     t = []
     for time in times:
         matching_data = next((line[2] for line in data if line['datetime'] == time), None)
@@ -335,6 +338,27 @@ def calculate_frame_temperatures(img_files, exp_name):
             t.append(nearest_data[2])
         else:
             t.append(matching_data)
+
+    return t
+
+
+def calculate_freezing_temps(freezing_times, exp_name):
+    str2date = lambda x: datetime.strptime(x.decode("utf-8"), '%Y-%m-%d %H:%M:%S')
+    data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
+                         delimiter=',',
+                         dtype=None,
+                         names=True,
+                         converters={0: str2date})
+    data = list(takewhile(lambda x: x['SP'] > -30, data))
+    t = []
+    for index, time in enumerate(freezing_times):
+        matching_data = next((line[2] for line in data if line['datetime'] == time), None)
+        if matching_data is None:
+            # Find the nearest available temperature by finding the data point with the closest timestamp
+            nearest_data = min(data, key=lambda line: abs(line['datetime'] - time))
+            t.extend([index, nearest_data[2]])
+        else:
+            t.extend([index, matching_data])
 
     return t
 
@@ -356,22 +380,3 @@ def calculate_freezing_times(img_files, freezing_idxs):
 
     return np.array(freezing_times)
 
-
-def calculate_freezing_temps(freezing_times, exp_name):
-    str2date = lambda x: datetime.strptime(x.decode("utf-8"), '%Y-%m-%d %H:%M:%S')
-    data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
-                         delimiter=',',
-                         dtype=None,
-                         names=True,
-                         converters={0: str2date})
-    t = []
-    for index, time in enumerate(freezing_times):
-        matching_data = next((line[2] for line in data if line['datetime'] == time), None)
-        if matching_data is None:
-            # Find the nearest available temperature by finding the data point with the closest timestamp
-            nearest_data = min(data, key=lambda line: abs(line['datetime'] - time))
-            t.extend([index, nearest_data[2]])
-        else:
-            t.extend([index, matching_data])
-
-    return t
