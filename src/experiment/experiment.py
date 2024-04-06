@@ -155,7 +155,7 @@ class FrESHExperiment:
         v_wash = self.metadata.v_wash
         v_drop = self.metadata.v_drop
         v_air = float(self.metadata.air_volume)
-        filter_fraction = self.metadata.filter_fraction
+        filter_fraction = float(self.metadata.filter_fraction)
 
         # Normalization factor to L^-1
         try:
@@ -304,7 +304,7 @@ def process_sensors_data(exp_name, freezing_idxs, freezing_times):
                          dtype=None,
                          names=True,
                          converters={0: str2date})
-    data = list(takewhile(lambda x: x['SP'] > -30, data))
+    data = list(takewhile(lambda x: x['SP'] > -31, data))
 
     t = []
     ff = []
@@ -328,7 +328,7 @@ def calculate_frame_temperatures(img_files, exp_name):
                          dtype=None,
                          names=True,
                          converters={0: str2date})
-    data = list(takewhile(lambda x: x['SP'] > -30, data))
+    data = list(takewhile(lambda x: x['SP'] > -31, data))
     t = []
     for time in times:
         matching_data = next((line[2] for line in data if line['datetime'] == time), None)

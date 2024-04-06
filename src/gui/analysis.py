@@ -23,6 +23,11 @@ rotation_dict = {'-': None,
                  '180': cv2.ROTATE_180}
 
 
+def copy_to_clipboard_linux(text):
+    command = 'echo -n "' + text + '" | xclip -selection clipboard'
+    os.system(command)
+
+
 class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
         super(ExperimentAnalysisUi, self).__init__(*args, **kwargs)
@@ -398,7 +403,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def load_experiment(self):
         self.selected_droplet = None
         self.exp_name = self.experiment_list_view.currentIndex().data()
-
+        copy_to_clipboard_linux(self.exp_name)
         self.setWindowTitle(self.exp_name)
 
         self.experiment = FrESHExperiment(self.exp_name)
