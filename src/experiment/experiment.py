@@ -15,6 +15,58 @@ from src.analysis.circles import auto_crop
 from src.gui.experiment_gui import convert_cv_qt
 
 
+stations_dict = {
+    'WBG': {
+        'station_name': 'Water backgroung',
+        'station_mapping': None,
+        'sampler_id': None,
+        'latitude': 0.0,
+        'longitude': 0.0,
+        'altitude': 0.0
+    },
+    'HEL': {
+        'station_name': 'Helsinki',
+        'station_mapping': '01HELSINKI',
+        'sampler_id': 'Z01',
+        'latitude': 60.1699,
+        'longitude': 24.9384,
+        'altitude': 17.0
+    },
+    'UTO': {
+        'station_name': 'Utö',
+        'station_mapping': '09UTÖ',
+        'sampler_id': 'Z09',
+        'latitude': 59.7763,
+        'longitude': 21.4231,
+        'altitude': 9.0
+    },
+    'KUO': {
+        'station_name': 'Kuopio',
+        'station_mapping': '77KUOPIO',
+        'sampler_id': 'Z77',
+        'latitude': 62.8926,
+        'longitude': 27.6770,
+        'altitude': 75.0
+    },
+    'PAL': {
+        'station_name': 'Pallas',
+        'station_mapping': '36PALLAS',
+        'sampler_id': 'Z36',
+        'latitude': 67.9674,
+        'longitude': 24.1196,
+        'altitude': 560.0
+    },
+    'VKK': {
+        'station_name': 'Vikki',
+        'station_mapping': 'Vikki',
+        'sampler_id': 'Z01',
+        'latitude': 1.0,
+        'longitude': 1.0,
+        'altitude': 0.0
+    }
+}
+
+
 class ExperimentMetadata:
     def __init__(self, **kwargs):
         # Default values for metadata fields
@@ -74,13 +126,29 @@ class ExperimentMetadata:
             raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
 
 
+def is_valid_date_format(date_str):
+    try:
+        datetime.strptime(date_str, "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
+
+
+def is_valid_sampled_vol(sampled_vol):
+    try:
+        sampled_vol_float = float(sampled_vol)
+        return sampled_vol_float != 1
+    except (ValueError, TypeError):
+        return False
+
+
 class FrESHExperiment:
     def __init__(self, experiment_name):
         self.exp_name = experiment_name
         self.metadata = None
 
         self.is_analyzed = False
-
+        self.already_reloaded = False  # Flag to prevent infinite loop
         experiment_path = paths.raw_data_path / experiment_name
 
         # create experiment directory if it doesn't exist
@@ -264,16 +332,148 @@ class FrESHExperiment:
             json.dump(metadata_dict, metadata_file, indent=4)
 
     def load_metadata(self):
-        # loads metadata from a JSON file
-        metadata_path = os.path.join(paths.raw_data_path / self.exp_name, f"metadata.json")
+        metadata_path = os.path.join(paths.raw_data_path, self.exp_name, "metadata.json")
         if os.path.exists(metadata_path):
+            if os.path.getsize(metadata_path) == 0:  # Check if file is empty
+                self.load_metadata_from_raw_file(self.exp_name)
+                return
+
             with open(metadata_path, "r") as metadata_file:
-                metadata_dict = json.load(metadata_file)
+                try:
+                    metadata_dict = json.load(metadata_file)
+                except json.JSONDecodeError:
+                    self.load_metadata_from_raw_file()
+                    return
+
                 metadata_dict = {k.lower(): v for k, v in metadata_dict.items()}
                 self.metadata = ExperimentMetadata(**metadata_dict)
+
+                # Validate and correct metadata fields
+                self.validate_and_correct_metadata()
                 return self.metadata
         else:
             return None
+
+    def validate_and_correct_metadata(self):
+        needs_reload = False
+
+        # Check and correct dil_factor
+        if isinstance(self.metadata.dil_factor, int) and self.metadata.dil_factor == 1:
+            self.metadata.dil_factor = 1.0
+
+        # Check and correct filter_fraction
+        if isinstance(self.metadata.filter_fraction, int) and self.metadata.filter_fraction == 1:
+            self.metadata.filter_fraction = 1.0
+
+        if self.metadata.air_volume is None:
+            needs_reload = True
+
+        # Validate start_time format
+        if not self.is_valid_date_format(self.metadata.start_time):
+            needs_reload = True
+
+        # Validate end_time format
+        if not self.is_valid_date_format(self.metadata.end_time):
+            needs_reload = True
+
+        # Validate sampled_vol (not present in provided ExperimentMetadata, assumed to be air_volume)
+        if not self.is_valid_sampled_vol(self.metadata.air_volume):
+            needs_reload = True
+
+        if needs_reload and not self.already_reloaded:
+            self.already_reloaded = True  # Set flag to avoid reloading again
+            self.load_metadata_from_raw_file(self.exp_name)
+
+    def is_valid_date_format(self, date_str):
+        try:
+            datetime.strptime(date_str, "%Y-%m-%d %H:%M")
+            return True
+        except ValueError:
+            return False
+
+    def is_valid_sampled_vol(self, sampled_vol):
+        if sampled_vol is None:
+            return False
+        try:
+            sampled_vol_float = float(sampled_vol)
+            return sampled_vol_float
+        except (ValueError, TypeError):
+            return False
+
+    def load_metadata_from_raw_file(self, exp_name):
+        # Implement your method to reload metadata from the raw file
+        logging.warning("Loading metadata from raw file!")
+
+        # Extract label from exp_name, assuming it's part of exp_name
+        label = self.extract_label_from_exp_name(exp_name)
+        if not label:
+            logging.error(f"Unable to extract label from experiment name: {exp_name}")
+            return None
+
+        metadata = self._retrieve_metadata(label)
+
+        if metadata:
+            self.metadata = metadata
+            self.validate_and_correct_metadata()
+            return self.metadata
+        else:
+            logging.error("Unable lo load metadata")
+            return None
+
+    def extract_label_from_exp_name(self, exp_name):
+        # Implement your logic to extract label from exp_name
+        return exp_name.split('_')[1]
+
+    def _retrieve_metadata(self, label):
+        station = stations_dict.get(label[0:3])
+        if not station:
+            logging.error(f"Station not found for label: {label}")
+            return None
+
+        try:
+            date = datetime.strptime(label[3:], "%Y%m%d")
+            directory_path = os.path.join(paths.external_data_path, 'sampler_raw_data', station['station_mapping'])
+            date_str = date.strftime("%-d.%-m.%Y").strip()
+        except ValueError:
+            return None
+
+        for root, dirs, files in os.walk(directory_path):
+            for file_name in files:
+                if file_name == "SUM.CSV":
+                    sum_path = os.path.join(root, file_name)
+                    with open(sum_path, "r") as file:
+                        lines = file.readlines()
+                        for line in lines[1:]:
+                            fields = line.strip().split(";")
+                            if len(fields) > 2 and fields[2].strip() == date_str.strip():
+                                values = line.strip().split(";")
+                                return self._create_experiment_metadata(values, label, "filter")
+
+        logging.warning(f"No raw data found for label: {label}")
+        return None
+
+    def _create_experiment_metadata(self, values, label, experiment_type):
+        start_datetime = datetime.strptime(values[2] + ' ' + values[3], "%d.%m.%Y %H:%M")
+        end_datetime = datetime.strptime(values[4] + ' ' + values[5], "%d.%m.%Y %H:%M")
+        metadata_dict = {
+            'station': label[0:3],
+            'experiment_type': experiment_type,
+            'label': label,
+            'sampler_id': f"{stations_dict[label[0:3]]['sampler_id']}",
+            'sampler_status': values[1],
+            'start_time': start_datetime.strftime("%Y-%m-%d %H:%M"),
+            'end_time': end_datetime.strftime("%Y-%m-%d %H:%M"),
+            'filter_position': int(values[7]),
+            'air_volume': float(values[8]),
+            'flow': float(values[9]),
+            'temp': float(values[10]),
+            'press': float(values[11]),
+            'v_drop': 5e-05,
+            'v_wash': 0.01,
+            'dil_factor': 1.0,
+            'filter_fraction': 1.0
+        }
+        return ExperimentMetadata(**metadata_dict)
 
     def import_metadata(self, import_path):
         # loads metadata from a file
