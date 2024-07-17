@@ -155,6 +155,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.populate_experiment_list()
 
+
     def load_metadata_from_gui(self):
         # metadata = ExperimentMetadata()  # Assuming ExperimentMetadata is a class to hold metadata
 
@@ -403,7 +404,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
     def load_experiment(self):
         self.selected_droplet = None
         self.exp_name = self.experiment_list_view.currentIndex().data()
+
         copy_to_clipboard_linux(self.exp_name)
+
         self.setWindowTitle(self.exp_name)
 
         self.experiment = FrESHExperiment(self.exp_name)
