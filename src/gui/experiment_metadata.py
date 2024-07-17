@@ -186,8 +186,8 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
             press=float(values[11]),
             v_drop=5e-05,
             v_wash=0.01,
-            dil_factor=1,
-            filter_fraction=1
+            dil_factor=1.0,
+            filter_fraction=1.0
         )
 
     def _populate_metadata_fields(self, metadata, text_label, text_sampler_id, text_air_volume, text_start_time,
