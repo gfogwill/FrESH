@@ -498,7 +498,7 @@ class FrESHExperiment:
 
 def process_sensors_data(exp_name, freezing_idxs, freezing_times):
     # function to process the sensors data and return the t and ff arrays
-    str2date = lambda x: datetime.strptime(x.decode("utf-8"), '%Y-%m-%d %H:%M:%S')
+    str2date = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
     data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
                          delimiter=',',
                          dtype=None,
@@ -522,7 +522,7 @@ def calculate_frame_temperatures(img_files, exp_name):
     # image times
     times = [datetime.strptime(img_files[i].stem, "%Y%m%d%H%M%S") for i in range(len(img_files))]
     # corresponding temperatures
-    str2date = lambda x: datetime.strptime(x.decode("utf-8"), '%Y-%m-%d %H:%M:%S')
+    str2date = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
     data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
                          delimiter=',',
                          dtype=None,
@@ -543,7 +543,7 @@ def calculate_frame_temperatures(img_files, exp_name):
 
 
 def calculate_freezing_temps(freezing_times, exp_name):
-    str2date = lambda x: datetime.strptime(x.decode("utf-8"), '%Y-%m-%d %H:%M:%S')
+    str2date = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
     data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
                          delimiter=',',
                          dtype=None,
