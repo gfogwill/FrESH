@@ -14,7 +14,6 @@ from src.analysis import circles
 from src.analysis.circles import auto_crop
 from src.gui.experiment_gui import convert_cv_qt
 
-
 stations_dict = {
     'WBG': {
         'station_name': 'Water backgroung',
@@ -298,6 +297,12 @@ class FrESHExperiment:
 
         return img
 
+    def get_ff(self):
+        return np.genfromtxt(os.path.join(paths.processed_data_path, self.exp_name, 'report.csv'),
+                             delimiter=',',
+                             dtype=None,
+                             names=True)
+
     def detect_circles(self):
         img = cv2.imread(str(self.img_files[0]))
 
@@ -504,7 +509,7 @@ def process_sensors_data(exp_name, freezing_idxs, freezing_times):
                          dtype=None,
                          names=True,
                          converters={0: str2date})
-    data = list(takewhile(lambda x: x['SP'] > -31, data))
+    data = list(takewhile(lambda x: x['BT'] > -31, data))
 
     t = []
     ff = []
@@ -528,7 +533,7 @@ def calculate_frame_temperatures(img_files, exp_name):
                          dtype=None,
                          names=True,
                          converters={0: str2date})
-    data = list(takewhile(lambda x: x['SP'] > -31, data))
+    data = list(takewhile(lambda x: x['BT'] > -31, data))
     t = []
     for time in times:
         matching_data = next((line[2] for line in data if line['datetime'] == time), None)
@@ -549,7 +554,7 @@ def calculate_freezing_temps(freezing_times, exp_name):
                          dtype=None,
                          names=True,
                          converters={0: str2date})
-    data = list(takewhile(lambda x: x['SP'] > -30, data))
+    data = list(takewhile(lambda x: x['SP'] > -37, data))
     t = []
     for index, time in enumerate(freezing_times):
         matching_data = next((line[2] for line in data if line['datetime'] == time), None)
@@ -579,4 +584,3 @@ def calculate_freezing_times(img_files, freezing_idxs):
         freezing_times.append(datetime.strptime(img_files[freezing_idxs[i]].stem, "%Y%m%d%H%M%S"))
 
     return np.array(freezing_times)
-

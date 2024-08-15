@@ -148,7 +148,7 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
         try:
             date = datetime.strptime(label[3:], "%Y%m%d")
             directory_path = paths.external_data_path / 'sampler_raw_data' / station['station_mapping']
-            date_str = date.strftime("%d.%m.%y")
+            date_str = date.strftime("%d.%m.%Y")
         except ValueError:
             return None
 
@@ -156,6 +156,7 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
             for file_name in files:
                 if file_name == "SUM.CSV":
                     sum_path = os.path.join(root, file_name)
+                    print(sum_path)
                     with open(sum_path, "r") as file:
                         lines = file.readlines()
                         for line in lines[1:]:
