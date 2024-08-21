@@ -260,6 +260,19 @@ class FrESHExperiment:
 
         return np.array(res)
 
+    def detect_circles(self):
+        img = cv2.imread(str(self.img_files[0]))
+
+        if self.metadata.rotation is not None:
+            img = cv2.rotate(img, self.metadata.rotation)
+
+        if self.metadata.template_img is not None:
+            img = auto_crop(img, self.metadata.template_img)
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        self.circles_positions = circles.get_circles(gray, **self.metadata.hough_params, sort=True, plot=True)
+
     def get_img(self, frame_index, selected_droplet=None):
 
         if self.img_files is None or frame_index < 0 or frame_index >= len(self.img_files):
@@ -297,24 +310,11 @@ class FrESHExperiment:
 
         return img
 
-    def get_ff(self):
+    def get_processed_data(self):
         return np.genfromtxt(os.path.join(paths.processed_data_path, self.exp_name, 'report.csv'),
                              delimiter=',',
                              dtype=None,
                              names=True)
-
-    def detect_circles(self):
-        img = cv2.imread(str(self.img_files[0]))
-
-        if self.metadata.rotation is not None:
-            img = cv2.rotate(img, self.metadata.rotation)
-
-        if self.metadata.template_img is not None:
-            img = auto_crop(img, self.metadata.template_img)
-
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        self.circles_positions = circles.get_circles(gray, **self.metadata.hough_params, sort=True, plot=True)
 
     def set_metadata(self, metadata):
         # implementation for collecting particles onto a membrane filter
