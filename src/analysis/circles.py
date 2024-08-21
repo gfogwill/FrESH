@@ -9,10 +9,23 @@ import random
 from src import paths
 
 
-def auto_crop(img, template_img, rotation_angles=[0]):
-    # Load the template image
+def rotate_image(image, angle):
+    # Get the image dimensions (height and width)
+    (h, w) = image.shape[:2]
 
-    template_image = cv2.imread(str(paths.etc_path / template_img))
+    # Calculate the center of the image
+    center = (w // 2, h // 2)
+
+    # Perform the rotation
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+    rotated = cv2.warpAffine(image, M, (w, h))
+
+    return rotated
+
+
+def auto_crop(img, template_img_path, rotation_angles=[0]):
+    # Load the template image
+    template_image = cv2.imread(str(paths.etc_path / template_img_path))
 
     # Get the height and width of the template image
     template_height, template_width = template_image.shape[:2]
@@ -23,11 +36,18 @@ def auto_crop(img, template_img, rotation_angles=[0]):
     for angle in rotation_angles:
         rotated_img = rotate_image(img, angle)
 
-        match_result = cv2.matchTemplate(rotated_img, template_image, cv2.TM_CCOEFF_NORMED)
-        _, max_val, _, max_loc = cv2.minMaxLoc(match_result)
+        # Check if the rotated image is larger than the template
+        if rotated_img.shape[0] >= template_height and rotated_img.shape[1] >= template_width:
+            match_result = cv2.matchTemplate(rotated_img, template_image, cv2.TM_CCOEFF_NORMED)
+            _, max_val, _, max_loc = cv2.minMaxLoc(match_result)
 
-        if best_match is None or max_val > best_match[0]:
-            best_match = (max_val, max_loc, angle)
+            if best_match is None or max_val > best_match[0]:
+                best_match = (max_val, max_loc, angle)
+
+    # If no valid match is found, return the original image
+    if best_match is None:
+        print("No valid match found. Returning the original image.")
+        return img
 
     # Get the location of the best match
     _, max_loc, best_angle = best_match
@@ -36,12 +56,14 @@ def auto_crop(img, template_img, rotation_angles=[0]):
     top_left = max_loc
     bottom_right = (top_left[0] + template_width, top_left[1] + template_height)
 
-    # Draw a rectangle around the ROI
-    # cv2.rectangle(img, top_left, bottom_right, (0, 0, 255), 2)
+    # Ensure that the cropping coordinates are within the bounds of the image
+    bottom_right = (min(bottom_right[0], img.shape[1]), min(bottom_right[1], img.shape[0]))
+
+    # Crop the image
     cropped_img = img[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
 
-    # Rotate the cropped image with the best angle
-    cropped_img = rotate_image(cropped_img, best_angle)
+    # Rotate the cropped image back to the best angle
+    cropped_img = rotate_image(cropped_img, -best_angle)
 
     return cropped_img
 
