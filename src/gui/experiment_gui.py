@@ -10,11 +10,11 @@ import json
 import numpy as np
 import pyqtgraph as pg
 
-import PyQt5
-from PyQt5 import QtGui, QtWidgets, uic, QtCore
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import QTimer, pyqtSlot, Qt
-from PyQt5.QtWidgets import *
+import PyQt6
+from PyQt6 import QtGui, QtWidgets, uic, QtCore
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import QTimer, pyqtSlot, Qt
+from PyQt6.QtWidgets import *
 
 from src import paths, __version__
 
@@ -34,7 +34,7 @@ if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
 if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
     PyQt5.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
 
-qt_path = os.path.dirname(PyQt5.__file__)
+qt_path = os.path.dirname(PyQt6.__file__)
 os.environ['QT_PLUGIN_PATH'] = os.path.join(qt_path, "Qt5/plugins/platforms")
 
 

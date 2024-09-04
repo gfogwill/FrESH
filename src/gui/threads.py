@@ -4,9 +4,9 @@ import time
 
 import cv2
 import numpy as np
-from PyQt5.QtCore import QThread, pyqtSignal, QObject, QTimer, QEventLoop
 
-from PyQt5 import QtTest
+from PyQt6.QtCore import QThread, pyqtSignal, QObject, QTimer, QEventLoop
+from PyQt6 import QtTest
 
 from src.daq.IniLoader import IniLoader
 from src import paths

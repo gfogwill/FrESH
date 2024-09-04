@@ -69,9 +69,7 @@ ptyprocess==0.7.0
 pure-eval==0.2.2
 pycparser==2.22
 Pygments==2.18.0
-PyQt5==5.13.0
-PyQt5-Qt5==5.15.14
-PyQt5-sip==12.13.0
+PyQt6
 pyqtgraph==0.13.7
 pyserial==3.5
 python-dateutil==2.9.0.post0

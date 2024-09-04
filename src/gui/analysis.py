@@ -1,7 +1,7 @@
 import logging
 
-from PyQt5 import QtWidgets, uic, QtGui, QtCore
-from PyQt5.QtWidgets import QComboBox, QLineEdit, QTextEdit
+from PyQt6 import QtWidgets, uic, QtGui, QtCore
+from PyQt6.QtWidgets import QComboBox, QLineEdit, QTextEdit
 from functools import partial
 
 import cv2

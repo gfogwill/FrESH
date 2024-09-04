@@ -1,10 +1,10 @@
 import logging
 
-import PyQt5
-from PyQt5 import QtGui, QtWidgets, uic, QtCore
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import QTimer, pyqtSlot, Qt
-from PyQt5.QtWidgets import *
+import PyQt6
+from PyQt6 import QtGui, QtWidgets, uic, QtCore
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import QTimer, pyqtSlot, Qt
+from PyQt6.QtWidgets import *
 
 import os
 import sys

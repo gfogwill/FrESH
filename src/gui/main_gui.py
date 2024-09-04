@@ -2,7 +2,7 @@
 import sys
 import logging
 
-from PyQt5 import QtGui, QtWidgets, uic
+from PyQt6 import QtGui, QtWidgets, uic
 from experiment_metadata import ExperimentMetadataUi
 from analysis import ExperimentAnalysisUi
 
@@ -56,7 +56,7 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     window = MainUi()
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 logger = logging.getLogger('dual_logger')
 logger.setLevel(logging.DEBUG)
