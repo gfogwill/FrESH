@@ -40,7 +40,7 @@ class DataWorker(QThread):
 
         self.dataCollectionTimer.start(1000)
         loop = QEventLoop()
-        loop.exec_()
+        loop.exec()
 
     def read_temps(self):
         data = self.chiller.get_data()
@@ -71,7 +71,7 @@ class TempThread(QThread):
     def run(self):
         self.tempRampTimer.start(int(self.step_interval / 1e-3))
         loop = QEventLoop()
-        loop.exec_()
+        loop.exec()
 
     def update_temp(self):
 
