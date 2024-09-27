@@ -161,17 +161,64 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
                         lines = file.readlines()
                         for line in lines[1:]:
                             fields = line.strip().split(";")
-                            if len(fields) > 2 and fields[2].strip() == date_str.strip():
-                                values = line.strip().split(";")
-                                return self._create_experiment_metadata(values, label, "filter")
+                            if len(fields) > 2:
+                                # Attempt to parse the date string with both year formats
+                                formatted_raw_date = None
+                                for fmt in ["%d.%m.%Y", "%d.%m.%y"]:
+                                    try:
+                                        raw_date = datetime.strptime(fields[2].strip(), fmt)
+                                        formatted_raw_date = raw_date.strftime(
+                                            "%d.%m.%Y")  # Standardize to "dd.mm.YYYY"
+                                        break  # Exit the loop if parsing succeeds
+                                    except ValueError:
+                                        continue
+
+                                if formatted_raw_date and formatted_raw_date == date_str:
+                                    values = line.strip().split(";")
+                                    return self._create_experiment_metadata(values, label, "filter")
 
         logging.warning(f"No raw data found for label: {label}")
-
         return None
 
     def _create_experiment_metadata(self, values, label, experiment_type):
-        start_datetime = datetime.strptime(values[2] + ' ' + values[3], "%d.%m.%y %H:%M")
-        end_datetime = datetime.strptime(values[4] + ' ' + values[5], "%d.%m.%y %H:%M")
+        # Step 1: Handle the start datetime (values[2] + values[3])
+        start_date_str = values[2].strip()
+        start_time_str = values[3].strip()
+
+        # Dynamically parse the date based on the year format
+        start_date = None
+        for date_fmt in ["%d.%m.%Y", "%d.%m.%y"]:
+            try:
+                start_date = datetime.strptime(start_date_str, date_fmt)
+                break
+            except ValueError:
+                continue
+
+        if not start_date:
+            raise ValueError(f"Invalid start date format found: {start_date_str}")
+
+        # Format start datetime to "%d.%m.%Y %H:%M"
+        start_datetime = datetime.strptime(start_date.strftime("%d.%m.%Y") + ' ' + start_time_str, "%d.%m.%Y %H:%M")
+
+        # Step 2: Handle the end datetime (values[4] + values[5]) in the same way
+        end_date_str = values[4].strip()
+        end_time_str = values[5].strip()
+
+        end_date = None
+        for date_fmt in ["%d.%m.%Y", "%d.%m.%y"]:
+            try:
+                end_date = datetime.strptime(end_date_str, date_fmt)
+                break
+            except ValueError:
+                continue
+
+        if not end_date:
+            raise ValueError(f"Invalid end date format found: {end_date_str}")
+
+        # Format end datetime to "%d.%m.%Y %H:%M"
+        end_datetime = datetime.strptime(end_date.strftime("%d.%m.%Y") + ' ' + end_time_str, "%d.%m.%Y %H:%M")
+
+        # Return the metadata object
         return ExperimentMetadata(
             station=label[0:3],
             experiment_type=experiment_type,
