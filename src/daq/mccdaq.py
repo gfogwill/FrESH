@@ -58,22 +58,26 @@ class Daq:
 
         self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=t * 10e-3)
 
-    def set_temperature(self, t_target, max_iterations=100, tolerance=0.08):
+    def set_temperature(self, t_target, max_iterations=50, tolerance=0.08, Kp=0.9):
         """
-        Sets the temperature on channel 0 of the USB-1808 device.
+        Sets the temperature on channel 0 of the USB-1808 device using a proportional control method.
 
         Parameters
         ----------
         t_target : float
             Target temperature in degree Celsius.
         max_iterations : int, optional
-            Maximum number of iterations to attempt to reach the target temperature (default is 100).
+            Maximum number of iterations to attempt reaching the target temperature (default is 50).
         tolerance : float, optional
             Acceptable difference between setpoint and target temperature (default is 0.08).
+        Kp : float, optional
+            Proportional gain for scaling the voltage adjustments (default is 0.9).
         """
         v_aout = t_target * 10.0e-3
         logging.info(f"Setting temperature to: {t_target}")
         logging.debug(f"Initial AOUT0 value: {v_aout}")
+
+        # Set the initial voltage output
         self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
         for i in range(max_iterations):
@@ -81,18 +85,23 @@ class Daq:
             t_setpoint = self.read_all_temp()[1]
             t_diff = t_setpoint - t_target
 
+            logging.debug(f"Iteration {i + 1}: t_setpoint: {t_setpoint}, t_diff: {t_diff}")
+
             if abs(t_diff) <= tolerance:
                 logging.info(f"Temperature set successfully: {t_setpoint}")
                 break
 
-            # Adjust output voltage with a scaled adjustment to avoid overshooting
-            v_aout = v_aout - (t_diff * 10.0e-3) * 0.8
+            # Calculate the adjustment based on the proportional control
+            adjustment = Kp * t_diff * 10.0e-3
 
-            logging.debug(f"Iteration {i + 1}: Adjusting AOUT0 to {v_aout} (t_diff: {t_diff})")
+            # Adjust output voltage
+            v_aout -= adjustment
+
+            logging.debug(f"Iteration {i + 1}: Adjusting AOUT0 to {v_aout} (adjustment: {adjustment})")
             self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
-            # Add a small delay to avoid over-adjustment
-            time.sleep(0.2)
+            # Add a small delay between adjustments to allow the system to stabilize
+            time.sleep(0.1)
 
         else:
             logging.warning("Max iterations reached without hitting the target temperature.")
