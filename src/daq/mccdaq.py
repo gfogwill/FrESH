@@ -58,41 +58,44 @@ class Daq:
 
         self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=t * 10e-3)
 
-    def set_temperature(self, t_target):
+    def set_temperature(self, t_target, max_iterations=100, tolerance=0.08):
         """
         Sets the temperature on channel 0 of the USB-1808 device.
-
-        The method will iterate reading the setpoint and adjusting the output voltage until setpoint reaches the correct
-        value.
 
         Parameters
         ----------
         t_target : float
-            float value representing the target temperature in degree Celsius.
-
-        Example
-        -------
-        set_temperature(25)
+            Target temperature in degree Celsius.
+        max_iterations : int, optional
+            Maximum number of iterations to attempt to reach the target temperature (default is 100).
+        tolerance : float, optional
+            Acceptable difference between setpoint and target temperature (default is 0.08).
         """
         v_aout = t_target * 10.0e-3
         logging.info(f"Setting temperature to: {t_target}")
-        logging.debug(f"Value to be set in AOUT0: {v_aout}")
+        logging.debug(f"Initial AOUT0 value: {v_aout}")
         self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
-        # Check if setpoint is correct
-        t_setpoint = self.read_all_temp()[1]
-        t_diff = t_setpoint - t_target
-
-        while abs(t_diff) > 0.08:
-            # print(t_diff)
-            v_aout = v_aout - (t_diff * 10.0e-3)*0.8
-
-            logging.debug(f'Value to be set in AOUT0: {v_aout}')
-            self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
-
-            # Check the new setpoint
+        for i in range(max_iterations):
+            # Read current setpoint temperature
             t_setpoint = self.read_all_temp()[1]
             t_diff = t_setpoint - t_target
+
+            if abs(t_diff) <= tolerance:
+                logging.info(f"Temperature set successfully: {t_setpoint}")
+                break
+
+            # Adjust output voltage with a scaled adjustment to avoid overshooting
+            v_aout = v_aout - (t_diff * 10.0e-3) * 0.8
+
+            logging.debug(f"Iteration {i + 1}: Adjusting AOUT0 to {v_aout} (t_diff: {t_diff})")
+            self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
+
+            # Add a small delay to avoid over-adjustment
+            time.sleep(0.2)
+
+        else:
+            logging.warning("Max iterations reached without hitting the target temperature.")
 
     def read_all_temp(self):
         """
