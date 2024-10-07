@@ -83,8 +83,9 @@ class Daq:
         t_setpoint = self.read_all_temp()[1]
         t_diff = t_setpoint - t_target
 
-        while abs(t_diff) > 0.05:
-            v_aout = v_aout - (t_diff * 10.0e-3)
+        while abs(t_diff) > 0.08:
+            # print(t_diff)
+            v_aout = v_aout - (t_diff * 10.0e-3)*0.8
 
             logging.debug(f'Value to be set in AOUT0: {v_aout}')
             self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
