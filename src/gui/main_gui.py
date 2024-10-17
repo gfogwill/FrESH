@@ -8,9 +8,6 @@ from analysis import ExperimentAnalysisUi
 
 from src import paths
 
-# Single experiment .ui file path
-SINGLE_EXPERIMENT_UI_FILE = paths.src_module_dir / 'gui' / 'experiment_metadata.ui'
-
 # Double experiment .ui file path
 DOUBLE_EXPERIMENT_UI_FILE = paths.src_module_dir / 'gui' / 'double_experiment_metadata.ui'
 
@@ -23,20 +20,12 @@ class MainUi(QtWidgets.QMainWindow):
 
         uic.loadUi(MAIN_UI_FILE, self)
 
-        self.button_new_single_experiment = self.findChild(QtWidgets.QPushButton, 'newSingleExperimentButton')
-        self.button_new_single_experiment.clicked.connect(self.start_single_experiment)
-
         self.button_new_double_experiment = self.findChild(QtWidgets.QPushButton, 'newDoubleExperimentButton')
         self.button_new_double_experiment.clicked.connect(self.start_double_experiment)
 
         self.button_view_experiment = self.findChild(QtWidgets.QPushButton, 'viewExperimentButton')
         self.button_view_experiment.clicked.connect(self.view_experiment)
 
-    def start_single_experiment(self):
-        self.hide()
-
-        self.ExperimentMetadataUi = ExperimentMetadataUi(SINGLE_EXPERIMENT_UI_FILE)
-        self.ExperimentMetadataUi.show()
 
     def start_double_experiment(self):
         self.hide()

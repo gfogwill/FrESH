@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>307</width>
-    <height>94</height>
+    <width>326</width>
+    <height>121</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -26,13 +26,6 @@
     <layout class="QFormLayout" name="formLayout">
      <item row="0" column="0">
       <layout class="QHBoxLayout" name="horizontalLayout">
-       <item>
-        <widget class="QPushButton" name="newSingleExperimentButton">
-         <property name="text">
-          <string>New Single</string>
-         </property>
-        </widget>
-       </item>
        <item>
         <widget class="QPushButton" name="newDoubleExperimentButton">
          <property name="text">
@@ -57,7 +50,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>307</width>
+     <width>326</width>
      <height>22</height>
     </rect>
    </property>
