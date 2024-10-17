@@ -64,7 +64,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.new_line1 = None
         self.line2 = None
         self.line3 = None
-        self.line4 = None
+        #self.line4 = None
 
         self.video_thread = None
         self.image_frame = None
@@ -108,7 +108,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         pen = pg.mkPen(color='red', width=1)
         pen2 = pg.mkPen(color='green', width=1)
         pen3 = pg.mkPen(color='blue', width=1)
-        pen4 = pg.mkPen(color='orange', width=1)
+        #pen4 = pg.mkPen(color='orange', width=1)
 
         self.graphWidget.setLabel('left', 'Bath temp [ºC]', color='red', size=30)
         self.graphWidget.setLabel('right', 'Setpoint temp [ºC]', color='green', size=30)
@@ -117,7 +117,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.new_line1 = self.graphWidget.plot(*zip(*self.bath_temp), name="Bath temp.", pen=pen)
         self.line2 = self.graphWidget.plot(*zip(*self.setpoint), name="Setpoint temp.", pen=pen2)
         self.line3 = self.graphWidget.plot(*zip(*self.adam0), name="ADAM_0", pen=pen3)
-        self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
+        #self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
 
         self.show()
 
@@ -196,7 +196,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
             logger.addHandler(file_handler)
 
             with open(paths.raw_data_path / experiment.exp_name / "sensors_data.csv", "a") as fo:
-                fo.write(f'datetime, 'f'SP,' f'BT,' f'RTD0,' f'RTD1\n')
+                fo.write(f'datetime, 'f'SP,' f'BT,' f'RTD0\n')
 
             logging.info(f'Sensors data file created: {paths.raw_data_path / experiment.exp_name / "sensors_data.csv"}')
 
@@ -249,18 +249,19 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         BT = data['BT']
         SP = data['SP']
-        RTD0, RTD1 = data['RTD0'], data['RTD1']
+        RTD0 = data['RTD0']
+        #RTD0, RTD1 = data['RTD0'], data['RTD1']
 
         self.bath_temp.append((t, BT))
         self.setpoint.append((t, SP))
         self.adam0.append((t, RTD0))
-        self.adam1.append((t, RTD1))
+        #self.adam1.append((t, RTD1))
 
         if self.saveCheckBox.isChecked():
             for experiment in self.exp_list:
                 with open(paths.raw_data_path / experiment.exp_name / "sensors_data.csv", "a") as fo:
                     fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
-                             f'{SP:.2f},' f'{BT:.2f},' f'{RTD0:.2f},' f'{RTD1:.2f}\n')
+                             f'{SP:.2f},' f'{BT:.2f},' f'{RTD0:.2f}\n')
 
         self.update_temp_plot()
 
@@ -268,7 +269,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.bath_temp = []
         self.setpoint = []
         self.adam0 = []
-        self.adam1 = []
+        #self.adam1 = []
 
     def exit(self):
 
@@ -290,12 +291,12 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.new_line1.setData(*zip(*self.bath_temp))
         self.line2.setData(*zip(*self.setpoint))
         self.line3.setData(*zip(*self.adam0))
-        self.line4.setData(*zip(*self.adam1))
+        #self.line4.setData(*zip(*self.adam1))
 
         self.lcdBT.display(f"{self.bath_temp[-1][1]:.02f}")
         self.lcdSP.display(f"{self.setpoint[-1][1]:.02f}")
         self.lcdRTD1.display(f"{self.adam0[-1][1]:.02f}")
-        self.lcdRTD2.display(f"{self.adam1[-1][1]:.02f}")
+        #self.lcdRTD2.display(f"{self.adam1[-1][1]:.02f}")
 
     @pyqtSlot(np.ndarray)
     def update_image(self, cv_img):
