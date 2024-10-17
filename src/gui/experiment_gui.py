@@ -89,6 +89,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.btn_exit = self.findChild(QtWidgets.QPushButton, 'exitButton')
         self.btn_exit.clicked.connect(self.exit)
 
+        self.btn_endscan = self.findChild(QtWidgets.QPushButton, 'EndScanpushButton')
+        self.btn_endscan.clicked.connect(self.end_scan)
+
         self.btn_clear_plot = self.findChild(QtWidgets.QPushButton, 'clearPlotButton')
         self.btn_clear_plot.clicked.connect(self.clear_data)
 
@@ -132,6 +135,15 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.temp_worker.start()
 
         self.saveCheckBox.setChecked(True)
+
+    def end_scan(self):
+        self.saveCheckBox.setChecked(False)
+
+        self.temp_worker.terminate()
+
+        self.set_temp(0)
+
+        logging.info("Scan terminated!")
 
     def stop_scan(self):
         self.temp_worker.terminate()
