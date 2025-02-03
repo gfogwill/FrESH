@@ -14,37 +14,79 @@ from src.daq import chillers
 
 
 class DataWorker(QThread):
-
     read_data_signal = pyqtSignal(object)
+    connection_status_signal = pyqtSignal(bool)  # New signal for connection status
 
     def __init__(self, init_temp=0):
         super().__init__()
 
         # Load ini file
-        ini = IniLoader.load('perezfo', paths.etc_path / 'test.ini')
+        try:
+            ini = IniLoader.load('perezfo', paths.etc_path / 'test.ini')
 
-        if ini['CHILLER']['MODEL'] == 'RK20':
-            self.chiller = chillers.LAUDARK20(ini)
+            if ini['CHILLER']['MODEL'] == 'RK20':
+                self.chiller = chillers.LAUDARK20(ini)
+            elif ini['CHILLER']['MODEL'] == 'RP1845':
+                self.chiller = chillers.LAUDARP1845()
+            else:
+                raise ValueError(f"Unsupported chiller model: {ini['CHILLER']['MODEL']}")
 
-        elif ini['CHILLER']['MODEL'] == 'RP1845':
-            self.chiller = chillers.LAUDARP1845()
+        except Exception as e:
+            logging.error(f"Error initializing chiller: {str(e)}")
+            self.chiller = None
 
         self.threadactive = True
+        self.connected = False
 
         self.dataCollectionTimer = QTimer()
         self.dataCollectionTimer.moveToThread(self)
         self.dataCollectionTimer.timeout.connect(self.read_temps)
 
     def run(self):
-        self.chiller.connect()
+        if self.chiller is None:
+            logging.error("Chiller not initialized properly")
+            self.connection_status_signal.emit(False)
+            return
 
-        self.dataCollectionTimer.start(1000)
-        loop = QEventLoop()
-        loop.exec()
+        try:
+            if self.chiller.connect():
+                self.connected = True
+                self.connection_status_signal.emit(True)
+                logging.info("Chiller connected successfully")
+
+                self.dataCollectionTimer.start(1000)
+                loop = QEventLoop()
+                loop.exec()
+            else:
+                logging.error("Failed to connect to chiller")
+                self.connection_status_signal.emit(False)
+        except Exception as e:
+            logging.error(f"Error in chiller thread: {str(e)}")
+            self.connection_status_signal.emit(False)
 
     def read_temps(self):
-        data = self.chiller.get_data()
-        self.read_data_signal.emit(data)
+        try:
+            if not self.connected:
+                logging.error("Cannot read temperatures - device not connected")
+                return
+
+            data = self.chiller.get_data()
+            if data is not None:
+                self.read_data_signal.emit(data)
+            else:
+                logging.warning("No valid data received from chiller")
+
+        except Exception as e:
+            logging.error(f"Error reading temperatures: {str(e)}")
+
+    def stop(self):
+        self.threadactive = False
+        if hasattr(self.chiller, 'close'):
+            try:
+                self.chiller.close()
+            except Exception as e:
+                logging.error(f"Error closing chiller connection: {str(e)}")
+        self.wait()
 
 
 class TempThread(QThread):
