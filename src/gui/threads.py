@@ -28,6 +28,8 @@ class DataWorker(QThread):
                 self.chiller = chillers.LAUDARK20(ini)
             elif ini['CHILLER']['MODEL'] == 'RP1845':
                 self.chiller = chillers.LAUDARP1845()
+            elif ini['CHILLER']['MODEL'] == 'RE1050':
+                self.chiller = chillers.LAUDARE1050()
             else:
                 raise ValueError(f"Unsupported chiller model: {ini['CHILLER']['MODEL']}")
 
