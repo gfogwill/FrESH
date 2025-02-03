@@ -257,25 +257,39 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
     @pyqtSlot(object)
     def read_sensors_data(self, data):
-        t = time.time()
+        try:
+            if data is None:
+                logging.warning("Received null data from sensors")
+                return
 
-        BT = data['BT']
-        SP = data['SP']
-        RTD0 = data['RTD0']
-        #RTD0, RTD1 = data['RTD0'], data['RTD1']
+            t = time.time()
 
-        self.bath_temp.append((t, BT))
-        self.setpoint.append((t, SP))
-        self.adam0.append((t, RTD0))
-        #self.adam1.append((t, RTD1))
+            # Safely get values with defaults
+            BT = data.get('BT', 0.0)
+            SP = data.get('SP', 0.0)
+            RTD0 = data.get('RTD0', 0.0)
+            RTD1 = data.get('RTD1', 0.0)
 
-        if self.saveCheckBox.isChecked():
-            for experiment in self.exp_list:
-                with open(paths.raw_data_path / experiment.exp_name / "sensors_data.csv", "a") as fo:
-                    fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
-                             f'{SP:.2f},' f'{BT:.2f},' f'{RTD0:.2f}\n')
+            # Update the plots
+            self.bath_temp.append((t, BT))
+            self.setpoint.append((t, SP))
+            self.adam0.append((t, RTD0))
+            self.adam1.append((t, RTD1))
 
-        self.update_temp_plot()
+            # Save data if checkbox is checked
+            if self.saveCheckBox.isChecked():
+                for experiment in self.exp_list:
+                    try:
+                        with open(paths.raw_data_path / experiment.exp_name / "sensors_data.csv", "a") as fo:
+                            fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
+                                     f'{SP:.2f},' f'{BT:.2f},' f'{RTD0:.2f},' f'{RTD1:.2f}\n')
+                    except Exception as e:
+                        logging.error(f"Error saving data for experiment {experiment.exp_name}: {str(e)}")
+
+            self.update_temp_plot()
+
+        except Exception as e:
+            logging.error(f"Error processing sensor data: {str(e)}")
 
     def clear_data(self):
         self.bath_temp = []
