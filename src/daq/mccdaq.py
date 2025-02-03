@@ -56,7 +56,7 @@ class Daq:
         set_starting_temp(20)
         """
 
-        self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=t * 10e-3)
+        self.ao.a_out(channel=1, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=t * 10e-3)
 
     def set_temperature(self, t_target, max_iterations=50, tolerance=0.08, Kp=0.9):
         """
@@ -78,7 +78,7 @@ class Daq:
         logging.debug(f"Initial AOUT0 value: {v_aout}")
 
         # Set the initial voltage output
-        self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
+        self.ao.a_out(channel=1, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
         for i in range(max_iterations):
             # Read current setpoint temperature
@@ -98,7 +98,7 @@ class Daq:
             v_aout -= adjustment
 
             logging.debug(f"Iteration {i + 1}: Adjusting AOUT0 to {v_aout} (adjustment: {adjustment})")
-            self.ao.a_out(channel=0, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
+            self.ao.a_out(channel=1, analog_range=Range.BIP10VOLTS, flags=AOutFlag.DEFAULT, data=v_aout)
 
             # Add a small delay between adjustments to allow the system to stabilize
             time.sleep(0.1)
