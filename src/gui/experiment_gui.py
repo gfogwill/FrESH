@@ -21,7 +21,7 @@ from src import paths, __version__
 from src.gui.threads import VideoThread, DataWorker, TempThread
 from src.gui.video import VideoSettingsUi
 
-from src.daq import mccdaq
+#from src.daq import mccdaq
 from src.daq.ADAMlib import ADAMConnection, ADAM4015
 # from src.daq.IniLoader import IniLoader
 
