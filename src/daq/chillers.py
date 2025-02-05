@@ -243,11 +243,11 @@ class LAUDARE1050:
             self.ser = serial.Serial(self.port, timeout=0.5)
             time.sleep(1)
             self.connected = True
-            logging.info(f"Connected to LAUDA RP1845 on port {self.port}")
+            logging.info(f"Connected to LAUDA RE1050 on port {self.port}")
             return True
 
         except Exception as e:
-            logging.error(f"Failed to connect to LAUDA RP1845: {str(e)}")
+            logging.error(f"Failed to connect to LAUDA RE1050: {str(e)}")
             self.connected = False
             return False
 
@@ -257,9 +257,9 @@ class LAUDARE1050:
             return None
 
         try:
-            s0, s1 = self.GetAllTemps()
-            if None in (s0, s1):
-                raise ValueError("Invalid temperature readings from GetAllTemps")
+            # s0, s1 = self.GetAllTemps()
+            # if None in (s0, s1):
+            #     raise ValueError("Invalid temperature readings from GetAllTemps")
 
             bt, sp, t1, t2, temp, rh, t5 = self.read_all_temp()
             if None in (bt, sp, t1, t2, temp, rh, t5):
@@ -268,8 +268,8 @@ class LAUDARE1050:
             data = {
                 'BT': bt,
                 'SP': sp,
-                'RTD0': s0,
-                'RTD1': s1,
+#                'RTD0': s0,
+#                'RTD1': s1,
                 't1': t1,
                 't2': t2,
                 'TEMP': temp,
@@ -279,7 +279,7 @@ class LAUDARE1050:
             return data
 
         except Exception as e:
-            logging.error(f"Error reading data from LAUDA RP1845: {str(e)}")
+            logging.error(f"Error reading data from LAUDA RE1050: {str(e)}")
             return None
 
     def set_temperature(self, t_target):
