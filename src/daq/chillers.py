@@ -325,23 +325,6 @@ class LAUDARE1050:
             logging.error(f"Error reading temperatures: {str(e)}")
             return None, None, None, None, None, None, None
 
-    def GetAllTemps(self):
-        if not self.connected:
-            return None, None
-
-        try:
-            t0 = read_command(self.ser, "IN_PV_13\r")
-            t1 = read_command(self.ser, "IN_PV_03\r")
-
-            if None in (t0, t1):
-                raise ValueError("Invalid temperature readings")
-
-            return t0, t1
-
-        except Exception as e:
-            logging.error(f"Error reading temperatures: {str(e)}")
-            return None, None
-
     def close(self):
         if self.ser and self.connected:
             try:
