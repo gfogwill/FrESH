@@ -289,9 +289,10 @@ class LAUDARE1050:
 
         try:
             self.ser.write(f"OUT_SP_00_{t_target}\r".encode('ASCII'))
-            time.sleep(1)
-            logging.info(f"Temperature set to {t_target}°C")
-            return True
+            if self.ser.readline() == b'OK\r\n':
+                time.sleep(1)
+                logging.info(f"Temperature set to {t_target}°C")
+                return True
         except Exception as e:
             logging.error(f"Error setting temperature: {str(e)}")
             return False
