@@ -111,11 +111,11 @@ class LAUDARP1845:
             self.ser = serial.Serial(self.port, timeout=0.5)
             time.sleep(1)
             self.connected = True
-            logging.info(f"Connected to LAUDA RP1845 on port {self.port}")
+            logging.info(f"Connected to LAUDA RP1050 on port {self.port}")
             return True
 
         except Exception as e:
-            logging.error(f"Failed to connect to LAUDA RP1845: {str(e)}")
+            logging.error(f"Failed to connect to LAUDA RP1050: {str(e)}")
             self.connected = False
             return False
 
@@ -147,7 +147,7 @@ class LAUDARP1845:
             return data
 
         except Exception as e:
-            logging.error(f"Error reading data from LAUDA RP1845: {str(e)}")
+            logging.error(f"Error reading data from LAUDA RP1050: {str(e)}")
             return None
 
     def set_temperature(self, t_target):
