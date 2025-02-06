@@ -223,13 +223,19 @@ class LAUDARP1845:
 
 
 class LAUDARE1050:
-    def __init__(self):
+    def __init__(self, ini):
         self.ser = None
         self.port = None
         self.connected = False
+        self.ini = ini
 
     def connect(self):
         try:
+            logging.info("Connecting ADAM")
+            conn = ADAMConnection(self.ini['SERIAL'])
+            self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
+            logging.info("ADAM Connected")
+
             self.ports = serial.tools.list_ports.comports()
             port_found = False
 
@@ -259,9 +265,9 @@ class LAUDARE1050:
             return None
 
         try:
-            # s0, s1 = self.GetAllTemps()
-            # if None in (s0, s1):
-            #     raise ValueError("Invalid temperature readings from GetAllTemps")
+            s0, s1 = self.adam.GetAllTemps()
+            if None in (s0, s1):
+                raise ValueError("Invalid temperature readings from GetAllTemps")
 
             bt, sp, t1, t2, temp, rh, t5 = self.read_all_temp()
             if None in (bt, sp, t1, t2, temp, rh, t5):
