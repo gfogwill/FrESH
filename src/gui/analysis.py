@@ -2,6 +2,7 @@ import logging
 
 from PyQt6 import QtWidgets, uic, QtGui, QtCore
 from PyQt6.QtWidgets import QComboBox, QLineEdit, QTextEdit
+import pyqtgraph as pg
 from functools import partial
 
 import cv2
@@ -15,6 +16,7 @@ import os
 import csv
 import pathlib
 import numpy as np
+import json
 from datetime import datetime
 
 rotation_dict = {'-': None,
@@ -42,6 +44,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.t = []
         self.ff = []
         self.frame_t = []
+
+        self.bg_t = []
+        self.bg_ff = []
 
         self.template_img = None
 
@@ -91,19 +96,49 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.button_save = self.findChild(QtWidgets.QPushButton, 'saveButton')
         self.button_save.clicked.connect(self.save)
-
-        self.spinbox_delete = self.findChild(QtWidgets.QSpinBox, 'delete_spinbox')
-
-        self.button_delete = self.findChild(QtWidgets.QPushButton, 'deleteDropletButton')
-        self.button_delete.clicked.connect(self.delete_indx)
+        
+        self.box_selected_droplet = self.findChild(QtWidgets.QComboBox, 'droplet_combo_box')
+        self.box_selected_droplet.activated.connect(self.droplet_combobox_activated)
+        
+        self.box_change_temp = self.findChild(QtWidgets.QComboBox, 'temp_combo_box')
+        self.box_change_temp.activated.connect(self.temp_combobox_activated)
+        
+        self.button_change_indx = self.findChild(QtWidgets.QPushButton, 'change_button')
+        self.button_change_indx.clicked.connect(self.change_freezing_indx)
+        
+        # Add page for punched filter metadata 
+        self.stackedWidget = self.findChild(QtWidgets.QStackedWidget, "stackedWidget")  
+        
+        self.filter_page = self.findChild(QtWidgets.QWidget, "filter_page")
+        self.punched_page = self.findChild(QtWidgets.QWidget, "punched_filter_page")
+        self.water_background_page = self.findChild(QtWidgets.QWidget, "water_background_page")
+        self.filter_background_page = self.findChild(QtWidgets.QWidget, "filter_background_page")
+        self.punched_filter_bakcground_page = self.findChild(QtWidgets.QWidget, "punched_filter_background_page")
+        
+        self.page_mapping = {
+            "Water background": self.stackedWidget.indexOf(self.water_background_page),
+            "Filter": self.stackedWidget.indexOf(self.filter_page),
+            "Filter background": self.stackedWidget.indexOf(self.filter_background_page),
+            "Punched filter": self.stackedWidget.indexOf(self.punched_page),
+            "Punched filter background": self.stackedWidget.indexOf(self.punched_filter_background_page)
+        }
+        
+        self.type_combobox.currentTextChanged.connect(self.switch_exp_type)
+        # connect all the text edits together 
+        self.shared_exp_description = QtGui.QTextDocument()
+        self.findChild(QtWidgets.QTextEdit, "exp_description_text_edit_wb").setDocument(self.shared_exp_description)
+        self.findChild(QtWidgets.QTextEdit, "exp_description_text_edit").setDocument(self.shared_exp_description)
+        self.findChild(QtWidgets.QTextEdit,
+        		"exp_description_text_edit_filterbg").setDocument(self.shared_exp_description)
+        self.findChild(QtWidgets.QTextEdit, "exp_description_text_edit_punch").setDocument(self.shared_exp_description)
+        self.findChild(QtWidgets.QTextEdit,
+        		"exp_description_text_edit_punch_bg").setDocument(self.shared_exp_description)
 
         self.button_scan_start = self.findChild(QtWidgets.QPushButton, 'set_scan_start_button')
         self.button_scan_start.clicked.connect(self.update_scan_start)
 
         self.button_scan_end = self.findChild(QtWidgets.QPushButton, 'set_scan_end_button')
         self.button_scan_end.clicked.connect(self.update_scan_end)
-
-        self.label_deleted = self.findChild(QtWidgets.QLabel, 'deleted_label')
 
         self.image_frame = self.findChild(QtWidgets.QLabel, 'img_label')
         self.image_frame.setScaledContents(True)
@@ -124,30 +159,48 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.horizontalSlider_17.valueChanged['int'].connect(lambda value: self.update_hough_dict_param("max_radius", value))
 
         self.framesSlider.valueChanged['int'].connect(self.update_img)
-
-        self.attribute_to_widget_mapping = {
-            "label": self.label_text_edit,
-            "experiment_type": self.experiment_type_text_edit,
-            "start_time": self.start_time_text_edit,
-            "end_time": self.end_time_text_edit,
+        
+        self.common_attributes = {
+            "label": self.label_text_edit, 
+            "experiment_type": self.type_combobox, 
+            "start_time": self.start_time_text_edit, 
+            "end_time": self.end_time_text_edit, 
             "station": self.station_text_edit,
+            "air_volume": self.air_volume_text_edit,
+            "temp": self.temp_text_edit, 
+            "press": self.press_text_edit, 
+            "exp_description": self.exp_description_text_edit,
+            "template_img": self.templates_combobox,
+            "v_drop": self.v_drop_text_edit, 
+            "normalisation_factor": self.normalisation_factor_text_edit,
+            "units" : self.units_text_edit
+            }
+
+        self.filter_attributes = {
+            
             "sampler_id": self.sampler_id_text_edit,
             "sampler_status": self.sampler_status_text_edit,
             "filter_position": self.filter_position_text_edit,
-            "air_volume": self.air_volume_text_edit,
-
             "flow": self.flow_text_edit,
-            "temp": self.temp_text_edit,
-            "press": self.press_text_edit,
-            "exp_description": self.exp_description_text_edit,
-
-            "template_img": self.templates_combobox,
-            "v_drop": self.v_drop_text_edit,
             "filter_fraction": self.filter_fraction_text_edit,
             "v_wash": self.wash_vol_text_edit,
             "dil_factor": self.dil_factor_text_edit,
+            "background_exp": self.background_combobox,
+            }
+            
+        self.punched_filter_attributes = {
+           "filter_diameter": self.filter_diameter_text_edit_punch,
+           "puncher_diameter": self.puncher_diameter_text_edit,
+           "filter_type": self.filter_type_text_edit_punch,
+           "latitude": self.latitude_text_edit_punch,
+           "longitude": self.longitude_text_edit_punch,
+           "background_exp_punch": self.background_combobox_punch,
+           }
+           
+        self.background_combobox.currentTextChanged.connect(self.get_background)
 
-        }
+        self.attribute_to_widget_mapping = {**self.common_attributes, **self.filter_attributes,
+        					**self.punched_filter_attributes}
 
         self.FFwidget.setLabel('left', 'Frozen Fraction', color='red', size=30)
 
@@ -250,7 +303,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             self.show_metadata_alert()
 
     def populate_combobox_templates(self):
-        png_files = [file for file in os.listdir(paths.etc_path) if file.endswith(".png")]
+        png_files = [file for file in os.listdir(paths.etc_path) if file.endswith(".png") or file.endswith(".jpg")]
         self.templates_combobox.addItems(png_files)
         self.template_img = self.templates_combobox.currentText()
 
@@ -278,11 +331,10 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.experiment.run_analysis()
 
         frame = self.framesSlider.value()
+        self.normalisation_factor_text_edit.setText(f'{float(self.experiment.metadata.normalisation_factor)}')
 
         if self.experiment.is_analyzed:
-            self.FFwidget.clear()
-            self.FFwidget.plot(self.experiment.t, self.experiment.ff)
-            self.FFwidget.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget.getAxis('left').range)
+            self.update_ff_plot()
 
     def populate_experiment_list(self):
         # Clear the model
@@ -316,6 +368,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             self.FFwidget_grayscale.plot(self.frame_t, self.experiment.grayscales_evolution[:, self.selected_droplet])
 
         self.FFwidget_grayscale.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget_grayscale.getAxis('left').range)
+        self.update_img()
 
     def filter_exp_names(self):
         # Get the filter text
@@ -333,19 +386,103 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                 item.setEditable(False)
                 self.model.appendRow(item)
 
-    def delete_indx(self):
-        value = self.spinbox_delete.value()
-        if value in self.del_indx:
-            self.del_indx.remove(value)
+    def change_freezing_indx(self):
+        # find the index of the temperature at hand
+    	if self.selected_droplet is not None:
+            target_temp = float(self.box_change_temp.currentText())
+            #index = self.experiment.t.index(target_temp)
+    	    index = self.frame_t.index(target_temp)
+            self.experiment.freezing_idxs[self.selected_droplet] = index
+            self.experiment.run_analysis(self.experiment.freezing_idxs)
+            self.update_img()
         else:
-            self.del_indx.append(value)
-        self.label_deleted.setText("Delete droplets : " + str(self.del_indx))
+            print('No selected droplet found')
+
+    def analyze_exsisting_freezing_idx(self):
+        # read temperatures form file and loop through them and use change_freezing_indx
+        correct_file = os.path.join(paths.etc_path / 'ODEN20080804_droplet_corrections.csv')
+        data = np.genfromtxt(correct_file, delimiter=',')
+        for i in range(len(data[:,0])):
+            selected_droplet = int(data[:,0][i])
+            target_temp = np.float64(data[:,1][i])
+            index = self.frame_t.index(target_temp)
+            self.experiment.freezing_idxs[selected_droplet] = index
+        self.experiment.run_analysis(self.experiment.freezing_idxs)
+        self.update_img()
+
+
+
+    def droplet_combobox_activated(self):
+        self.selected_droplet= int(self.box_selected_droplet.currentText())
+        self.update_img()
+
+    def temp_combobox_activated(self):
+        # for now, it seems this is not required :)
+        pass
+
+    def switch_exp_type(self):
+        """Switch the stacked widget page based on the combo box text."""
+        text = self.type_combobox.currentText()
+
+        if text in self.page_mapping:
+            self.stackedWidget.setCurrentIndex(self.page_mapping[text])
+            self.stackedWidget.update()  # Ensure UI refresh
+        else:
+            print("Page not found in mapping!")
+
+    def filter_background_folders(folder_list):
+        folder_list = os.listdir(paths.processed_data_path)
+        valid_values = {"Water background", "Filter background", "Punched filter background"}
+        filtered_folders = []
+
+        for folder in folder_list:
+            metadata_path = os.path.join(paths.raw_data_path / folder, "metadata.json")
+
+            if os.path.exists(metadata_path):
+                try:
+                    with open(metadata_path, "r", encoding="utf-8") as file:
+                        data = json.load(file)
+                        if data.get("experiment_type") in valid_values:
+                            filtered_folders.append(folder)
+                except:
+                    print('Error occured while retrieving background experiment', folder)
+                    pass  # Skip if the JSON is invalid or file can't be read
+        return filtered_folders
+
+    def get_background(self):
+        #self.experiment.metadata.background_exp = self.background_combobox.currentText()
+        #print('bg exp name',self.experiment.metadata.background_exp)
+        if self.experiment is not None:
+            background = self.background_combobox.currentText()
+            if self.experiment.is_analyzed:
+                if background is not None and background != 'None' and background != '':
+                    try:
+                        path = os.path.join(paths.processed_data_path, background, 'report.csv')
+                        background_data = np.genfromtxt(path, delimiter=',', names=True)
+                        self.bg_t, self.bg_ff = background_data['temp'], background_data['ff']
+                    except:
+                        print('Background experiment could not be loaded')
+                else:
+                    #print('\n No background \n')
+                    self.bg_t, self.bg_ff = [], []
+                self.update_ff_plot()
+
+    def update_ff_plot(self, frame=0):
+        frame = self.framesSlider.value()
+        self.FFwidget.clear()
+        self.FFwidget.plot(self.bg_t, self.bg_ff, pen=pg.mkPen(color='b'))
+        self.FFwidget.plot(self.experiment.t, self.experiment.ff, pen=pg.mkPen(color='r'))
+        self.FFwidget.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget.getAxis('left').range)
+
 
     def save(self):
         i = pathlib.Path(paths.interim_data_path / self.exp_name)
         i.mkdir(parents=True, exist_ok=True)
 
         self.experiment.metadata = self.load_metadata_from_gui()
+        # for now, don't save the scan time edits to avoid errors in loading back the metadata
+        self.experiment.metadata.scan_start_timestamp = None
+        self.experiment.metadata.scan_end_timestamp = None
 
         self.experiment.save_metadata_to_file()
 
@@ -363,6 +500,23 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                 for i in range(len(self.experiment.t)):
                     fo.write(f'{i}, {self.experiment.t[i]}, {self.experiment.ff[i]}, {self.experiment.conc_per_L[i]}, '
                              f'{self.experiment.conc_per_drop[i]} \n')
+
+            # adding another file spectra.csv to processed data file
+            with open(paths.processed_data_path / self.exp_name / 'spectra.csv', 'w') as fo:
+                fo.write(f'temp, ff, ff_lower_conf_lvl, ff_upper_conf_lvl, k, k_lower_conf_lvl,'
+                		 f'k_upper_conf_lvl, K, K_lower_conf_lvl, K_upper_conf_lvl, {self.experiment.metadata.units} \n')
+                for i in range(len(self.experiment.spectra)):
+                    fo.write(f'{self.experiment.spectra["temp"][i]},'
+                    			f'{self.experiment.spectra["ff"][i]},'
+                    			f'{self.experiment.spectra["ff_lower_conf_lvl"][i]},' 
+                             		f'{self.experiment.spectra["ff_upper_conf_lvl"][i]},'
+                             		f'{self.experiment.spectra["k"][i]},'
+                             		f'{self.experiment.spectra["k_lower_conf_lvl"][i]},'
+                             		f'{self.experiment.spectra["k_upper_conf_lvl"][i]},'
+                             		f'{self.experiment.spectra["K"][i]},'
+                             		f'{self.experiment.spectra["K_lower_conf_lvl"][i]},'
+                             		f'{self.experiment.spectra["K_upper_conf_lvl"][i]},\n')
+
 
             with open(paths.interim_data_path / self.exp_name / 'freezing_temps.csv', 'w', newline='') as csv_file:
                 csv_writer = csv.writer(csv_file)
@@ -384,6 +538,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.frameNumber.setText('Image: ' + str(self.experiment.img_files[frame].stem))
         self.label_temp.setText('Temperature: ' + str(self.frame_t[frame]))
+        self.box_change_temp.setCurrentText(str(self.frame_t[frame]))
+        
 
         img = self.experiment.get_img(frame, self.selected_droplet)
 
@@ -391,9 +547,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.image_frame.setPixmap(qt_img)
 
         if self.experiment.is_analyzed:
-            self.FFwidget.clear()
-            self.FFwidget.plot(self.experiment.t, self.experiment.ff)
-            self.FFwidget.plot([self.frame_t[frame], self.frame_t[frame]], self.FFwidget.getAxis('left').range)
+            self.update_ff_plot()
 
         if hasattr(self.experiment, "circles_positions") and self.selected_droplet is not None:
             self.FFwidget_grayscale.clear()
@@ -408,15 +562,25 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         copy_to_clipboard_linux(self.exp_name)
 
         self.setWindowTitle(self.exp_name)
-
+        
+        bg_exps = self.filter_background_folders()
+        self.background_combobox.clear()
+        self.background_combobox.addItem('None')
+        self.background_combobox.addItems(bg_exps)
+        self.background_combobox_punch.clear()
+        self.background_combobox_punch.addItem('None')
+        self.background_combobox_punch.addItems(bg_exps)
+        
+        print('\n loading experiment', self.exp_name, '\n')
+        
         self.experiment = FrESHExperiment(self.exp_name)
-
+        
         self.framesSlider.setValue(0)
         self.framesSlider.setMaximum(self.experiment.img_files.__len__() - 1)
         self.frame_t = calculate_frame_temperatures(self.experiment.img_files, self.exp_name)
 
         self.load_metadata_into_gui(self.experiment.metadata)
-
+        
         self.experiment.detect_circles()
 
         img = self.experiment.get_img(0)
@@ -431,10 +595,11 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         if not self.experiment.is_analyzed:
             self.experiment.run_analysis()
+            self.normalisation_factor_text_edit.setText(f'{float(self.experiment.metadata.normalisation_factor)}')
+
             if self.experiment.is_analyzed:
-                self.FFwidget.clear()
-                self.FFwidget.plot(self.experiment.t, self.experiment.ff)
-                self.FFwidget.plot([self.frame_t[0], self.frame_t[0]], self.FFwidget.getAxis('left').range)
-        # next_index = self.experiment_list_view.currentIndex().row() + 1
-        # self.experiment_list_view.setCurrentIndex(self.experiment_list_view.model().index(next_index, 0))
+                self.box_selected_droplet.setCurrentIndex(-1)
+                self.box_change_temp.addItems([str(i) for i in self.frame_t])
+                self.update_ff_plot()
+
 
