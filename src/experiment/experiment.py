@@ -62,6 +62,22 @@ stations_dict = {
         'latitude': 1.0,
         'longitude': 1.0,
         'altitude': 0.0
+    },
+    'ODE': {
+        'station_name': 'ODEN',
+        'station_mapping': 'ODEN',
+        'sampler_id': 'None',
+        'latitude': 1.0,
+        'longitude': 1.0,
+        'altitude': 0.0
+    },
+    'NYA': {
+        'station_name': 'Ny Ålesund',
+        'station_mapping': 'NYÅLESUND',
+        'sampler_id': 'None',
+        'latitude': 78.9067,
+        'longitude': 11.8883,
+        'altitude': 474.0
     }
 }
 
@@ -103,6 +119,19 @@ class ExperimentMetadata:
         self.filter_fraction = kwargs.get('filter_fraction', None)
         self.filter_position = kwargs.get('filter_position', None)
         self.chiller_model = kwargs.get('chiller_model', None)
+
+        # adding the background experiment
+        self.background_exp = kwargs.get('background_exp', None)
+        # punchout metadata
+        self.filter_diameter = kwargs.get('filter_diameter', None)
+        self.puncher_diameter = kwargs.get('puncher_diameter', None)
+        self.filter_type = kwargs.get('filter_type', None)
+        self.latitude = kwargs.get('latitude', None)
+        self.longitude = kwargs.get('longitude', None)
+        # adding info on the normalisation factor and resulting units
+        self.normalisation_factor = kwargs.get('normalisation factor', None)
+        self.units = kwargs.get('units', 'L-1')
+
 
     def check_required_fields(self):
         """
@@ -147,7 +176,9 @@ class FrESHExperiment:
         self.metadata = None
 
         self.is_analyzed = False
+        self.background_corrected = False
         self.already_reloaded = False  # Flag to prevent infinite loop
+        self.t = []
         experiment_path = paths.raw_data_path / experiment_name
 
         # create experiment directory if it doesn't exist
@@ -163,9 +194,8 @@ class FrESHExperiment:
 
     def get_experiment_image_list(self):
         img_dir = paths.raw_data_path / self.exp_name / 'pics'
-
         # get a list of all JPG files in the directory
-        img_file_list = [f for f in img_dir.iterdir() if f.is_file() and f.suffix == ".jpg"]
+        img_file_list = [f for f in img_dir.iterdir() if f.is_file() and f.suffix == ".jpg" or f.suffix == ".png"]
         # sort the list of images
         img_file_list.sort()
 
@@ -186,6 +216,7 @@ class FrESHExperiment:
             end_timestamp = datetime.strptime(self.metadata.scan_end_timestamp, "%Y%m%d%H%M%S")
             img_file_list = [file for file in img_file_list if self.is_valid_timestamp(file, None, end_timestamp)]
 
+
         return img_file_list
 
     def is_valid_timestamp(self, file, start_timestamp, end_timestamp):
@@ -204,40 +235,90 @@ class FrESHExperiment:
         else:
             return True
 
-    def run_analysis(self):
+    def run_analysis(self, existing_freezing_idxs=None):
+
+        #self.metadata.scan_start_timestamp = None
+        #self.metadata.scan_end_timestamp = None
+
         img_file_list = self.get_experiment_image_list()
+        #print('\n image list', len(img_file_list), '\n')
 
         self.grayscales_evolution = self.process_images(img_file_list)
-        self.freezing_idxs = calculate_freezing_idxs(self.grayscales_evolution)
+        #print('\n image list', len(self.greyscales_evolution), '\n')
 
-        self.del_indx = [i - 1 for i in self.metadata.del_index]
-        self.freezing_idxs = np.delete(self.freezing_idxs, self.del_indx)
+        if existing_freezing_idxs is None:
+            self.freezing_idxs = calculate_freezing_idxs(self.grayscales_evolution)
+
+            self.del_indx = [i - 1 for i in self.metadata.del_index]
+            self.freezing_idxs = np.delete(self.freezing_idxs, self.del_indx)
+
+        else:
+            self.freezing_idxs = existing_freezing_idxs
+
+
         freezing_times = calculate_freezing_times(img_file_list, self.freezing_idxs)
 
         self.freezing_temps = calculate_freezing_temps(freezing_times, self.exp_name)
 
         self.t, self.ff = process_sensors_data(self.exp_name, self.freezing_idxs, freezing_times)
 
-        nu = self.metadata.dil_factor
-        v_wash = self.metadata.v_wash
-        v_drop = self.metadata.v_drop
-        v_air = float(self.metadata.air_volume)
-        filter_fraction = float(self.metadata.filter_fraction)
+        background_experiment_save = self.metadata.background_exp
+        if background_experiment_save!= 'None' and background_experiment_save is not None:
+            bg_metadata = self.load_background_metadata(background_experiment_save)
+            X_bg = bg_metadata.normalisation_factor
+        else:
+            X_bg = 1.0
 
-        # Normalization factor to L^-1
-        try:
-            X = nu * v_wash / (v_air * filter_fraction)
-        except TypeError:
-            logging.warning("Error calculating normalization factor.")
-            X = 1
+        # X is normalisation applied before bg correction, sampled volume correction is applied after
+
+        self.calculate_normalisation_factor()
+        X = self.metadata.normalisation_factor
+        v_air = np.float64(self.metadata.air_volume)
 
         # Concentration per sample
-        self.conc_per_drop = - np.log(1 - np.array(self.ff)) / v_drop
+        self.conc_per_drop = - np.log(1 - np.array(self.ff)) * X # / v_drop is already calculated
 
         # Concentration per standar L of air
-        self.conc_per_L = self.conc_per_drop * X
+        self.conc_per_L = self.conc_per_drop / v_air
 
         self.is_analyzed = True
+        """ Adding here the other way of analyzing the experiment with the background correction """
+        self.spectra, self.background_corrected = spectra(self.freezing_temps, X, v_air, 0.5, 1.96,
+				background_exp=background_experiment_save, X_bg=np.float64(X_bg), depression=0)
+
+    def calculate_normalisation_factor(self):
+        v_drop = self.metadata.v_drop
+        if self.metadata.experiment_type in ['Filter', 'Filter Background']:
+            nu = self.metadata.dil_factor
+            v_wash = self.metadata.v_wash
+            #v_air = self.metadata.air_volume # float(self.metadata.air_volume) # NOTE: afte bg correction!
+            filter_fraction = float(self.metadata.filter_fraction)
+            # Normalization factor to L^-1
+            try:
+                X = nu * v_wash / (filter_fraction * v_drop)
+            except TypeError:
+                logging.warning("Error calculating normalization factor.")
+                X = 1
+        elif self.metadata.experiment_type in ['Punched filter', 'Punched filter background']:
+            try:
+                d_filter = self.metadata.filter_diameter # 0.135 m
+                d_punchout = self.metadata.puncher_diameter # 0.001  m
+                filter_fraction = (0.5*d_filter)**2 / (0.5*d_punchout)**2
+                #X = v_air * filter_fraction
+                X = 1 / filter_fraction
+            except TypeError:
+                logging.warning("Error calculating normalization factor.")
+                X = 1
+
+        elif self.metadata.experiment_type == 'WB':
+            X = v_drop
+        else:
+            print('Normalisation factro is set to 1.0')
+            X = 1.0
+
+        self.metadata.normalisation_factor = X
+
+
 
     def process_images(self, img_files):
         # function to process the images and return the grayscales
@@ -253,7 +334,7 @@ class FrESHExperiment:
             if rotation_option is not None:
                 img = cv2.rotate(img, rotation_option)
 
-            img = auto_crop(img, self.metadata.template_img)
+            #img = auto_crop(img, self.metadata.template_img)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
             res.append(circles.get_grayscales(gray, self.circles_positions))
@@ -267,7 +348,8 @@ class FrESHExperiment:
             img = cv2.rotate(img, self.metadata.rotation)
 
         if self.metadata.template_img is not None:
-            img = auto_crop(img, self.metadata.template_img)
+            pass
+            #img = auto_crop(img, self.metadata.template_img)
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -284,7 +366,8 @@ class FrESHExperiment:
             img = cv2.rotate(img, self.metadata.rotation)
 
         if self.metadata.template_img is not None:
-            img = auto_crop(img, self.metadata.template_img)
+            #img = auto_crop(img, self.metadata.template_img)
+            pass
 
         if hasattr(self, "circles_positions"):
             np_dcirc = np.uint16(np.around(self.circles_positions))
@@ -324,30 +407,71 @@ class FrESHExperiment:
 
     def save_metadata_to_file(self):
         # saves metadata to a JSON file
+        #self.metadata.scan_start_timestamp = None
+        #self.metadata.scan_end_timestamp = None
         self.metadata.check_required_fields()
         metadata_path = os.path.join(paths.raw_data_path / self.exp_name, f"metadata.json")
         with open(metadata_path, "w") as metadata_file:
             # Convert specific fields to float before saving
             metadata_dict = self.metadata.__dict__
-            fields_to_convert_to_float = ["air_volume", "v_drop", "v_wash", "dil_factor", "filter_fraction"]
+            fields_to_convert_to_float = ["air_volume", "v_drop", "v_wash", "dil_factor", "filter_fraction",
+            				 "filter_diameter", "puncher_diameter", "normalisation_factor"]
             for field in fields_to_convert_to_float:
                 if field in metadata_dict and metadata_dict[field]:
-                    metadata_dict[field] = float(metadata_dict[field])
-
+                    try:
+                        metadata_dict[field] = float(metadata_dict[field])
+                    except(ValueError):
+                        metadata_dict[field] = 1.0
+            print('\n Check metadata to be saved to a file', metadata_dict, '\n')
             json.dump(metadata_dict, metadata_file, indent=4)
 
     def load_metadata(self):
         metadata_path = os.path.join(paths.raw_data_path, self.exp_name, "metadata.json")
         if os.path.exists(metadata_path):
             if os.path.getsize(metadata_path) == 0:  # Check if file is empty
+                print('file empty')
                 self.load_metadata_from_raw_file(self.exp_name)
                 return
 
-            with open(metadata_path, "r") as metadata_file:
+            with open(metadata_path, "r", encoding="utf-8-sig") as metadata_file:
                 try:
-                    metadata_dict = json.load(metadata_file)
-                except json.JSONDecodeError:
-                    self.load_metadata_from_raw_file()
+                    content = metadata_file.read()
+                    content = content.replace('"None"', 'null')
+                    content = content.replace('""', 'null')
+                    #print('Check metadata to be loaded', content)
+                    metadata_dict = json.loads(content)
+                except json.JSONDecodeError as e:
+                    print('Error loading metadata ', e)
+                    #self.load_metadata_from_raw_file()
+                    return
+
+                metadata_dict = {k.lower(): v for k, v in metadata_dict.items()}
+                self.metadata = ExperimentMetadata(**metadata_dict)
+
+                # Validate and correct metadata fields
+                self.validate_and_correct_metadata()
+
+                return self.metadata
+        else:
+            return None
+
+    def load_background_metadata(self, exp_name):
+        metadata_path = os.path.join(paths.raw_data_path, exp_name, "metadata.json")
+        if os.path.exists(metadata_path):
+            if os.path.getsize(metadata_path) == 0:  # Check if file is empty
+                print('file empty')
+                self.load_metadata_from_raw_file(self.exp_name)
+                return
+
+            with open(metadata_path, "r", encoding="utf-8-sig") as metadata_file:
+                try:
+                    content = metadata_file.read()
+                    content = content.replace('"None"', 'null')
+                    content = content.replace('""', 'null')
+                    metadata_dict = json.loads(content)
+                except json.JSONDecodeError as e:
+                    print('Error loading metadata ', e)
+                    #self.load_metadata_from_raw_file()
                     return
 
                 metadata_dict = {k.lower(): v for k, v in metadata_dict.items()}
@@ -363,15 +487,19 @@ class FrESHExperiment:
         needs_reload = False
 
         # Check and correct dil_factor
-        if isinstance(self.metadata.dil_factor, int) and self.metadata.dil_factor == 1:
+        if isinstance(self.metadata.dil_factor, int) and self.metadata.dil_factor == 1 or self.metadata.dil_factor is None:
             self.metadata.dil_factor = 1.0
 
         # Check and correct filter_fraction
-        if isinstance(self.metadata.filter_fraction, int) and self.metadata.filter_fraction == 1:
+        if isinstance(self.metadata.filter_fraction, int) and self.metadata.filter_fraction == 1 or self.metadata.filter_fraction is None:
             self.metadata.filter_fraction = 1.0
 
         if self.metadata.air_volume is None:
-            needs_reload = True
+            #needs_reload = True
+            self.metadata.air_volume = 1.0
+
+        if self.metadata.background_exp is None:
+            self.metadata.background_exp = 'None'
 
         # Validate start_time format
         if not self.is_valid_date_format(self.metadata.start_time):
@@ -383,11 +511,17 @@ class FrESHExperiment:
 
         # Validate sampled_vol (not present in provided ExperimentMetadata, assumed to be air_volume)
         if not self.is_valid_sampled_vol(self.metadata.air_volume):
-            needs_reload = True
+            #needs_reload = True
+            self.metadata_air_volume = 1.0
+
 
         if needs_reload and not self.already_reloaded:
             self.already_reloaded = True  # Set flag to avoid reloading again
             self.load_metadata_from_raw_file(self.exp_name)
+
+        #self.metadata.scan_start_timestamp = None
+        #self.metadata.scan_end_timestamp = None
+
 
     def is_valid_date_format(self, date_str):
         try:
@@ -416,10 +550,14 @@ class FrESHExperiment:
             return None
 
         metadata = self._retrieve_metadata(label)
+        self.metadata = metadata
+        self.validate_and_correct_metadata()
 
         if metadata:
             self.metadata = metadata
             self.validate_and_correct_metadata()
+            #self.metadata.scan_start_timestamp = None
+            #self.metadata.scan_end_timestamp = None
             return self.metadata
         else:
             logging.error("Unable lo load metadata")
@@ -485,10 +623,14 @@ class FrESHExperiment:
         with open(import_path, "r") as import_file:
             metadata_dict = json.load(import_file)
             self.metadata = ExperimentMetadata(**metadata_dict)
+            #self.metadata.scan_start_timestamp = None
+            #self.metadata.scan_end_timestamp = None
         self.save_metadata_to_file()
 
     def export_metadata(self, export_format="json"):
         # exports metadata to a file in the specified format (JSON or YAML)
+        #self.metadata.scan_start_timestamp = None
+        #self.metadata.scan_end_timestamp = None
         if export_format == "json":
             export_path = os.path.join(paths.raw_data_path / self.exp_name, f"metadata.json")
             with open(export_path, "w") as export_file:
