@@ -278,8 +278,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                         widget.setCurrentText(str(value))
 
                     # Connect QComboBox signal
-                    widget.currentTextChanged.connect(
-                    lambda value=value, attribute_name=attribute_name: self.update_metadata(attribute_name, value))
+                    widget.currentTextChanged.connect(lambda value=value, attribute_name=attribute_name: self.update_metadata(attribute_name, value))
 
                 #elif isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
                 else:
@@ -390,13 +389,13 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         # find the index of the temperature at hand
     	if self.selected_droplet is not None:
             target_temp = float(self.box_change_temp.currentText())
-            #index = self.experiment.t.index(target_temp)
-    	    index = self.frame_t.index(target_temp)
+            index = self.frame_t.index(target_temp)
             self.experiment.freezing_idxs[self.selected_droplet] = index
             self.experiment.run_analysis(self.experiment.freezing_idxs)
             self.update_img()
-        else:
-            print('No selected droplet found')
+
+        #else:
+        #    print('No selected droplet found')
 
     def analyze_exsisting_freezing_idx(self):
         # read temperatures form file and loop through them and use change_freezing_indx
