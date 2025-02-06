@@ -66,14 +66,11 @@ def bin_data(freezing_temps, bin_size, z):
     return ff_data
 
 
-def differential(counts, bin_size, show_info=True):
+def differential(counts, bin_size, show_info=False):
     """calculate the differential spectrum of binned frozen fraction data and normalize"""
     # intialize spectrum
     droplets = np.sum(counts)
-    print('droplets', droplets)
-    print(counts)
     n = droplets - np.insert(np.cumsum(counts), 0, 0)[:-1] # - np.cumsum(counts) # unfrozen droplets
-    print('n', n)
     dn = counts # frozen droplets within each bin
 
     k = np.zeros(len(counts))
@@ -178,13 +175,11 @@ def spectra(freezing_temps, X, Y, bin_size, z, background_exp, X_bg=1, depressio
     
     # bin data and calculate new error estimation to the binned frozen fraction data
     binned = bin_data(freezing_temps, bin_size, z)
-    print('binned', binned)
     # calculate the differential and estimate errors by applying differential to limit of functions
-    print('counts', binned['count'])
     diff = differential(binned['count'], bin_size) * X
     diff_lower = differential(binned['count_lower_conf_lvl'], bin_size) * X
     diff_upper = differential(binned['count_upper_conf_lvl'], bin_size) * X
-    print('differential before correction', diff)
+
     
     # check if analyzed background experiment is available
     if background_exp != 'None' and background_exp is not None:
@@ -203,7 +198,6 @@ def spectra(freezing_temps, X, Y, bin_size, z, background_exp, X_bg=1, depressio
         # calculate background correction to differential spectrum, normalise background to droplet volume
         bg_temp, bg_ff, bg_ff_lower, bg_ff_upper, bg_diff, bg_diff_lower, bg_diff_upper = \
             initialize_background(background_exp, bin_size, z)
-        print('background differential', bg_diff)
         # within the input, normalise the bg differential to bg droplet volume
         diff, diff_lower, diff_upper = bg_correction(bg_temp, bg_ff, bg_diff * X_bg,
                                                      bg_diff_lower * X_bg, bg_diff_upper * X_bg,
@@ -214,8 +208,6 @@ def spectra(freezing_temps, X, Y, bin_size, z, background_exp, X_bg=1, depressio
         cum = cumulative_from_diff(diff, bin_size)
         cum_lower = cumulative_from_diff(diff_lower, bin_size)
         cum_upper = cumulative_from_diff(diff_upper, bin_size)
-        print('differential after correction', diff)
-        print('cumulative after correction', cum)
 
 
     # Create array with the binned temperature and spectra values

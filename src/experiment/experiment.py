@@ -13,6 +13,7 @@ from src import paths
 from src.analysis import circles
 from src.analysis.circles import auto_crop
 from src.gui.experiment_gui import convert_cv_qt
+from src.experiment.data_analysis import spectra
 
 stations_dict = {
     'WBG': {
@@ -281,10 +282,11 @@ class FrESHExperiment:
         # Concentration per standar L of air
         self.conc_per_L = self.conc_per_drop / v_air
 
-        self.is_analyzed = True
-        """ Adding here the other way of analyzing the experiment with the background correction """
         self.spectra, self.background_corrected = spectra(self.freezing_temps, X, v_air, 0.5, 1.96,
-				background_exp=background_experiment_save, X_bg=np.float64(X_bg), depression=0)
+                                                          background_exp=background_experiment_save,
+                                                          X_bg=np.float64(X_bg), depression=0)
+
+        self.is_analyzed = True
 
     def calculate_normalisation_factor(self):
         v_drop = self.metadata.v_drop
