@@ -449,8 +449,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         return filtered_folders
 
     def get_background(self):
-        #self.experiment.metadata.background_exp = self.background_combobox.currentText()
-        #print('bg exp name',self.experiment.metadata.background_exp)
         if self.experiment is not None:
             background = self.background_combobox.currentText()
             if self.experiment.is_analyzed:
@@ -599,6 +597,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             if self.experiment.is_analyzed:
                 self.box_selected_droplet.setCurrentIndex(-1)
                 self.box_change_temp.addItems([str(i) for i in self.frame_t])
-                self.update_ff_plot()
+                self.get_background()
+                #self.update_ff_plot()
 
 
