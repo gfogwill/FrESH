@@ -130,7 +130,7 @@ class ExperimentMetadata:
         self.latitude = kwargs.get('latitude', None)
         self.longitude = kwargs.get('longitude', None)
         # adding info on the normalisation factor and resulting units
-        self.normalisation_factor = kwargs.get('normalisation factor', None)
+        self.normalisation_factor = kwargs.get('normalisation_factor', None)
         self.units = kwargs.get('units', 'L-1')
 
 
@@ -175,6 +175,7 @@ class FrESHExperiment:
     def __init__(self, experiment_name):
         self.exp_name = experiment_name
         self.metadata = None
+        self.bg_metadata = None
 
         self.is_analyzed = False
         self.background_corrected = False
@@ -238,14 +239,8 @@ class FrESHExperiment:
 
     def run_analysis(self, existing_freezing_idxs=None):
 
-        #self.metadata.scan_start_timestamp = None
-        #self.metadata.scan_end_timestamp = None
-
         img_file_list = self.get_experiment_image_list()
-        #print('\n image list', len(img_file_list), '\n')
-
         self.grayscales_evolution = self.process_images(img_file_list)
-        #print('\n image list', len(self.greyscales_evolution), '\n')
 
         if existing_freezing_idxs is None:
             self.freezing_idxs = calculate_freezing_idxs(self.grayscales_evolution)
@@ -263,12 +258,7 @@ class FrESHExperiment:
 
         self.t, self.ff = process_sensors_data(self.exp_name, self.freezing_idxs, freezing_times)
 
-        background_experiment_save = self.metadata.background_exp
-        if background_experiment_save!= 'None' and background_experiment_save is not None:
-            bg_metadata = self.load_background_metadata(background_experiment_save)
-            X_bg = bg_metadata.normalisation_factor
-        else:
-            X_bg = 1.0
+        #background_experiment_save = self.metadata.background_exp
 
         # X is normalisation applied before bg correction, sampled volume correction is applied after
 
@@ -283,8 +273,7 @@ class FrESHExperiment:
         self.conc_per_L = self.conc_per_drop / v_air
 
         self.spectra, self.background_corrected = spectra(self.freezing_temps, X, v_air, 0.5, 1.96,
-                                                          background_exp=background_experiment_save,
-                                                          X_bg=np.float64(X_bg), depression=0)
+                                                          self.metadata.background_exp, 0)
 
         self.is_analyzed = True
 
@@ -457,33 +446,6 @@ class FrESHExperiment:
         else:
             return None
 
-    def load_background_metadata(self, exp_name):
-        metadata_path = os.path.join(paths.raw_data_path, exp_name, "metadata.json")
-        if os.path.exists(metadata_path):
-            if os.path.getsize(metadata_path) == 0:  # Check if file is empty
-                print('file empty')
-                self.load_metadata_from_raw_file(self.exp_name)
-                return
-
-            with open(metadata_path, "r", encoding="utf-8-sig") as metadata_file:
-                try:
-                    content = metadata_file.read()
-                    content = content.replace('"None"', 'null')
-                    content = content.replace('""', 'null')
-                    metadata_dict = json.loads(content)
-                except json.JSONDecodeError as e:
-                    print('Error loading metadata ', e)
-                    #self.load_metadata_from_raw_file()
-                    return
-
-                metadata_dict = {k.lower(): v for k, v in metadata_dict.items()}
-                self.metadata = ExperimentMetadata(**metadata_dict)
-
-                # Validate and correct metadata fields
-                self.validate_and_correct_metadata()
-                return self.metadata
-        else:
-            return None
 
     def validate_and_correct_metadata(self):
         needs_reload = False

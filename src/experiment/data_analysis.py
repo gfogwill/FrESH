@@ -9,6 +9,7 @@ Created on Wed Jul 20 09:09:00 2022
 import numpy as np
 from src import paths
 import os
+import json
 
 
 def uncertainty(ff, droplets, z):
@@ -83,19 +84,19 @@ def differential(counts, bin_size, show_info=False):
         #n = droplets - np.sum(counts[i:])
         if dn[i] == 0.0:
             if show_info:
-            	print('no droplets froze in bin with index', i)
+                print('no droplets froze in bin with index', i)
             k[i] = 0.0
         elif n[i] == 0.0:
             if show_info:
-            	print('no more unfrozen droplets at index', i)
+                print('no more unfrozen droplets at index', i)
             k[i] = 0.0 #- (1 / bin_size) * np.log(1 - (dn[i] / (n[i] + epsilon))) # Check if this is ok!!!
         elif dn[i]/n[i] == 1:
             k[i] = 0.0 
             if show_info:
-            	print('log goes to zero on index (dn/n=1)', i)
+                print('log goes to zero on index (dn/n=1)', i)
         elif 1 - (dn[i] / (n[i] + epsilon)) < 0.0:
             if show_info:
-            	print('dn > unfrozen droplets, something is wrong, check droplet count on index', i)
+                print('dn > unfrozen droplets, something is wrong, check droplet count on index', i)
             k[i] = 0.0
         else:
             k[i] = - (1 / bin_size) * np.log(1 - (dn[i] / (n[i])))
@@ -117,8 +118,13 @@ def initialize_background(background_exp, bin_size, z):
     diff_lower = differential(binned_bg['count_lower_conf_lvl'], bin_size)
     diff_upper = differential(binned_bg['count_upper_conf_lvl'], bin_size)
 
+    # retrieve the background experiment normalisation factor
+    with open(os.path.join(paths.raw_data_path, background_exp, 'metadata.json'), "r") as bgmetadata_file:
+        bg_metadata = json.load(bgmetadata_file)
+        normalisation_factor = float(bg_metadata.get("normalisation_factor", 1.0))  # Default to 1.0 if missing
+
     return binned_bg['temp'], binned_bg['ff'], binned_bg['ff_lower_conf_lvl'], binned_bg['ff_upper_conf_lvl'], \
-        diff, diff_lower, diff_upper
+        diff, diff_lower, diff_upper, normalisation_factor
 
 
 def bg_correction(BG_temp, BG_ff, BG_diff, BG_lower, BG_upper, sample_temp, sample_ff, sample_diff,
@@ -136,13 +142,14 @@ def bg_correction(BG_temp, BG_ff, BG_diff, BG_lower, BG_upper, sample_temp, samp
     for i, t in enumerate(sample_temp):
         # berform correction, if sample temperature bin is in the background temperature bins
         if t in BG_temp:
+            idx = np.where(np.isclose(BG_temp, t))[0][0]
             # if the difference is smaller than 0, set corrected value to zero
-            if (sample_diff[i] - BG_diff[BG_temp == t]) < 0:
+            if (sample_diff[i] - BG_diff[idx]) < 0:
                 if show_info:
-                	print(f'below zero value in bg correction at temperature {t}')
+                    print(f'below zero value in bg correction at temperature {t}')
                 corrected_diff[i], corrected_lower[i], corrected_upper[i] = 0, 0, 0
             # if frozen fraction of the sample has lower values than bg, set corrected value to zero
-            elif sample_ff[i] < BG_ff[BG_temp == t]:
+            elif sample_ff[i] < BG_ff[idx]:
                 if show_info:
                     print(f'sample ff lower than background at temperature {t}!')
                 corrected_diff[i], corrected_lower[i], corrected_upper[i] = 0, 0, 0
@@ -150,10 +157,9 @@ def bg_correction(BG_temp, BG_ff, BG_diff, BG_lower, BG_upper, sample_temp, samp
             else:
                 if show_info:
                     print(f'Background corrected at temp {t}')
-                    print(sample_diff[i], BG_diff[BG_temp == t])
-                corrected_diff[i] = sample_diff[i] - BG_diff[BG_temp == t][0]
-                corrected_lower[i] = np.sqrt(sample_lower[i]**2 + BG_lower[BG_temp == t]**2)
-                corrected_upper[i] = np.sqrt(sample_upper[i]**2 + BG_upper[BG_temp == t]**2)
+                corrected_diff[i] = sample_diff[i] - BG_diff[idx]
+                corrected_lower[i] = np.sqrt(sample_lower[i]**2 + BG_lower[idx]**2)
+                corrected_upper[i] = np.sqrt(sample_upper[i]**2 + BG_upper[idx]**2)
         # if sample temperatures are lower than minimum background temperature result is 0
         elif t < np.min(BG_temp):
             if show_info:
@@ -161,13 +167,15 @@ def bg_correction(BG_temp, BG_ff, BG_diff, BG_lower, BG_upper, sample_temp, samp
             corrected_diff[i], corrected_lower[i], corrected_upper[i] = 0, 0, 0
         # if sample temperature bin is not in the background temperature bins, differential is unchanged
         else:
+            if show_info:
+                print(f'no background correction needed at temperature {t}')
             corrected_diff[i], corrected_lower[i], corrected_upper[i] = sample_diff[i], sample_lower[i], sample_upper[i]
 
     # return  as confidence levels
     return corrected_diff, corrected_diff - corrected_lower, corrected_diff + corrected_upper
 
 
-def spectra(freezing_temps, X, Y, bin_size, z, background_exp, X_bg=1, depression=0):
+def spectra(freezing_temps, X, Y, bin_size, z, background_exp, depression=0):
     # X is normalisation factor befor background and Y normalisation after ie
     """ calculate spectra to processed data with background correction
     note: all normalisation factors are handled in this function """
@@ -196,7 +204,7 @@ def spectra(freezing_temps, X, Y, bin_size, z, background_exp, X_bg=1, depressio
         
     else:
         # calculate background correction to differential spectrum, normalise background to droplet volume
-        bg_temp, bg_ff, bg_ff_lower, bg_ff_upper, bg_diff, bg_diff_lower, bg_diff_upper = \
+        bg_temp, bg_ff, bg_ff_lower, bg_ff_upper, bg_diff, bg_diff_lower, bg_diff_upper, X_bg = \
             initialize_background(background_exp, bin_size, z)
         # within the input, normalise the bg differential to bg droplet volume
         diff, diff_lower, diff_upper = bg_correction(bg_temp, bg_ff, bg_diff * X_bg,
