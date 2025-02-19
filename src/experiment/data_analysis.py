@@ -32,7 +32,7 @@ def bin_data(freezing_temps, bin_size, z):
     """bin freezing temp data to equal sized temperature intervals, calculate frozen fraction
     and add uncertainty"""
     freezing_temps = np.array(freezing_temps)[1::2] # take every other value (remove indices)
-    droplets = len(freezing_temps) # should always be 96
+    droplets = len(freezing_temps) # number of droplets
     
     # temperature range and bin edges
     min_val = np.floor(freezing_temps.min() / bin_size) * bin_size
@@ -50,6 +50,9 @@ def bin_data(freezing_temps, bin_size, z):
     lower_counts = np.insert(lower_counts, 0, np.round(droplets*lower_ff).astype(int)[0])
     upper_counts = np.diff(np.round(droplets*upper_ff).astype(int))
     upper_counts = np.insert(upper_counts, 0, np.round(droplets*upper_ff).astype(int)[0])
+
+    counts = np.diff(np.round(droplets * ff).astype(int))
+    counts = np.insert(counts, 0, np.floor(droplets * ff).astype(int)[0])
 
     # temp is the upper temperature limit
     ff_data = np.zeros(len(bin_edges), dtype=[('temp', '<f8'), ('count', '<f8'),
@@ -176,7 +179,8 @@ def bg_correction(BG_temp, BG_ff, BG_diff, BG_lower, BG_upper, sample_temp, samp
 
 
 def spectra(freezing_temps, X, Y, bin_size, z, background_exp, depression=0):
-    # X is normalisation factor befor background and Y normalisation after ie
+    # X is normalisation factor before background
+    # and Y normalisation after correction (generally Y is the sampled volume for filter experiments)
     """ calculate spectra to processed data with background correction
     note: all normalisation factors are handled in this function """
     droplets = len(freezing_temps)
@@ -226,16 +230,17 @@ def spectra(freezing_temps, X, Y, bin_size, z, background_exp, depression=0):
                                                         ('K_lower_conf_lvl', '<f8'), ('K_upper_conf_lvl', '<f8')])
 
     spectra_data['temp'] = binned['temp'] - depression
-    
+
+    print('norm, volume', X, Y)
     spectra_data['ff'] = binned['ff']
     spectra_data['ff_lower_conf_lvl'] = binned['ff_lower_conf_lvl']
     spectra_data['ff_upper_conf_lvl'] = binned['ff_upper_conf_lvl']
 
-    spectra_data['k'] = diff / Y
+    spectra_data['k'] = diff * Y
     spectra_data['k_lower_conf_lvl'] = diff_lower * Y
     spectra_data['k_upper_conf_lvl'] = diff_upper * Y
 
-    spectra_data['K'] = cum / Y
+    spectra_data['K'] = cum * Y
     spectra_data['K_lower_conf_lvl'] = cum_lower * Y
     spectra_data['K_upper_conf_lvl'] = cum_upper * Y
     

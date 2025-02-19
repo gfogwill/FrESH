@@ -102,7 +102,7 @@ class ExperimentMetadata:
         self.press = kwargs.get('press', None)
         self.exp_description = kwargs.get('exp_description', None)
         self.run = kwargs.get('run', None)
-        self.template_img = kwargs.get('template_img', 'template_image_2.png')
+        self.template_img = kwargs.get('template_img', 'template_image.png')
         self.rotation = kwargs.get('rotation', cv2.ROTATE_90_CLOCKWISE)
         self.hough_params = kwargs.get('hough_params', {
             "min_distance": 24,
@@ -213,10 +213,12 @@ class FrESHExperiment:
             start_timestamp = datetime.strptime(self.metadata.scan_start_timestamp, "%Y%m%d%H%M%S")
             img_file_list = [file for file in img_file_list if self.is_valid_timestamp(file, start_timestamp, None)]
 
+
         if self.metadata.scan_end_timestamp is not None:
             # Filter out images after end_timestamp
             end_timestamp = datetime.strptime(self.metadata.scan_end_timestamp, "%Y%m%d%H%M%S")
             img_file_list = [file for file in img_file_list if self.is_valid_timestamp(file, None, end_timestamp)]
+
 
 
         return img_file_list
@@ -271,8 +273,9 @@ class FrESHExperiment:
 
         # Concentration per standar L of air
         self.conc_per_L = self.conc_per_drop / v_air
+        print('volume', v_air)
 
-        self.spectra, self.background_corrected = spectra(self.freezing_temps, X, v_air, 0.5, 1.96,
+        self.spectra, self.background_corrected = spectra(self.freezing_temps, X, 1/v_air, 0.5, 1.96,
                                                           self.metadata.background_exp, 0)
 
         self.is_analyzed = True
@@ -282,7 +285,7 @@ class FrESHExperiment:
         if self.metadata.experiment_type in ['Filter', 'Filter Background']:
             nu = self.metadata.dil_factor
             v_wash = self.metadata.v_wash
-            #v_air = self.metadata.air_volume # float(self.metadata.air_volume) # NOTE: afte bg correction!
+            #v_air = self.metadata.air_volume # float(self.metadata.air_volume) # NOTE: after bg correction!
             filter_fraction = float(self.metadata.filter_fraction)
             # Normalization factor to L^-1
             try:
@@ -294,7 +297,7 @@ class FrESHExperiment:
             try:
                 d_filter = self.metadata.filter_diameter # 0.135 m
                 d_punchout = self.metadata.puncher_diameter # 0.001  m
-                filter_fraction = (0.5*d_filter)**2 / (0.5*d_punchout)**2
+                filter_fraction = (0.5*d_punchout)**2 / (0.5*d_filter)**2
                 #X = v_air * filter_fraction
                 X = 1 / filter_fraction
             except TypeError:
@@ -325,7 +328,7 @@ class FrESHExperiment:
             if rotation_option is not None:
                 img = cv2.rotate(img, rotation_option)
 
-            #img = auto_crop(img, self.metadata.template_img)
+            img = auto_crop(img, self.metadata.template_img)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
             res.append(circles.get_grayscales(gray, self.circles_positions))
@@ -334,6 +337,7 @@ class FrESHExperiment:
 
     def detect_circles(self):
         img = cv2.imread(str(self.img_files[0]))
+        print(self.metadata)
 
         if self.metadata.rotation is not None:
             img = cv2.rotate(img, self.metadata.rotation)
@@ -357,7 +361,7 @@ class FrESHExperiment:
             img = cv2.rotate(img, self.metadata.rotation)
 
         if self.metadata.template_img is not None:
-            #img = auto_crop(img, self.metadata.template_img)
+            img = auto_crop(img, self.metadata.template_img)
             pass
 
         if hasattr(self, "circles_positions"):
@@ -418,6 +422,7 @@ class FrESHExperiment:
 
     def load_metadata(self):
         metadata_path = os.path.join(paths.raw_data_path, self.exp_name, "metadata.json")
+        print(metadata_path)
         if os.path.exists(metadata_path):
             if os.path.getsize(metadata_path) == 0:  # Check if file is empty
                 print('file empty')
@@ -449,6 +454,7 @@ class FrESHExperiment:
 
     def validate_and_correct_metadata(self):
         needs_reload = False
+        print('metadata check',self.metadata)
 
         # Check and correct dil_factor
         if isinstance(self.metadata.dil_factor, int) and self.metadata.dil_factor == 1 or self.metadata.dil_factor is None:
@@ -467,11 +473,13 @@ class FrESHExperiment:
 
         # Validate start_time format
         if not self.is_valid_date_format(self.metadata.start_time):
-            needs_reload = True
+            pass
+            #needs_reload = True
 
         # Validate end_time format
         if not self.is_valid_date_format(self.metadata.end_time):
-            needs_reload = True
+            pass
+            #needs_reload = True
 
         # Validate sampled_vol (not present in provided ExperimentMetadata, assumed to be air_volume)
         if not self.is_valid_sampled_vol(self.metadata.air_volume):

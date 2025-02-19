@@ -147,6 +147,9 @@ def add_circles(img, circles):
 
 def get_grayscales(image, circles, mask=True):
     grayscales = []
+    i = 0
+    
+    background_greyscale = image.mean()
 
     for circle in circles:  # [:95]:
         x = circle[0]
@@ -154,6 +157,7 @@ def get_grayscales(image, circles, mask=True):
         r = circle[2] - 5
 
         img = image[y - r:y + r, x - r:x + r]
+        i += 1
 
         if mask:
             # create a mask
@@ -169,8 +173,9 @@ def get_grayscales(image, circles, mask=True):
             background = np.full(img.shape, 255, dtype=np.uint8)
             bk = cv2.bitwise_or(background, background, mask=m)
             img = cv2.bitwise_or(fg, bk)
-
-        grayscales.append(img.mean())
+            
+        circle_greyscale = img.mean()
+        grayscales.append(circle_greyscale - (background_greyscale))
 
     return grayscales
 
@@ -184,7 +189,7 @@ def get_circles(img, min_distance=40, param1=150, param2=10, min_radius=19, max_
                                1,
                                minDist=min_distance,
                                param1=param1,  # + random.randint(-30, 30)
-                               param2=param2,  # + random.randint(-10, 10)
+                               param2=param2,  # + random.randint(-10, 10)§
                                minRadius=min_radius,
                                maxRadius=max_radius
                                )[0]

@@ -104,7 +104,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.box_change_temp.activated.connect(self.temp_combobox_activated)
         
         self.button_change_indx = self.findChild(QtWidgets.QPushButton, 'change_button')
-        self.button_change_indx.clicked.connect(self.change_freezing_indx)
+        #self.button_change_indx.clicked.connect(self.change_freezing_indx) # self.analyze_exsisting_freezing_idx
+        self.button_change_indx.clicked.connect(self.analyze_exsisting_freezing_idx)
         
         # Add page for punched filter metadata 
         self.stackedWidget = self.findChild(QtWidgets.QStackedWidget, "stackedWidget")  
@@ -399,8 +400,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
     def analyze_exsisting_freezing_idx(self):
         # read temperatures form file and loop through them and use change_freezing_indx
-        correct_file = os.path.join(paths.etc_path / 'ODEN20080804_droplet_corrections.csv')
-        data = np.genfromtxt(correct_file, delimiter=',')
+        correct_file = os.path.join(paths.etc_path / 'ODEN_200108bg.csv')
+        data = np.genfromtxt(correct_file, delimiter=',',skip_header=1)
+        print(data)
         for i in range(len(data[:,0])):
             selected_droplet = int(data[:,0][i])
             target_temp = np.float64(data[:,1][i])
@@ -408,8 +410,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             self.experiment.freezing_idxs[selected_droplet] = index
         self.experiment.run_analysis(self.experiment.freezing_idxs)
         self.update_img()
-
-
 
     def droplet_combobox_activated(self):
         self.selected_droplet= int(self.box_selected_droplet.currentText())
@@ -539,6 +539,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         
 
         img = self.experiment.get_img(frame, self.selected_droplet)
+        #img = cv2.resize(img, (img.shape[1] * 2, img.shape[0] * 2), interpolation=cv2.INTER_CUBIC)
 
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
@@ -581,9 +582,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.experiment.detect_circles()
 
         img = self.experiment.get_img(0)
+        #img = cv2.resize(img, (img.shape[1] * 2, img.shape[0] * 2), interpolation=cv2.INTER_CUBIC)
 
         qt_img = convert_cv_qt(img)
-
         self.image_frame.setPixmap(qt_img)
 
         # self.run_analysis()
