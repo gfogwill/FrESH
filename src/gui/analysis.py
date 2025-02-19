@@ -104,8 +104,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.box_change_temp.activated.connect(self.temp_combobox_activated)
         
         self.button_change_indx = self.findChild(QtWidgets.QPushButton, 'change_button')
-        #self.button_change_indx.clicked.connect(self.change_freezing_indx) # self.analyze_exsisting_freezing_idx
-        self.button_change_indx.clicked.connect(self.analyze_exsisting_freezing_idx)
+        self.button_change_indx.clicked.connect(self.change_freezing_indx) # self.analyze_exsisting_freezing_idx
+        #self.button_change_indx.clicked.connect(self.analyze_exsisting_freezing_idx)
         
         # Add page for punched filter metadata 
         self.stackedWidget = self.findChild(QtWidgets.QStackedWidget, "stackedWidget")  
