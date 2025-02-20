@@ -32,41 +32,47 @@ def rotate_image(image, angle):
 #     return rotated_img
 
 
-def auto_crop(img, template_img_path):
-    """
-    Automatically crop an image based on template matching.
-
-    Args:
-        img: Source image (numpy array)
-        template_img_path: Path to the template image
-
-    Returns:
-        numpy.ndarray: Cropped image matching the template dimensions
-    """
+def auto_crop(img, template_img_path, rotation_angles=[0]):
     # Load the template image
     template_image = cv2.imread(str(paths.etc_path / template_img_path))
 
     # Get the height and width of the template image
     template_height, template_width = template_image.shape[:2]
 
-    # Check if the source image is larger than the template
-    if img.shape[0] < template_height or img.shape[1] < template_width:
-        logging.warning("Source image is smaller than template. Returning the original image.")
+    # Initialize variables to keep track of the best match and angle
+    best_match = None
+
+    for angle in rotation_angles:
+        rotated_img = rotate_image(img, angle)
+
+        # Check if the rotated image is larger than the template
+        if rotated_img.shape[0] >= template_height and rotated_img.shape[1] >= template_width:
+            match_result = cv2.matchTemplate(rotated_img, template_image, cv2.TM_CCOEFF_NORMED)
+            _, max_val, _, max_loc = cv2.minMaxLoc(match_result)
+
+            if best_match is None or max_val > best_match[0]:
+                best_match = (max_val, max_loc, angle)
+
+    # If no valid match is found, return the original image
+    if best_match is None:
+        print("No valid match found. Returning the original image.")
         return img
 
-    # Perform template matching
-    match_result = cv2.matchTemplate(img, template_image, cv2.TM_CCOEFF_NORMED)
-    _, max_val, _, max_loc = cv2.minMaxLoc(match_result)
+    # Get the location of the best match
+    _, max_loc, best_angle = best_match
 
-    # Calculate the cropping coordinates
+    # Calculate the top-left and bottom-right coordinates of the ROI
     top_left = max_loc
-    bottom_right = (
-        min(top_left[0] + template_width, img.shape[1]),
-        min(top_left[1] + template_height, img.shape[0])
-    )
+    bottom_right = (top_left[0] + template_width, top_left[1] + template_height)
+
+    # Ensure that the cropping coordinates are within the bounds of the image
+    bottom_right = (min(bottom_right[0], img.shape[1]), min(bottom_right[1], img.shape[0]))
 
     # Crop the image
     cropped_img = img[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
+
+    # Rotate the cropped image back to the best angle
+    cropped_img = rotate_image(cropped_img, -best_angle)
 
     return cropped_img
 

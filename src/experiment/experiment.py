@@ -343,8 +343,8 @@ class FrESHExperiment:
             img = cv2.rotate(img, self.metadata.rotation)
 
         if self.metadata.template_img is not None:
-            pass
-            #img = auto_crop(img, self.metadata.template_img)
+            # pass
+            img = auto_crop(img, self.metadata.template_img)
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -623,7 +623,7 @@ def process_sensors_data(exp_name, freezing_idxs, freezing_times):
                          dtype=None,
                          names=True,
                          converters={0: str2date})
-    data = list(takewhile(lambda x: x['BT'] > -31, data))
+    data = list(takewhile(lambda x: x['BT'] > -45, data))
 
     t = []
     ff = []
@@ -647,7 +647,7 @@ def calculate_frame_temperatures(img_files, exp_name):
                          dtype=None,
                          names=True,
                          converters={0: str2date})
-    data = list(takewhile(lambda x: x['BT'] > -31, data))
+    data = list(takewhile(lambda x: x['BT'] > -45, data))
     t = []
     for time in times:
         matching_data = next((line[2] for line in data if line['datetime'] == time), None)
@@ -668,7 +668,7 @@ def calculate_freezing_temps(freezing_times, exp_name):
                          dtype=None,
                          names=True,
                          converters={0: str2date})
-    data = list(takewhile(lambda x: x['SP'] > -37, data))
+    data = list(takewhile(lambda x: x['SP'] > -45, data))
     t = []
     for index, time in enumerate(freezing_times):
         matching_data = next((line[2] for line in data if line['datetime'] == time), None)
