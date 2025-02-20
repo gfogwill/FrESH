@@ -22,6 +22,15 @@ def rotate_image(image, angle):
 
     return rotated
 
+# def rotate_image(image, angle):
+#
+#     # Rotate the image by the specified angle
+#     center = tuple(np.array(image.shape[1::-1]) / 2)
+#     rot_mat = cv2.getRotationMatrix2D(center, angle, 1.0)
+#     rotated_img = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+#
+#     return rotated_img
+
 
 def auto_crop(img, template_img_path, rotation_angles=[0]):
     # Load the template image
@@ -68,14 +77,7 @@ def auto_crop(img, template_img_path, rotation_angles=[0]):
     return cropped_img
 
 
-def rotate_image(image, angle):
 
-    # Rotate the image by the specified angle
-    center = tuple(np.array(image.shape[1::-1]) / 2)
-    rot_mat = cv2.getRotationMatrix2D(center, angle, 1.0)
-    rotated_img = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
-
-    return rotated_img
 
 
 def sort_circles(circles, n_cols):
