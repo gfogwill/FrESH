@@ -17,8 +17,8 @@ def rotate_image(image, angle):
     center = (w // 2, h // 2)
 
     # Perform the rotation
-    M = cv2.getRotationMatrix2D(center, angle, 1.0)
-    rotated = cv2.warpAffine(image, M, (w, h))
+    m = cv2.getRotationMatrix2D(center, angle, 1.0)
+    rotated = cv2.warpAffine(image, m, (w, h))
 
     return rotated
 
@@ -32,8 +32,10 @@ def rotate_image(image, angle):
 #     return rotated_img
 
 
-def auto_crop(img, template_img_path, rotation_angles=[0]):
+def auto_crop(img, template_img_path, rotation_angles=None):
     # Load the template image
+    if rotation_angles is None:
+        rotation_angles = [0]
     template_image = cv2.imread(str(paths.etc_path / template_img_path))
 
     # Get the height and width of the template image
@@ -75,9 +77,6 @@ def auto_crop(img, template_img_path, rotation_angles=[0]):
     cropped_img = rotate_image(cropped_img, -best_angle)
 
     return cropped_img
-
-
-
 
 
 def sort_circles(circles, n_cols):
@@ -177,7 +176,7 @@ def get_grayscales(image, circles, mask=True):
             img = cv2.bitwise_or(fg, bk)
             
         circle_greyscale = img.mean()
-        grayscales.append(circle_greyscale - (background_greyscale))
+        grayscales.append(circle_greyscale - background_greyscale)
 
     return grayscales
 
@@ -185,7 +184,7 @@ def get_grayscales(image, circles, mask=True):
 def get_circles(img, min_distance=40, param1=150, param2=10, min_radius=19, max_radius=22, sort=True, plot=True):
     # https://docs.opencv.org/4.x/dd/d1a/group__imgproc__feature.html#ga47849c3be0d0406ad3ca45db65a25d2d
 
-    # while n_circs != 96:
+    # while n_circles != 96:
     circles = cv2.HoughCircles(img,
                                cv2.HOUGH_GRADIENT,
                                1,
