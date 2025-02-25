@@ -522,6 +522,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
     def show_metadata_alert(self):
         # Show an alert to inform the user that metadata has been modified
+        if self.exp_name is None:
+            return
         self.metadata_modified = True
         self.setWindowTitle(self.exp_name + "*")
 
