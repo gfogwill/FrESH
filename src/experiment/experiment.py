@@ -176,23 +176,89 @@ class FrESHExperiment:
         self.exp_name = experiment_name
         self.metadata = None
         self.bg_metadata = None
-
         self.is_analyzed = False
         self.background_corrected = False
         self.already_reloaded = False  # Flag to prevent infinite loop
         self.t = []
-        experiment_path = paths.raw_data_path / experiment_name
 
-        # create experiment directory if it doesn't exist
+        experiment_path = paths.raw_data_path / experiment_name
+        processed_path = paths.processed_data_path / experiment_name
+
+        # Create experiment directory if it doesn't exist
         if not os.path.exists(experiment_path):
             logging.info(f"Creating new experiment: {experiment_path}")
             os.mkdir(experiment_path)
             os.mkdir(experiment_path / 'pics')
-
         else:
             logging.info(f"Experiment found! Loading experiment: {experiment_path}")
             self.load_metadata()
-            self.img_files = self.get_experiment_image_list()
+
+            # Check if experiment has already been processed
+            if os.path.exists(processed_path) and os.path.exists(processed_path / 'report.csv'):
+                logging.info(f"Processed data found for experiment: {experiment_name}")
+                self.is_analyzed = True
+
+                # Try to load processed data
+                try:
+                    processed_data = self.get_processed_data()
+                    # Extract freezing temperatures and other data if needed
+                    if 'freezing_temp' in processed_data.dtype.names:
+                        self.freezing_temps = processed_data['freezing_temp']
+                    if 'ff' in processed_data.dtype.names:
+                        self.ff = processed_data['ff']
+                    logging.info(f"Successfully loaded processed data for {experiment_name}")
+                except Exception as e:
+                    logging.warning(f"Error loading processed data: {e}")
+                    self.is_analyzed = False
+
+        self.img_files = self.get_experiment_image_list()
+
+        # Validate metadata completeness
+        if self.metadata:
+            self.validate_metadata_completeness()
+
+    def validate_metadata_completeness(self):
+        """Check if all required metadata fields are present and valid"""
+        required_fields = ['label', 'start_time', 'end_time', 'experiment_type']
+
+        if not self.metadata:
+            logging.warning(f"No metadata found for experiment: {self.exp_name}")
+            return False
+
+        missing_fields = [field for field in required_fields
+                          if not hasattr(self.metadata, field) or getattr(self.metadata, field) is None]
+
+        if missing_fields:
+            logging.warning(f"Missing required metadata fields: {', '.join(missing_fields)}")
+            return False
+
+        # Check numerical fields
+        numerical_fields = ['air_volume', 'v_drop', 'v_wash', 'dil_factor', 'filter_fraction']
+        for field in numerical_fields:
+            if hasattr(self.metadata, field):
+                value = getattr(self.metadata, field)
+                if value is None or (isinstance(value, (int, float)) and value <= 0):
+                    logging.warning(f"Invalid value for {field}: {value}")
+                    return False
+
+        return True
+
+    def is_ready_for_analysis(self):
+        """Check if the experiment has all required data for analysis"""
+        if not self.metadata:
+            return False, "Missing metadata"
+
+        if not self.validate_metadata_completeness():
+            return False, "Incomplete metadata"
+
+        if not self.img_files or len(self.img_files) == 0:
+            return False, "No images found"
+
+        sensors_path = paths.raw_data_path / self.exp_name / 'sensors_data.csv'
+        if not os.path.exists(sensors_path):
+            return False, "Missing sensors data"
+
+        return True, "Ready for analysis"
 
     def get_experiment_image_list(self):
         img_dir = paths.raw_data_path / self.exp_name / 'pics'
@@ -494,13 +560,13 @@ class FrESHExperiment:
         #self.metadata.scan_start_timestamp = None
         #self.metadata.scan_end_timestamp = None
 
-
     def is_valid_date_format(self, date_str):
+        if date_str is None:
+            return False
         try:
             datetime.strptime(date_str, "%Y-%m-%d %H:%M")
             return True
         except ValueError:
-            return False
 
     def is_valid_sampled_vol(self, sampled_vol):
         if sampled_vol is None:
