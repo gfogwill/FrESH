@@ -431,7 +431,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
     def filter_background_folders(folder_list):
         folder_list = os.listdir(paths.processed_data_path)
-        valid_values = {"Water background", "Filter background", "Punched filter background"}
+        valid_values = {"Water background", "Filter background", "Punched filter background", "Field backgrouund"}
         filtered_folders = []
 
         for folder in folder_list:
@@ -478,8 +478,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.experiment.metadata = self.load_metadata_from_gui()
         # for now, don't save the scan time edits to avoid errors in loading back the metadata
-        self.experiment.metadata.scan_start_timestamp = None
-        self.experiment.metadata.scan_end_timestamp = None
+        #self.experiment.metadata.scan_start_timestamp = None
+        #self.experiment.metadata.scan_end_timestamp = None
 
         self.experiment.save_metadata_to_file()
 
@@ -587,7 +587,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
 
-        # self.run_analysis()
+        self.run_analysis()
         self.update_img()
         self.hide_metadata_alert()
 
@@ -600,5 +600,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                 self.box_change_temp.addItems([str(i) for i in self.frame_t])
                 self.get_background()
                 #self.update_ff_plot()
+
 
 
