@@ -2,7 +2,7 @@ import os
 import json
 import cv2
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import takewhile
 
 import numpy as np
@@ -180,6 +180,7 @@ class FrESHExperiment:
         self.background_corrected = False
         self.already_reloaded = False  # Flag to prevent infinite loop
         self.t = []
+        self.spectra = None
 
         experiment_path = paths.raw_data_path / experiment_name
         processed_path = paths.processed_data_path / experiment_name
@@ -211,6 +212,7 @@ class FrESHExperiment:
                     logging.warning(f"Error loading processed data: {e}")
                     self.is_analyzed = False
 
+        self.validate_and_correct_metadata()
         self.img_files = self.get_experiment_image_list()
 
         # Validate metadata completeness
@@ -331,8 +333,11 @@ class FrESHExperiment:
         # X is normalisation applied before bg correction, sampled volume correction is applied after
 
         self.calculate_normalisation_factor()
+
         X = self.metadata.normalisation_factor
         v_air = np.float64(self.metadata.air_volume)
+
+        #print(f"normalization: {X}")
 
         # Concentration per sample
         self.conc_per_drop = - np.log(1 - np.array(self.ff)) * X # / v_drop is already calculated
@@ -348,7 +353,7 @@ class FrESHExperiment:
 
     def calculate_normalisation_factor(self):
         v_drop = self.metadata.v_drop
-        if self.metadata.experiment_type in ['Filter', 'Filter Background']:
+        if self.metadata.experiment_type.lower()  in ['filter', 'filter Background']:
             nu = self.metadata.dil_factor
             v_wash = self.metadata.v_wash
             #v_air = self.metadata.air_volume # float(self.metadata.air_volume) # NOTE: after bg correction!
@@ -483,12 +488,12 @@ class FrESHExperiment:
                         metadata_dict[field] = float(metadata_dict[field])
                     except(ValueError):
                         metadata_dict[field] = 1.0
-            print('\n Check metadata to be saved to a file', metadata_dict, '\n')
+            #print('\n Check metadata to be saved to a file', metadata_dict, '\n')
             json.dump(metadata_dict, metadata_file, indent=4)
 
     def load_metadata(self):
         metadata_path = os.path.join(paths.raw_data_path, self.exp_name, "metadata.json")
-        print(metadata_path)
+        #print(metadata_path)
         if os.path.exists(metadata_path):
             if os.path.getsize(metadata_path) == 0:  # Check if file is empty
                 print('file empty')
@@ -517,56 +522,151 @@ class FrESHExperiment:
         else:
             return None
 
-
     def validate_and_correct_metadata(self):
-        needs_reload = False
-        print('metadata check',self.metadata)
+        # Fix station code if needed
+        if self.metadata.station == "JFK" and hasattr(self.metadata, 'label') and self.metadata.label:
+            station_code = self.metadata.label[0:3]
+            if station_code in stations_dict:
+                self.metadata.station = station_code
 
-        # Check and correct dil_factor
-        if isinstance(self.metadata.dil_factor, int) and self.metadata.dil_factor == 1 or self.metadata.dil_factor is None:
+        # Set default values for numerical fields
+        if self.metadata.dil_factor is None or (
+                isinstance(self.metadata.dil_factor, int) and self.metadata.dil_factor == 1):
             self.metadata.dil_factor = 1.0
 
-        # Check and correct filter_fraction
-        if isinstance(self.metadata.filter_fraction, int) and self.metadata.filter_fraction == 1 or self.metadata.filter_fraction is None:
+        if self.metadata.filter_fraction is None or (
+                isinstance(self.metadata.filter_fraction, int) and self.metadata.filter_fraction == 1):
             self.metadata.filter_fraction = 1.0
 
+        if self.metadata.v_wash is None:
+            self.metadata.v_wash = 0.01
+
+        # Try to load missing critical data from CSV
+        if self.metadata.air_volume is None or self.metadata.start_time is None or self.metadata.end_time is None:
+            self._load_metadata_from_csv()
+
+        # Set defaults for remaining missing fields
         if self.metadata.air_volume is None:
-            #needs_reload = True
             self.metadata.air_volume = 1.0
 
         if self.metadata.background_exp is None:
             self.metadata.background_exp = 'None'
 
-        # Validate start_time format
-        if not self.is_valid_date_format(self.metadata.start_time):
-            pass
-            #needs_reload = True
+        # Set default dates if still missing
+        if self.metadata.start_time is None or not self.is_valid_date_format(self.metadata.start_time):
+            if hasattr(self.metadata, 'label') and self.metadata.label and len(self.metadata.label) >= 11:
+                try:
+                    date_str = self.metadata.label[3:11]  # Extract YYYYMMDD
+                    date_obj = datetime.strptime(date_str, "%Y%m%d")
+                    self.metadata.start_time = date_obj.strftime("%Y-%m-%d") + " 08:00"
+                    logging.warning(f"Using default start time from label: {self.metadata.start_time}")
+                except ValueError:
+                    logging.error(f"Cannot set default start date - invalid format in label: {self.metadata.label}")
 
-        # Validate end_time format
-        if not self.is_valid_date_format(self.metadata.end_time):
-            pass
-            #needs_reload = True
+        if self.metadata.end_time is None or not self.is_valid_date_format(self.metadata.end_time):
+            if hasattr(self.metadata, 'label') and self.metadata.label and len(self.metadata.label) >= 11:
+                try:
+                    date_str = self.metadata.label[3:11]  # Extract YYYYMMDD
+                    date_obj = datetime.strptime(date_str, "%Y%m%d") + timedelta(days=1)
+                    self.metadata.end_time = date_obj.strftime("%Y-%m-%d") + " 08:00"
+                    logging.warning(f"Using default end time from label: {self.metadata.end_time}")
+                except ValueError:
+                    logging.error(f"Cannot set default end date - invalid format in label: {self.metadata.label}")
 
-        # Validate sampled_vol (not present in provided ExperimentMetadata, assumed to be air_volume)
-        if not self.is_valid_sampled_vol(self.metadata.air_volume):
-            #needs_reload = True
-            self.metadata_air_volume = 1.0
+        # Save the updated metadata
+        self.save_metadata_to_file()
 
+    def _load_metadata_from_csv(self):
+        """Helper method to load metadata from CSV files"""
+        if not hasattr(self.metadata, 'label') or not self.metadata.label:
+            return
 
-        if needs_reload and not self.already_reloaded:
-            self.already_reloaded = True  # Set flag to avoid reloading again
-            self.load_metadata_from_raw_file(self.exp_name)
+        station_code = self.metadata.label[0:3]
+        date_str = self.metadata.label[3:]
 
-        #self.metadata.scan_start_timestamp = None
-        #self.metadata.scan_end_timestamp = None
+        if station_code not in stations_dict:
+            return
+
+        station_mapping = stations_dict[station_code]['station_mapping']
+        csv_path = os.path.join(paths.external_data_path, 'sampler_raw_data', station_mapping)
+
+        if not os.path.exists(csv_path):
+            logging.error(f"CSV path not found: {csv_path}")
+            return
+
+        try:
+            date_obj = datetime.strptime(date_str, "%Y%m%d")
+            formatted_date = date_obj.strftime("%d.%m.%y")
+
+            csv_files = [f for f in os.listdir(csv_path) if f.endswith('.CSV')]
+
+            for csv_file in csv_files:
+                full_path = os.path.join(csv_path, csv_file)
+                logging.info(f"Checking CSV file: {full_path}")
+
+                with open(full_path, 'r') as f:
+                    lines = f.readlines()
+
+                    for line in lines[1:]:  # Skip header
+                        if not line.strip():
+                            continue
+
+                        fields = line.strip().split(';')
+                        if len(fields) < 9:
+                            continue
+
+                        # Check if date matches (accounting for different formats)
+                        try:
+                            csv_date_str = fields[2].strip()
+                            csv_date = datetime.strptime(csv_date_str,
+                                                         "%d.%m.%Y" if "." in csv_date_str else "%d.%m.%y")
+
+                            if date_obj.day == csv_date.day and date_obj.month == csv_date.month:
+                                logging.info(f"Found matching data for {date_str} in {csv_file}")
+
+                                # Update metadata
+                                date_format = "%d.%m.%Y" if "." in fields[2] else "%d.%m.%y"
+
+                                if self.metadata.start_time is None:
+                                    start_datetime = datetime.strptime(f"{fields[2]} {fields[3]}",
+                                                                       f"{date_format} %H:%M")
+                                    self.metadata.start_time = start_datetime.strftime("%Y-%m-%d %H:%M")
+
+                                if self.metadata.end_time is None:
+                                    end_datetime = datetime.strptime(f"{fields[4]} {fields[5]}", f"{date_format} %H:%M")
+                                    self.metadata.end_time = end_datetime.strftime("%Y-%m-%d %H:%M")
+
+                                if self.metadata.air_volume is None and len(fields) > 8:
+                                    self.metadata.air_volume = float(fields[8].strip())
+
+                                if self.metadata.flow is None and len(fields) > 9:
+                                    self.metadata.flow = float(fields[9].strip())
+
+                                if self.metadata.temp is None and len(fields) > 10:
+                                    self.metadata.temp = float(fields[10].strip())
+
+                                if self.metadata.press is None and len(fields) > 11:
+                                    self.metadata.press = float(fields[11].strip())
+
+                                if self.metadata.filter_position is None and len(fields) > 7:
+                                    self.metadata.filter_position = int(fields[7].strip())
+
+                                return  # Exit after finding matching data
+                        except (ValueError, IndexError) as e:
+                            logging.debug(f"Error parsing CSV line: {e}")
+                            continue
+        except Exception as e:
+            logging.error(f"Error loading metadata from CSV: {e}")
 
     def is_valid_date_format(self, date_str):
+
         if date_str is None:
             return False
         try:
             datetime.strptime(date_str, "%Y-%m-%d %H:%M")
             return True
         except ValueError:
+            return False
 
     def is_valid_sampled_vol(self, sampled_vol):
         if sampled_vol is None:
@@ -578,27 +678,72 @@ class FrESHExperiment:
             return False
 
     def load_metadata_from_raw_file(self, exp_name):
-        # Implement your method to reload metadata from the raw file
-        logging.warning("Loading metadata from raw file!")
+        logging.info(f"Loading metadata from raw file for {exp_name}")
 
-        # Extract label from exp_name, assuming it's part of exp_name
-        label = self.extract_label_from_exp_name(exp_name)
-        if not label:
-            logging.error(f"Unable to extract label from experiment name: {exp_name}")
+        # Extract station code and date from experiment name
+        parts = exp_name.split('_')
+        if len(parts) < 2:
+            logging.error(f"Invalid experiment name format: {exp_name}")
             return None
 
-        metadata = self._retrieve_metadata(label)
-        self.metadata = metadata
-        self.validate_and_correct_metadata()
+        label = parts[1]
+        if len(label) < 11:  # Should be at least "UTO20240619"
+            logging.error(f"Invalid label format: {label}")
+            return None
 
-        if metadata:
-            self.metadata = metadata
-            self.validate_and_correct_metadata()
-            #self.metadata.scan_start_timestamp = None
-            #self.metadata.scan_end_timestamp = None
-            return self.metadata
-        else:
-            logging.error("Unable lo load metadata")
+        station_code = label[0:3]
+        date_str = label[3:]
+
+        # Get station mapping
+        station = stations_dict.get(station_code)
+        if not station or not station['station_mapping']:
+            logging.error(f"Station mapping not found for {station_code}")
+            return None
+
+        # Find matching data in CSV
+        try:
+            date = datetime.strptime(date_str, "%Y%m%d")
+            directory_path = os.path.join(paths.external_data_path, 'sampler_raw_data', station['station_mapping'])
+
+            if not os.path.exists(directory_path):
+                logging.error(f"Directory not found: {directory_path}")
+                return None
+
+            # Look for the most recent CSV file
+            csv_files = [f for f in os.listdir(directory_path) if f.endswith('.CSV')]
+            if not csv_files:
+                logging.error(f"No CSV files found in {directory_path}")
+                return None
+
+            # Sort by modification time (newest first)
+            csv_files.sort(key=lambda x: os.path.getmtime(os.path.join(directory_path, x)), reverse=True)
+
+            # Format date for comparison with CSV
+            formatted_date = date.strftime("%d.%m.%y")
+
+            # Try each CSV file
+            for csv_file in csv_files:
+                file_path = os.path.join(directory_path, csv_file)
+                with open(file_path, 'r') as file:
+                    lines = file.readlines()
+
+                    # Skip header
+                    for line in lines[1:]:
+                        fields = line.strip().split(';')
+                        if len(fields) >= 6:  # Ensure we have enough fields
+                            # Check if this line matches our date
+                            if fields[2].strip() == formatted_date:
+                                # Create metadata from this line
+                                metadata = self._create_experiment_metadata(fields, label, "Filter")
+                                self.metadata = metadata
+                                self.save_metadata_to_file()
+                                return metadata
+
+            logging.warning(f"No matching data found for {label} in any CSV file")
+            return None
+
+        except Exception as e:
+            logging.error(f"Error loading metadata from CSV: {str(e)}")
             return None
 
     def extract_label_from_exp_name(self, exp_name):
