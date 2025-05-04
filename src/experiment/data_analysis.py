@@ -231,7 +231,7 @@ def spectra(freezing_temps, X, Y, bin_size, z, background_exp, depression=0):
 
     spectra_data['temp'] = binned['temp'] - depression
 
-    print('norm, volume', X, Y)
+    # print('norm, volume', X, Y)
     spectra_data['ff'] = binned['ff']
     spectra_data['ff_lower_conf_lvl'] = binned['ff_lower_conf_lvl']
     spectra_data['ff_upper_conf_lvl'] = binned['ff_upper_conf_lvl']
@@ -244,7 +244,7 @@ def spectra(freezing_temps, X, Y, bin_size, z, background_exp, depression=0):
     spectra_data['K_lower_conf_lvl'] = cum_lower * Y
     spectra_data['K_upper_conf_lvl'] = cum_upper * Y
     
-    print('BG analysis completed', bg_analysis)
+    # print('BG analysis completed', bg_analysis)
 
     return spectra_data, bg_analysis
 
