@@ -7,6 +7,7 @@ from itertools import takewhile
 
 import numpy as np
 import yaml
+import csv
 import logging
 
 from src import paths
@@ -344,12 +345,57 @@ class FrESHExperiment:
 
         # Concentration per standar L of air
         self.conc_per_L = self.conc_per_drop / v_air
-        print('volume', v_air)
+        # print('volume', v_air)
 
         self.spectra, self.background_corrected = spectra(self.freezing_temps, X, 1/v_air, 0.5, 1.96,
                                                           self.metadata.background_exp, 0)
 
         self.is_analyzed = True
+        self.save_analysis_results()
+
+    def save_analysis_results(self):
+        """Save analysis results to processed and interim directories"""
+        if not self.is_analyzed:
+            logging.warning(f"Cannot save results for {self.exp_name} - experiment not analyzed yet")
+            return False
+
+        # Create directories if they don't exist
+        interim_path = paths.interim_data_path / self.exp_name
+        processed_path = paths.processed_data_path / self.exp_name
+        interim_path.mkdir(parents=True, exist_ok=True)
+        processed_path.mkdir(parents=True, exist_ok=True)
+
+        # Save report.csv
+        with open(processed_path / 'report.csv', 'w') as fo:
+            fo.write(f'index,temp,ff,conc_per_L,conc_per_drop\n')
+            for i in range(len(self.t)):
+                fo.write(f'{i},{self.t[i]},{self.ff[i]},{self.conc_per_L[i]},{self.conc_per_drop[i]}\n')
+
+        # Save spectra.csv
+        with open(processed_path / 'spectra.csv', 'w') as fo:
+            fo.write(f'temp,ff,ff_lower_conf_lvl,ff_upper_conf_lvl,k,k_lower_conf_lvl,')
+            fo.write(f'k_upper_conf_lvl,K,K_lower_conf_lvl,K_upper_conf_lvl,{self.metadata.units}\n')
+
+            for i in range(len(self.spectra)):
+                fo.write(f'{self.spectra["temp"][i]},')
+                fo.write(f'{self.spectra["ff"][i]},')
+                fo.write(f'{self.spectra["ff_lower_conf_lvl"][i]},')
+                fo.write(f'{self.spectra["ff_upper_conf_lvl"][i]},')
+                fo.write(f'{self.spectra["k"][i]},')
+                fo.write(f'{self.spectra["k_lower_conf_lvl"][i]},')
+                fo.write(f'{self.spectra["k_upper_conf_lvl"][i]},')
+                fo.write(f'{self.spectra["K"][i]},')
+                fo.write(f'{self.spectra["K_lower_conf_lvl"][i]},')
+                fo.write(f'{self.spectra["K_upper_conf_lvl"][i]}\n')
+
+        # Save freezing_temps.csv
+        with open(interim_path / 'freezing_temps.csv', 'w', newline='') as csv_file:
+            csv_writer = csv.writer(csv_file)
+            csv_writer.writerow(['Index', 'Temperature'])
+            csv_writer.writerows(zip(*[iter(self.freezing_temps)] * 2))
+
+        return True
+
 
     def calculate_normalisation_factor(self):
         v_drop = self.metadata.v_drop
@@ -408,7 +454,7 @@ class FrESHExperiment:
 
     def detect_circles(self):
         img = cv2.imread(str(self.img_files[0]))
-        print(self.metadata)
+        #print(self.metadata)
 
         if self.metadata.rotation is not None:
             img = cv2.rotate(img, self.metadata.rotation)
@@ -832,44 +878,38 @@ def read_sensors_data(file_path):
         header_line = f.readline().strip()
         first_data_line = f.readline().strip()
 
+    # Handle missing column name for datetime
+    if header_line.startswith(','):
+        header_line = 'datetime' + header_line
+
     header = header_line.split(',')
     data_columns = first_data_line.split(',')
 
     # Convert string to datetime
     str2date = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
 
-    # Check if we have more data columns than header columns
-    if len(data_columns) > len(header):
-        # Create appropriate column names
-        if 'T1' not in header:
-            # Assuming the missing column is T1
-            column_names = ['datetime', 'SP', 'BT', 'T1', 'RTD0']
-        else:
-            # Add generic names for extra columns
-            column_names = header + [f'Column{i}' for i in range(len(header), len(data_columns))]
-
+    try:
+        # Try to load with explicit names
         data = np.genfromtxt(file_path,
                              delimiter=',',
                              dtype=None,
-                             names=column_names,
+                             names=header,
                              encoding=None,
                              skip_header=1,
                              converters={0: str2date})
-    else:
-        # Check if the last column has a name
-        if header[-1].strip():
-            # Normal case - header is complete
-            data = np.genfromtxt(file_path,
-                                 delimiter=',',
-                                 dtype=None,
-                                 names=True,
-                                 encoding=None,
-                                 converters={0: str2date})
-        else:
-            # Header is missing the last column name - provide explicit names
-            valid_headers = [h for h in header if h.strip()]
-            column_names = valid_headers + ['RTD0']  # Assuming 'RTD0' is the missing name
 
+        # Handle the case where only one row is returned
+        if isinstance(data, np.void):
+            data = np.array([data])
+
+        return data
+    except Exception as e:
+        logging.warning(f"Error reading sensor data with standard approach: {e}")
+
+        # Fallback to explicit column names
+        column_names = ['datetime', 'SP', 'BT', 'T1', 'RTD0']
+
+        try:
             data = np.genfromtxt(file_path,
                                  delimiter=',',
                                  dtype=None,
@@ -878,11 +918,16 @@ def read_sensors_data(file_path):
                                  skip_header=1,
                                  converters={0: str2date})
 
-    # Handle the case where only one row is returned
-    if isinstance(data, np.void):
-        data = np.array([data])
+            # Handle the case where only one row is returned
+            if isinstance(data, np.void):
+                data = np.array([data])
 
-    return data
+            return data
+        except Exception as e:
+            logging.error(f"Failed to read sensors data with fallback approach: {e}")
+            # Return minimal valid data structure
+            dtype = [('datetime', 'O'), ('SP', '<f8'), ('BT', '<f8'), ('T1', '<f8'), ('RTD0', '<f8')]
+            return np.array([(datetime.now(), 0.0, 0.0, 0.0, 0.0)], dtype=dtype)
 
 
 def process_sensors_data(exp_name, freezing_idxs, freezing_times):
