@@ -343,8 +343,8 @@ class FrESHExperiment:
             img = cv2.rotate(img, self.metadata.rotation)
 
         if self.metadata.template_img is not None:
-            pass
-            #img = auto_crop(img, self.metadata.template_img)
+            # pass
+            img = auto_crop(img, self.metadata.template_img)
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -554,7 +554,7 @@ class FrESHExperiment:
 
         for root, dirs, files in os.walk(directory_path):
             for file_name in files:
-                if file_name == "SUM.CSV":
+                if file_name.endswith(".CSV"):  # == "SUM.CSV":
                     sum_path = os.path.join(root, file_name)
                     with open(sum_path, "r") as file:
                         lines = file.readlines()
@@ -615,46 +615,95 @@ class FrESHExperiment:
             print(f"Unsupported export format: {export_format}")
 
 
-def process_sensors_data(exp_name, freezing_idxs, freezing_times):
-    # function to process the sensors data and return the t and ff arrays
+def read_sensors_data(file_path):
+    # First, check the file structure
+    with open(file_path, 'r') as f:
+        header_line = f.readline().strip()
+        first_data_line = f.readline().strip()
+
+    header = header_line.split(',')
+    data_columns = first_data_line.split(',')
+
+    # Convert string to datetime
     str2date = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
-    data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
-                         delimiter=',',
-                         dtype=None,
-                         names=True,
-                         converters={0: str2date})
-    data = list(takewhile(lambda x: x['BT'] > -31, data))
+
+    # Check if we have more data columns than header columns
+    if len(data_columns) > len(header):
+        # Create appropriate column names
+        if 'T1' not in header:
+            # Assuming the missing column is T1
+            column_names = ['datetime', 'SP', 'BT', 'T1', 'RTD0']
+        else:
+            # Add generic names for extra columns
+            column_names = header + [f'Column{i}' for i in range(len(header), len(data_columns))]
+
+        data = np.genfromtxt(file_path,
+                             delimiter=',',
+                             dtype=None,
+                             names=column_names,
+                             encoding=None,
+                             skip_header=1,
+                             converters={0: str2date})
+    else:
+        # Check if the last column has a name
+        if header[-1].strip():
+            # Normal case - header is complete
+            data = np.genfromtxt(file_path,
+                                 delimiter=',',
+                                 dtype=None,
+                                 names=True,
+                                 encoding=None,
+                                 converters={0: str2date})
+        else:
+            # Header is missing the last column name - provide explicit names
+            valid_headers = [h for h in header if h.strip()]
+            column_names = valid_headers + ['RTD0']  # Assuming 'RTD0' is the missing name
+
+            data = np.genfromtxt(file_path,
+                                 delimiter=',',
+                                 dtype=None,
+                                 names=column_names,
+                                 encoding=None,
+                                 skip_header=1,
+                                 converters={0: str2date})
+
+    # Handle the case where only one row is returned
+    if isinstance(data, np.void):
+        data = np.array([data])
+
+    return data
+
+
+def process_sensors_data(exp_name, freezing_idxs, freezing_times):
+    file_path = paths.raw_data_path / exp_name / 'sensors_data.csv'
+    data = read_sensors_data(file_path)
+
+    # Filter data
+    data = list(takewhile(lambda x: x['BT'] > -45, data))
 
     t = []
     ff = []
 
-    for i, line in enumerate(data):
-        t.append(line[2])
-        ff.append((freezing_times <= line['datetime']).sum() / freezing_idxs.__len__())
+    for line in data:
+        t.append(line['T1'])
+        ff.append((freezing_times <= line['datetime']).sum() / len(freezing_idxs))
 
     return t, ff
 
 
 def calculate_frame_temperatures(img_files, exp_name):
-    # function to calculate temperatures which correspond to displayed images
+    times = [datetime.strptime(img.stem, "%Y%m%d%H%M%S") for img in img_files]
+    file_path = paths.raw_data_path / exp_name / 'sensors_data.csv'
 
-    # image times
-    times = [datetime.strptime(img_files[i].stem, "%Y%m%d%H%M%S") for i in range(len(img_files))]
-    # corresponding temperatures
-    str2date = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
-    data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
-                         delimiter=',',
-                         dtype=None,
-                         names=True,
-                         converters={0: str2date})
-    data = list(takewhile(lambda x: x['BT'] > -31, data))
+    data = read_sensors_data(file_path)
+    data = list(takewhile(lambda x: x['BT'] > -45, data))
+
     t = []
     for time in times:
-        matching_data = next((line[2] for line in data if line['datetime'] == time), None)
+        matching_data = next((line['T1'] for line in data if line['datetime'] == time), None)
         if matching_data is None:
-            # Find the nearest available temperature by finding the data point with the closest timestamp
-            nearest_data = min(data, key=lambda line: abs(line['datetime'] - time))
-            t.append(nearest_data[2])
+            nearest = min(data, key=lambda line: abs(line['datetime'] - time))
+            t.append(nearest['T1'])
         else:
             t.append(matching_data)
 
@@ -662,23 +711,20 @@ def calculate_frame_temperatures(img_files, exp_name):
 
 
 def calculate_freezing_temps(freezing_times, exp_name):
-    str2date = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
-    data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
-                         delimiter=',',
-                         dtype=None,
-                         names=True,
-                         converters={0: str2date})
-    data = list(takewhile(lambda x: x['SP'] > -37, data))
+    file_path = paths.raw_data_path / exp_name / 'sensors_data.csv'
+    data = read_sensors_data(file_path)
+
+    # Filter data
+    data = list(takewhile(lambda x: x['SP'] > -45, data))
+
     t = []
     for index, time in enumerate(freezing_times):
-        matching_data = next((line[2] for line in data if line['datetime'] == time), None)
+        matching_data = next((line['T1'] for line in data if line['datetime'] == time), None)
         if matching_data is None:
-            # Find the nearest available temperature by finding the data point with the closest timestamp
             nearest_data = min(data, key=lambda line: abs(line['datetime'] - time))
-            t.extend([index, nearest_data[2]])
+            t.extend([index, nearest_data['T1']])
         else:
             t.extend([index, matching_data])
-
     return t
 
 
