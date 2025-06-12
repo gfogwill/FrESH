@@ -154,7 +154,7 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
 
         for root, dirs, files in os.walk(directory_path):
             for file_name in files:
-                if file_name == "SUM.CSV":
+                if file_name.endswith(".CSV"): #== "SUM.CSV":
                     sum_path = os.path.join(root, file_name)
                     print(sum_path)
                     with open(sum_path, "r") as file:
