@@ -907,7 +907,7 @@ def read_sensors_data(file_path):
         logging.warning(f"Error reading sensor data with standard approach: {e}")
 
         # Fallback to explicit column names
-        column_names = ['datetime', 'SP', 'BT', 'T1', 'RTD0']
+        column_names = ['datetime', 'SP', 'BT', 'RTD0', 'RTD1']
 
         try:
             data = np.genfromtxt(file_path,
@@ -926,7 +926,7 @@ def read_sensors_data(file_path):
         except Exception as e:
             logging.error(f"Failed to read sensors data with fallback approach: {e}")
             # Return minimal valid data structure
-            dtype = [('datetime', 'O'), ('SP', '<f8'), ('BT', '<f8'), ('T1', '<f8'), ('RTD0', '<f8')]
+            dtype = [('datetime', 'O'), ('SP', '<f8'), ('BT', '<f8'), ('RTD0', '<f8'), ('RTD1', '<f8')]
             return np.array([(datetime.now(), 0.0, 0.0, 0.0, 0.0)], dtype=dtype)
 
 
@@ -941,7 +941,7 @@ def process_sensors_data(exp_name, freezing_idxs, freezing_times):
     ff = []
 
     for line in data:
-        t.append(line['T1'])
+        t.append(line['RTD0'])
         ff.append((freezing_times <= line['datetime']).sum() / len(freezing_idxs))
 
     return t, ff
@@ -956,10 +956,10 @@ def calculate_frame_temperatures(img_files, exp_name):
 
     t = []
     for time in times:
-        matching_data = next((line['T1'] for line in data if line['datetime'] == time), None)
+        matching_data = next((line['RTD0'] for line in data if line['datetime'] == time), None)
         if matching_data is None:
             nearest = min(data, key=lambda line: abs(line['datetime'] - time))
-            t.append(nearest['T1'])
+            t.append(nearest['RTD0'])
         else:
             t.append(matching_data)
 
@@ -975,10 +975,10 @@ def calculate_freezing_temps(freezing_times, exp_name):
 
     t = []
     for index, time in enumerate(freezing_times):
-        matching_data = next((line['T1'] for line in data if line['datetime'] == time), None)
+        matching_data = next((line['RTD0'] for line in data if line['datetime'] == time), None)
         if matching_data is None:
             nearest_data = min(data, key=lambda line: abs(line['datetime'] - time))
-            t.extend([index, nearest_data['T1']])
+            t.extend([index, nearest_data['RTD0']])
         else:
             t.extend([index, matching_data])
     return t
