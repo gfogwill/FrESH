@@ -276,8 +276,8 @@ class LAUDARE1050:
             data = {
                 'BT': bt,
                 'SP': sp,
-#                'RTD0': s0,
-#                'RTD1': s1,
+                'RTD0': s0,
+                'RTD1': s1,
                 't1': t1,
                 't2': t2,
                 'TEMP': temp,
