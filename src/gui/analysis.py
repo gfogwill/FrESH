@@ -431,7 +431,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
     def filter_background_folders(folder_list):
         folder_list = os.listdir(paths.processed_data_path)
-        valid_values = {"Water background", "Filter background", "Punched filter background"}
+        valid_values = {"Water background", "Filter background", "Punched filter background", "Field backgrouund"}
         filtered_folders = []
 
         for folder in folder_list:
@@ -478,8 +478,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.experiment.metadata = self.load_metadata_from_gui()
         # for now, don't save the scan time edits to avoid errors in loading back the metadata
-        self.experiment.metadata.scan_start_timestamp = None
-        self.experiment.metadata.scan_end_timestamp = None
+        #self.experiment.metadata.scan_start_timestamp = None
+        #self.experiment.metadata.scan_end_timestamp = None
 
         self.experiment.save_metadata_to_file()
 
@@ -488,37 +488,9 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             self.metadata_modified = False
             self.hide_metadata_alert()
 
-        p = pathlib.Path(paths.processed_data_path / self.exp_name)
-        p.mkdir(parents=True, exist_ok=True)
-
+        # Save analysis results if analyzed
         if self.experiment.is_analyzed:
-            with open(paths.processed_data_path / self.exp_name / 'report.csv', 'w') as fo:
-                fo.write(f'index, temp, ff, conc_per_L, conc_per_drop\n')
-                for i in range(len(self.experiment.t)):
-                    fo.write(f'{i}, {self.experiment.t[i]}, {self.experiment.ff[i]}, {self.experiment.conc_per_L[i]}, '
-                             f'{self.experiment.conc_per_drop[i]} \n')
-
-            # adding another file spectra.csv to processed data file
-            with open(paths.processed_data_path / self.exp_name / 'spectra.csv', 'w') as fo:
-                fo.write(f'temp, ff, ff_lower_conf_lvl, ff_upper_conf_lvl, k, k_lower_conf_lvl,'
-                		 f'k_upper_conf_lvl, K, K_lower_conf_lvl, K_upper_conf_lvl, {self.experiment.metadata.units} \n')
-                for i in range(len(self.experiment.spectra)):
-                    fo.write(f'{self.experiment.spectra["temp"][i]},'
-                    			f'{self.experiment.spectra["ff"][i]},'
-                    			f'{self.experiment.spectra["ff_lower_conf_lvl"][i]},' 
-                             		f'{self.experiment.spectra["ff_upper_conf_lvl"][i]},'
-                             		f'{self.experiment.spectra["k"][i]},'
-                             		f'{self.experiment.spectra["k_lower_conf_lvl"][i]},'
-                             		f'{self.experiment.spectra["k_upper_conf_lvl"][i]},'
-                             		f'{self.experiment.spectra["K"][i]},'
-                             		f'{self.experiment.spectra["K_lower_conf_lvl"][i]},'
-                             		f'{self.experiment.spectra["K_upper_conf_lvl"][i]},\n')
-
-
-            with open(paths.interim_data_path / self.exp_name / 'freezing_temps.csv', 'w', newline='') as csv_file:
-                csv_writer = csv.writer(csv_file)
-                csv_writer.writerow(['Index', 'Temperature'])
-                csv_writer.writerows(zip(*[iter(self.experiment.freezing_temps)] * 2))  # Group data into pairs
+            self.experiment.save_analysis_results()
 
     def show_metadata_alert(self):
         # Show an alert to inform the user that metadata has been modified
@@ -589,7 +561,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         qt_img = convert_cv_qt(img)
         self.image_frame.setPixmap(qt_img)
 
-        # self.run_analysis()
+        self.run_analysis()
         self.update_img()
         self.hide_metadata_alert()
 
@@ -602,5 +574,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
                 self.box_change_temp.addItems([str(i) for i in self.frame_t])
                 self.get_background()
                 #self.update_ff_plot()
+
 
 

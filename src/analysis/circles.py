@@ -55,7 +55,7 @@ def auto_crop(img, template_img_path, rotation_angles=[0]):
 
     # If no valid match is found, return the original image
     if best_match is None:
-        print("No valid match found. Returning the original image.")
+        #print("No valid match found. Returning the original image.")
         return img
 
     # Get the location of the best match

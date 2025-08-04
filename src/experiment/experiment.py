@@ -2,11 +2,12 @@ import os
 import json
 import cv2
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import takewhile
 
 import numpy as np
 import yaml
+import csv
 import logging
 
 from src import paths
@@ -176,23 +177,91 @@ class FrESHExperiment:
         self.exp_name = experiment_name
         self.metadata = None
         self.bg_metadata = None
-
         self.is_analyzed = False
         self.background_corrected = False
         self.already_reloaded = False  # Flag to prevent infinite loop
         self.t = []
-        experiment_path = paths.raw_data_path / experiment_name
+        self.spectra = None
 
-        # create experiment directory if it doesn't exist
+        experiment_path = paths.raw_data_path / experiment_name
+        processed_path = paths.processed_data_path / experiment_name
+
+        # Create experiment directory if it doesn't exist
         if not os.path.exists(experiment_path):
             logging.info(f"Creating new experiment: {experiment_path}")
             os.mkdir(experiment_path)
             os.mkdir(experiment_path / 'pics')
-
         else:
             logging.info(f"Experiment found! Loading experiment: {experiment_path}")
             self.load_metadata()
-            self.img_files = self.get_experiment_image_list()
+
+            # Check if experiment has already been processed
+            if os.path.exists(processed_path) and os.path.exists(processed_path / 'report.csv'):
+                logging.info(f"Processed data found for experiment: {experiment_name}")
+                self.is_analyzed = True
+
+                # Try to load processed data
+                try:
+                    processed_data = self.get_processed_data()
+                    # Extract freezing temperatures and other data if needed
+                    if 'freezing_temp' in processed_data.dtype.names:
+                        self.freezing_temps = processed_data['freezing_temp']
+                    if 'ff' in processed_data.dtype.names:
+                        self.ff = processed_data['ff']
+                    logging.info(f"Successfully loaded processed data for {experiment_name}")
+                except Exception as e:
+                    logging.warning(f"Error loading processed data: {e}")
+                    self.is_analyzed = False
+
+        self.validate_and_correct_metadata()
+        self.img_files = self.get_experiment_image_list()
+
+        # Validate metadata completeness
+        if self.metadata:
+            self.validate_metadata_completeness()
+
+    def validate_metadata_completeness(self):
+        """Check if all required metadata fields are present and valid"""
+        required_fields = ['label', 'start_time', 'end_time', 'experiment_type']
+
+        if not self.metadata:
+            logging.warning(f"No metadata found for experiment: {self.exp_name}")
+            return False
+
+        missing_fields = [field for field in required_fields
+                          if not hasattr(self.metadata, field) or getattr(self.metadata, field) is None]
+
+        if missing_fields:
+            logging.warning(f"Missing required metadata fields: {', '.join(missing_fields)}")
+            return False
+
+        # Check numerical fields
+        numerical_fields = ['air_volume', 'v_drop', 'v_wash', 'dil_factor', 'filter_fraction']
+        for field in numerical_fields:
+            if hasattr(self.metadata, field):
+                value = getattr(self.metadata, field)
+                if value is None or (isinstance(value, (int, float)) and value <= 0):
+                    logging.warning(f"Invalid value for {field}: {value}")
+                    return False
+
+        return True
+
+    def is_ready_for_analysis(self):
+        """Check if the experiment has all required data for analysis"""
+        if not self.metadata:
+            return False, "Missing metadata"
+
+        if not self.validate_metadata_completeness():
+            return False, "Incomplete metadata"
+
+        if not self.img_files or len(self.img_files) == 0:
+            return False, "No images found"
+
+        sensors_path = paths.raw_data_path / self.exp_name / 'sensors_data.csv'
+        if not os.path.exists(sensors_path):
+            return False, "Missing sensors data"
+
+        return True, "Ready for analysis"
 
     def get_experiment_image_list(self):
         img_dir = paths.raw_data_path / self.exp_name / 'pics'
@@ -265,24 +334,72 @@ class FrESHExperiment:
         # X is normalisation applied before bg correction, sampled volume correction is applied after
 
         self.calculate_normalisation_factor()
+
         X = self.metadata.normalisation_factor
         v_air = np.float64(self.metadata.air_volume)
+
+        #print(f"normalization: {X}")
 
         # Concentration per sample
         self.conc_per_drop = - np.log(1 - np.array(self.ff)) * X # / v_drop is already calculated
 
         # Concentration per standar L of air
         self.conc_per_L = self.conc_per_drop / v_air
-        print('volume', v_air)
+        # print('volume', v_air)
 
         self.spectra, self.background_corrected = spectra(self.freezing_temps, X, 1/v_air, 0.5, 1.96,
                                                           self.metadata.background_exp, 0)
 
         self.is_analyzed = True
+        self.save_analysis_results()
+
+    def save_analysis_results(self):
+        """Save analysis results to processed and interim directories"""
+        if not self.is_analyzed:
+            logging.warning(f"Cannot save results for {self.exp_name} - experiment not analyzed yet")
+            return False
+
+        # Create directories if they don't exist
+        interim_path = paths.interim_data_path / self.exp_name
+        processed_path = paths.processed_data_path / self.exp_name
+        interim_path.mkdir(parents=True, exist_ok=True)
+        processed_path.mkdir(parents=True, exist_ok=True)
+
+        # Save report.csv
+        with open(processed_path / 'report.csv', 'w') as fo:
+            fo.write(f'index,temp,ff,conc_per_L,conc_per_drop\n')
+            for i in range(len(self.t)):
+                fo.write(f'{i},{self.t[i]},{self.ff[i]},{self.conc_per_L[i]},{self.conc_per_drop[i]}\n')
+
+        # Save spectra.csv
+        with open(processed_path / 'spectra.csv', 'w') as fo:
+            fo.write(f'temp,ff,ff_lower_conf_lvl,ff_upper_conf_lvl,k,k_lower_conf_lvl,')
+            fo.write(f'k_upper_conf_lvl,K,K_lower_conf_lvl,K_upper_conf_lvl,{self.metadata.units}\n')
+
+            for i in range(len(self.spectra)):
+                fo.write(f'{self.spectra["temp"][i]},')
+                fo.write(f'{self.spectra["ff"][i]},')
+                fo.write(f'{self.spectra["ff_lower_conf_lvl"][i]},')
+                fo.write(f'{self.spectra["ff_upper_conf_lvl"][i]},')
+                fo.write(f'{self.spectra["k"][i]},')
+                fo.write(f'{self.spectra["k_lower_conf_lvl"][i]},')
+                fo.write(f'{self.spectra["k_upper_conf_lvl"][i]},')
+                fo.write(f'{self.spectra["K"][i]},')
+                fo.write(f'{self.spectra["K_lower_conf_lvl"][i]},')
+                fo.write(f'{self.spectra["K_upper_conf_lvl"][i]}\n')
+
+        # Save freezing_temps.csv
+        with open(interim_path / 'freezing_temps.csv', 'w', newline='') as csv_file:
+            csv_writer = csv.writer(csv_file)
+            csv_writer.writerow(['Index', 'Temperature'])
+            csv_writer.writerows(zip(*[iter(self.freezing_temps)] * 2))
+
+        return True
+
 
     def calculate_normalisation_factor(self):
         v_drop = self.metadata.v_drop
-        if self.metadata.experiment_type in ['Filter', 'Filter Background']:
+        if self.metadata.experiment_type.lower()  in ['filter', 'filter Background']:
             nu = self.metadata.dil_factor
             v_wash = self.metadata.v_wash
             #v_air = self.metadata.air_volume # float(self.metadata.air_volume) # NOTE: after bg correction!
@@ -337,7 +454,7 @@ class FrESHExperiment:
 
     def detect_circles(self):
         img = cv2.imread(str(self.img_files[0]))
-        print(self.metadata)
+        #print(self.metadata)
 
         if self.metadata.rotation is not None:
             img = cv2.rotate(img, self.metadata.rotation)
@@ -417,12 +534,12 @@ class FrESHExperiment:
                         metadata_dict[field] = float(metadata_dict[field])
                     except(ValueError):
                         metadata_dict[field] = 1.0
-            print('\n Check metadata to be saved to a file', metadata_dict, '\n')
+            #print('\n Check metadata to be saved to a file', metadata_dict, '\n')
             json.dump(metadata_dict, metadata_file, indent=4)
 
     def load_metadata(self):
         metadata_path = os.path.join(paths.raw_data_path, self.exp_name, "metadata.json")
-        print(metadata_path)
+        #print(metadata_path)
         if os.path.exists(metadata_path):
             if os.path.getsize(metadata_path) == 0:  # Check if file is empty
                 print('file empty')
@@ -451,51 +568,146 @@ class FrESHExperiment:
         else:
             return None
 
-
     def validate_and_correct_metadata(self):
-        needs_reload = False
-        print('metadata check',self.metadata)
+        # Fix station code if needed
+        if self.metadata.station == "JFK" and hasattr(self.metadata, 'label') and self.metadata.label:
+            station_code = self.metadata.label[0:3]
+            if station_code in stations_dict:
+                self.metadata.station = station_code
 
-        # Check and correct dil_factor
-        if isinstance(self.metadata.dil_factor, int) and self.metadata.dil_factor == 1 or self.metadata.dil_factor is None:
+        # Set default values for numerical fields
+        if self.metadata.dil_factor is None or (
+                isinstance(self.metadata.dil_factor, int) and self.metadata.dil_factor == 1):
             self.metadata.dil_factor = 1.0
 
-        # Check and correct filter_fraction
-        if isinstance(self.metadata.filter_fraction, int) and self.metadata.filter_fraction == 1 or self.metadata.filter_fraction is None:
+        if self.metadata.filter_fraction is None or (
+                isinstance(self.metadata.filter_fraction, int) and self.metadata.filter_fraction == 1):
             self.metadata.filter_fraction = 1.0
 
+        if self.metadata.v_wash is None:
+            self.metadata.v_wash = 0.01
+
+        # Try to load missing critical data from CSV
+        if self.metadata.air_volume is None or self.metadata.start_time is None or self.metadata.end_time is None:
+            self._load_metadata_from_csv()
+
+        # Set defaults for remaining missing fields
         if self.metadata.air_volume is None:
-            #needs_reload = True
             self.metadata.air_volume = 1.0
 
         if self.metadata.background_exp is None:
             self.metadata.background_exp = 'None'
 
-        # Validate start_time format
-        if not self.is_valid_date_format(self.metadata.start_time):
-            pass
-            #needs_reload = True
+        # Set default dates if still missing
+        if self.metadata.start_time is None or not self.is_valid_date_format(self.metadata.start_time):
+            if hasattr(self.metadata, 'label') and self.metadata.label and len(self.metadata.label) >= 11:
+                try:
+                    date_str = self.metadata.label[3:11]  # Extract YYYYMMDD
+                    date_obj = datetime.strptime(date_str, "%Y%m%d")
+                    self.metadata.start_time = date_obj.strftime("%Y-%m-%d") + " 08:00"
+                    logging.warning(f"Using default start time from label: {self.metadata.start_time}")
+                except ValueError:
+                    logging.error(f"Cannot set default start date - invalid format in label: {self.metadata.label}")
 
-        # Validate end_time format
-        if not self.is_valid_date_format(self.metadata.end_time):
-            pass
-            #needs_reload = True
+        if self.metadata.end_time is None or not self.is_valid_date_format(self.metadata.end_time):
+            if hasattr(self.metadata, 'label') and self.metadata.label and len(self.metadata.label) >= 11:
+                try:
+                    date_str = self.metadata.label[3:11]  # Extract YYYYMMDD
+                    date_obj = datetime.strptime(date_str, "%Y%m%d") + timedelta(days=1)
+                    self.metadata.end_time = date_obj.strftime("%Y-%m-%d") + " 08:00"
+                    logging.warning(f"Using default end time from label: {self.metadata.end_time}")
+                except ValueError:
+                    logging.error(f"Cannot set default end date - invalid format in label: {self.metadata.label}")
 
-        # Validate sampled_vol (not present in provided ExperimentMetadata, assumed to be air_volume)
-        if not self.is_valid_sampled_vol(self.metadata.air_volume):
-            #needs_reload = True
-            self.metadata_air_volume = 1.0
+        # Save the updated metadata
+        self.save_metadata_to_file()
 
+    def _load_metadata_from_csv(self):
+        """Helper method to load metadata from CSV files"""
+        if not hasattr(self.metadata, 'label') or not self.metadata.label:
+            return
 
-        if needs_reload and not self.already_reloaded:
-            self.already_reloaded = True  # Set flag to avoid reloading again
-            self.load_metadata_from_raw_file(self.exp_name)
+        station_code = self.metadata.label[0:3]
+        date_str = self.metadata.label[3:]
 
-        #self.metadata.scan_start_timestamp = None
-        #self.metadata.scan_end_timestamp = None
+        if station_code not in stations_dict:
+            return
 
+        station_mapping = stations_dict[station_code]['station_mapping']
+        csv_path = os.path.join(paths.external_data_path, 'sampler_raw_data', station_mapping)
+
+        if not os.path.exists(csv_path):
+            logging.error(f"CSV path not found: {csv_path}")
+            return
+
+        try:
+            date_obj = datetime.strptime(date_str, "%Y%m%d")
+            formatted_date = date_obj.strftime("%d.%m.%y")
+
+            csv_files = [f for f in os.listdir(csv_path) if f.endswith('.CSV')]
+
+            for csv_file in csv_files:
+                full_path = os.path.join(csv_path, csv_file)
+                logging.info(f"Checking CSV file: {full_path}")
+
+                with open(full_path, 'r') as f:
+                    lines = f.readlines()
+
+                    for line in lines[1:]:  # Skip header
+                        if not line.strip():
+                            continue
+
+                        fields = line.strip().split(';')
+                        if len(fields) < 9:
+                            continue
+
+                        # Check if date matches (accounting for different formats)
+                        try:
+                            csv_date_str = fields[2].strip()
+                            csv_date = datetime.strptime(csv_date_str,
+                                                         "%d.%m.%Y" if "." in csv_date_str else "%d.%m.%y")
+
+                            if date_obj.day == csv_date.day and date_obj.month == csv_date.month:
+                                logging.info(f"Found matching data for {date_str} in {csv_file}")
+
+                                # Update metadata
+                                date_format = "%d.%m.%Y" if "." in fields[2] else "%d.%m.%y"
+
+                                if self.metadata.start_time is None:
+                                    start_datetime = datetime.strptime(f"{fields[2]} {fields[3]}",
+                                                                       f"{date_format} %H:%M")
+                                    self.metadata.start_time = start_datetime.strftime("%Y-%m-%d %H:%M")
+
+                                if self.metadata.end_time is None:
+                                    end_datetime = datetime.strptime(f"{fields[4]} {fields[5]}", f"{date_format} %H:%M")
+                                    self.metadata.end_time = end_datetime.strftime("%Y-%m-%d %H:%M")
+
+                                if self.metadata.air_volume is None and len(fields) > 8:
+                                    self.metadata.air_volume = float(fields[8].strip())
+
+                                if self.metadata.flow is None and len(fields) > 9:
+                                    self.metadata.flow = float(fields[9].strip())
+
+                                if self.metadata.temp is None and len(fields) > 10:
+                                    self.metadata.temp = float(fields[10].strip())
+
+                                if self.metadata.press is None and len(fields) > 11:
+                                    self.metadata.press = float(fields[11].strip())
+
+                                if self.metadata.filter_position is None and len(fields) > 7:
+                                    self.metadata.filter_position = int(fields[7].strip())
+
+                                return  # Exit after finding matching data
+                        except (ValueError, IndexError) as e:
+                            logging.debug(f"Error parsing CSV line: {e}")
+                            continue
+        except Exception as e:
+            logging.error(f"Error loading metadata from CSV: {e}")
 
     def is_valid_date_format(self, date_str):
+
+        if date_str is None:
+            return False
         try:
             datetime.strptime(date_str, "%Y-%m-%d %H:%M")
             return True
@@ -512,27 +724,72 @@ class FrESHExperiment:
             return False
 
     def load_metadata_from_raw_file(self, exp_name):
-        # Implement your method to reload metadata from the raw file
-        logging.warning("Loading metadata from raw file!")
+        logging.info(f"Loading metadata from raw file for {exp_name}")
 
-        # Extract label from exp_name, assuming it's part of exp_name
-        label = self.extract_label_from_exp_name(exp_name)
-        if not label:
-            logging.error(f"Unable to extract label from experiment name: {exp_name}")
+        # Extract station code and date from experiment name
+        parts = exp_name.split('_')
+        if len(parts) < 2:
+            logging.error(f"Invalid experiment name format: {exp_name}")
             return None
 
-        metadata = self._retrieve_metadata(label)
-        self.metadata = metadata
-        self.validate_and_correct_metadata()
+        label = parts[1]
+        if len(label) < 11:  # Should be at least "UTO20240619"
+            logging.error(f"Invalid label format: {label}")
+            return None
 
-        if metadata:
-            self.metadata = metadata
-            self.validate_and_correct_metadata()
-            #self.metadata.scan_start_timestamp = None
-            #self.metadata.scan_end_timestamp = None
-            return self.metadata
-        else:
-            logging.error("Unable lo load metadata")
+        station_code = label[0:3]
+        date_str = label[3:]
+
+        # Get station mapping
+        station = stations_dict.get(station_code)
+        if not station or not station['station_mapping']:
+            logging.error(f"Station mapping not found for {station_code}")
+            return None
+
+        # Find matching data in CSV
+        try:
+            date = datetime.strptime(date_str, "%Y%m%d")
+            directory_path = os.path.join(paths.external_data_path, 'sampler_raw_data', station['station_mapping'])
+
+            if not os.path.exists(directory_path):
+                logging.error(f"Directory not found: {directory_path}")
+                return None
+
+            # Look for the most recent CSV file
+            csv_files = [f for f in os.listdir(directory_path) if f.endswith('.CSV')]
+            if not csv_files:
+                logging.error(f"No CSV files found in {directory_path}")
+                return None
+
+            # Sort by modification time (newest first)
+            csv_files.sort(key=lambda x: os.path.getmtime(os.path.join(directory_path, x)), reverse=True)
+
+            # Format date for comparison with CSV
+            formatted_date = date.strftime("%d.%m.%y")
+
+            # Try each CSV file
+            for csv_file in csv_files:
+                file_path = os.path.join(directory_path, csv_file)
+                with open(file_path, 'r') as file:
+                    lines = file.readlines()
+
+                    # Skip header
+                    for line in lines[1:]:
+                        fields = line.strip().split(';')
+                        if len(fields) >= 6:  # Ensure we have enough fields
+                            # Check if this line matches our date
+                            if fields[2].strip() == formatted_date:
+                                # Create metadata from this line
+                                metadata = self._create_experiment_metadata(fields, label, "Filter")
+                                self.metadata = metadata
+                                self.save_metadata_to_file()
+                                return metadata
+
+            logging.warning(f"No matching data found for {label} in any CSV file")
+            return None
+
+        except Exception as e:
+            logging.error(f"Error loading metadata from CSV: {str(e)}")
             return None
 
     def extract_label_from_exp_name(self, exp_name):
@@ -554,7 +811,7 @@ class FrESHExperiment:
 
         for root, dirs, files in os.walk(directory_path):
             for file_name in files:
-                if file_name == "SUM.CSV":
+                if file_name.endswith(".CSV"):  # == "SUM.CSV":
                     sum_path = os.path.join(root, file_name)
                     with open(sum_path, "r") as file:
                         lines = file.readlines()
@@ -615,46 +872,94 @@ class FrESHExperiment:
             print(f"Unsupported export format: {export_format}")
 
 
-def process_sensors_data(exp_name, freezing_idxs, freezing_times):
-    # function to process the sensors data and return the t and ff arrays
+def read_sensors_data(file_path):
+    # First, check the file structure
+    with open(file_path, 'r') as f:
+        header_line = f.readline().strip()
+        first_data_line = f.readline().strip()
+
+    # Handle missing column name for datetime
+    if header_line.startswith(','):
+        header_line = 'datetime' + header_line
+
+    header = header_line.split(',')
+    data_columns = first_data_line.split(',')
+
+    # Convert string to datetime
     str2date = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
-    data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
-                         delimiter=',',
-                         dtype=None,
-                         names=True,
-                         converters={0: str2date})
+
+    try:
+        # Try to load with explicit names
+        data = np.genfromtxt(file_path,
+                             delimiter=',',
+                             dtype=None,
+                             names=header,
+                             encoding=None,
+                             skip_header=1,
+                             converters={0: str2date})
+
+        # Handle the case where only one row is returned
+        if isinstance(data, np.void):
+            data = np.array([data])
+
+        return data
+    except Exception as e:
+        logging.warning(f"Error reading sensor data with standard approach: {e}")
+
+        # Fallback to explicit column names
+        column_names = ['datetime', 'SP', 'BT', 'RTD0', 'RTD1']
+
+        try:
+            data = np.genfromtxt(file_path,
+                                 delimiter=',',
+                                 dtype=None,
+                                 names=column_names,
+                                 encoding=None,
+                                 skip_header=1,
+                                 converters={0: str2date})
+
+            # Handle the case where only one row is returned
+            if isinstance(data, np.void):
+                data = np.array([data])
+
+            return data
+        except Exception as e:
+            logging.error(f"Failed to read sensors data with fallback approach: {e}")
+            # Return minimal valid data structure
+            dtype = [('datetime', 'O'), ('SP', '<f8'), ('BT', '<f8'), ('RTD0', '<f8'), ('RTD1', '<f8')]
+            return np.array([(datetime.now(), 0.0, 0.0, 0.0, 0.0)], dtype=dtype)
+
+
+def process_sensors_data(exp_name, freezing_idxs, freezing_times):
+    file_path = paths.raw_data_path / exp_name / 'sensors_data.csv'
+    data = read_sensors_data(file_path)
+
+    # Filter data
     data = list(takewhile(lambda x: x['BT'] > -45, data))
 
     t = []
     ff = []
 
-    for i, line in enumerate(data):
-        t.append(line[2])
-        ff.append((freezing_times <= line['datetime']).sum() / freezing_idxs.__len__())
+    for line in data:
+        t.append(line['RTD0'])
+        ff.append((freezing_times <= line['datetime']).sum() / len(freezing_idxs))
 
     return t, ff
 
 
 def calculate_frame_temperatures(img_files, exp_name):
-    # function to calculate temperatures which correspond to displayed images
+    times = [datetime.strptime(img.stem, "%Y%m%d%H%M%S") for img in img_files]
+    file_path = paths.raw_data_path / exp_name / 'sensors_data.csv'
 
-    # image times
-    times = [datetime.strptime(img_files[i].stem, "%Y%m%d%H%M%S") for i in range(len(img_files))]
-    # corresponding temperatures
-    str2date = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
-    data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
-                         delimiter=',',
-                         dtype=None,
-                         names=True,
-                         converters={0: str2date})
+    data = read_sensors_data(file_path)
     data = list(takewhile(lambda x: x['BT'] > -45, data))
+
     t = []
     for time in times:
-        matching_data = next((line[2] for line in data if line['datetime'] == time), None)
+        matching_data = next((line['RTD0'] for line in data if line['datetime'] == time), None)
         if matching_data is None:
-            # Find the nearest available temperature by finding the data point with the closest timestamp
-            nearest_data = min(data, key=lambda line: abs(line['datetime'] - time))
-            t.append(nearest_data[2])
+            nearest = min(data, key=lambda line: abs(line['datetime'] - time))
+            t.append(nearest['RTD0'])
         else:
             t.append(matching_data)
 
@@ -662,23 +967,20 @@ def calculate_frame_temperatures(img_files, exp_name):
 
 
 def calculate_freezing_temps(freezing_times, exp_name):
-    str2date = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
-    data = np.genfromtxt(paths.raw_data_path / exp_name / 'sensors_data.csv',
-                         delimiter=',',
-                         dtype=None,
-                         names=True,
-                         converters={0: str2date})
+    file_path = paths.raw_data_path / exp_name / 'sensors_data.csv'
+    data = read_sensors_data(file_path)
+
+    # Filter data
     data = list(takewhile(lambda x: x['SP'] > -45, data))
+
     t = []
     for index, time in enumerate(freezing_times):
-        matching_data = next((line[2] for line in data if line['datetime'] == time), None)
+        matching_data = next((line['RTD0'] for line in data if line['datetime'] == time), None)
         if matching_data is None:
-            # Find the nearest available temperature by finding the data point with the closest timestamp
             nearest_data = min(data, key=lambda line: abs(line['datetime'] - time))
-            t.extend([index, nearest_data[2]])
+            t.extend([index, nearest_data['RTD0']])
         else:
             t.extend([index, matching_data])
-
     return t
 
 
