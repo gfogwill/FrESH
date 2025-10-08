@@ -1,5 +1,7 @@
 import os
 import json
+from pathlib import Path
+
 import cv2
 
 from datetime import datetime, timedelta
@@ -360,8 +362,8 @@ class FrESHExperiment:
             return False
 
         # Create directories if they don't exist
-        interim_path = paths.interim_data_path / self.exp_name
-        processed_path = paths.processed_data_path / self.exp_name
+        interim_path = Path(paths.interim_data_path) / self.exp_name
+        processed_path = Path(paths.processed_data_path) / self.exp_name
         interim_path.mkdir(parents=True, exist_ok=True)
         processed_path.mkdir(parents=True, exist_ok=True)
 
