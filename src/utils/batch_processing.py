@@ -1,5 +1,8 @@
 import os
 import sys
+
+import pandas as pd
+
 from src.experiment.experiment import FrESHExperiment
 from src import paths
 
@@ -109,19 +112,33 @@ def batch_process_new(base_raw_path, station_code, status_log_file):
                 experiment = FrESHExperiment(exp)
                 experiment.run_analysis()
 
-                # 2) HUB-backward y reporte
+                # 2) HUB-backward y resumen
                 res = run_hub_for_experiment(
                     exp_dir=exp_dir,
                     reports_dir=str(paths.reports_path),
                     nsubpop=2, disttype=1,
                     npoints=300, window_length=7, polyorder=2,
-                    save_txt=True, save_pdf=True, plot_cumulative=True
+                    save_txt=False, save_pdf=False, plot_cumulative=False  # evita archivos extra
                 )
-                print(f"Finished processing {exp} | HUB MSE={res['mse']:.4g} | Report: {res['out_base']}_report.pdf\n")
+
+                # 3) Append al master summary
+                row = res["summary"]
+                row["station_code"] = station_code
+                row["needs_review"] = bool(row["mse"] >= 0.01)
+
+                MASTER_SUMMARY = paths.reports_path / "HUB_master_summary.csv"
+
+                if MASTER_SUMMARY.exists():
+                    pd.DataFrame([row]).to_csv(MASTER_SUMMARY, mode="a", header=False, index=False)
+                else:
+                    pd.DataFrame([row]).to_csv(MASTER_SUMMARY, index=False)
+
+                print(f"Finished {exp} | MSE={res['mse']:.4g} | review={row['needs_review']}")
                 writer.writerow({'experiment': exp, 'status': 'success', 'error': ''})
+
             except Exception as e:
                 err_msg = str(e)
-                print(f"Error processing {exp}: {err_msg}\n")
+                print(f"Error processing {exp}: {err_msg}")
                 writer.writerow({'experiment': exp, 'status': 'failure', 'error': err_msg})
 
             f.flush()
@@ -134,7 +151,7 @@ if __name__ == "__main__":
 
     STATUS_LOG_FILE = paths.reports_path / 'auto_processing_log.log'
 
-    STATION_PREFIX = "KUO202406"  # Example selects all Kuopio 2024 experiments
+    STATION_PREFIX = "KUO"  # Example selects all Kuopio 2024 experiments
 
 
     # Add project root to sys.path if necessary here for imports

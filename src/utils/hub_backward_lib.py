@@ -10,21 +10,38 @@ import os
 # -----------------------
 # Distribuciones base
 # -----------------------
-def normalized_PDF(x, mode, scale, disttype=1):
-    # disttype: 1=Gaussian, 2=Log-normal, 3=Gumbel cola izq.
+
+def _truncate_negative_T(x, pdf):
+    x = np.asarray(x, float)
+    pdf = np.asarray(pdf, float)
+    mask = (x <= 0.0)
+    out = np.zeros_like(pdf)
+    if np.any(mask):
+        area = np.trapz(pdf[mask], x[mask])
+        if np.isfinite(area) and area > 0:
+            out[mask] = pdf[mask] / area
+    out[~np.isfinite(out)] = 0.0
+    return out
+
+def normalized_PDF(x, mode, scale, disttype=1, enforce_negative_T=True):
+    # disttype: 1=Gaussian, 2=Log-normal (x>mode), 3=Gumbel left-tail
     x = np.asarray(x, dtype=float)
     if disttype == 1:
-        return (1.0 / (scale * np.sqrt(2*np.pi))) * np.exp(-0.5 * ((x - mode) / scale)**2)
-    if disttype == 2:
-        # Cuidado: requiere x > mode
+        pdf = (1.0 / (scale * np.sqrt(2*np.pi))) * np.exp(-0.5 * ((x - mode) / scale)**2)
+    elif disttype == 2:
         z = (x - mode)
-        out = np.zeros_like(x, dtype=float)
+        pdf = np.zeros_like(x, dtype=float)
         mask = z > 0
-        out[mask] = (1.0 / (z[mask] * scale * np.sqrt(2*np.pi))) * np.exp(-0.5 * (np.log(z[mask]) / scale)**2)
-        return out
-    if disttype == 3:
-        return (1.0 / scale) * np.exp((x - mode)/scale - np.exp((x - mode)/scale))
-    raise ValueError("disttype must be 1, 2 or 3")
+        pdf[mask] = (1.0 / (z[mask] * scale * np.sqrt(2*np.pi))) * np.exp(-0.5 * (np.log(z[mask]) / scale)**2)
+    elif disttype == 3:
+        pdf = (1.0 / scale) * np.exp((x - mode)/scale - np.exp((x - mode)/scale))
+    else:
+        raise ValueError("disttype must be 1, 2 or 3")
+    pdf[~np.isfinite(pdf)] = 0.0
+    if enforce_negative_T:
+        pdf = _truncate_negative_T(x, pdf)
+    return pdf
+
 
 # -----------------------
 # Utilidades de preproceso

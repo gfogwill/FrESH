@@ -150,4 +150,25 @@ def run_hub_for_experiment(
         fig.suptitle(f"{exp_name} | MSE: {out['mse']:.4g}")
         fig.savefig(base + "_report.jpg", dpi=200)
         plt.close(fig)
-    return {"experiment": exp_name, "mse": out["mse"], "best_params": out["best_params"], "out_base": base}
+
+    # construir summary plano
+    bp = out["best_params"]
+    summary = {"experiment": exp_name, "mse": float(out["mse"]), "nsubpop": int(out["nsubpop"]),
+               "disttype": int(out["disttype"])}
+    if nsubpop >= 1:
+        summary.update({"mode1": bp[0], "scale1": bp[1]})
+    if nsubpop >= 2:
+        summary.update({"mode2": bp[2], "scale2": bp[3], "w2": bp[4]})
+    if nsubpop >= 3:
+        summary.update({"mode3": bp[5], "scale3": bp[6], "w3": bp[7]})
+
+    # devolver también summary
+    return {
+        "experiment": exp_name,
+        "mse": out["mse"],
+        "best_params": out["best_params"],
+        "out_base": base,
+        "summary": summary
+    }
+
+#    return {"experiment": exp_name, "mse": out["mse"], "best_params": out["best_params"], "out_base": base}
