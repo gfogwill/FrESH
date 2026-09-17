@@ -15,168 +15,25 @@ import logging
 from src import paths
 from src.analysis import circles
 from src.analysis.circles import auto_crop
-from src.gui.experiment_gui import convert_cv_qt
+from src.experiment import sampler_data
 from src.experiment.data_analysis import spectra
+from src.experiment.metadata import (AREA_NORMALISED_TYPES, ExperimentMetadata,
+                                     WASH_NORMALISED_TYPES)
+from src.stations import STATIONS, station_code
 
-stations_dict = {
-    'WBG': {
-        'station_name': 'Water backgroung',
-        'station_mapping': None,
-        'sampler_id': None,
-        'latitude': 0.0,
-        'longitude': 0.0,
-        'altitude': 0.0
-    },
-    'HEL': {
-        'station_name': 'Helsinki',
-        'station_mapping': '01HELSINKI',
-        'sampler_id': 'Z01',
-        'latitude': 60.1699,
-        'longitude': 24.9384,
-        'altitude': 17.0
-    },
-    'UTO': {
-        'station_name': 'Utö',
-        'station_mapping': '09UTÖ',
-        'sampler_id': 'Z09',
-        'latitude': 59.7763,
-        'longitude': 21.4231,
-        'altitude': 9.0
-    },
-    'KUO': {
-        'station_name': 'Kuopio',
-        'station_mapping': '77KUOPIO',
-        'sampler_id': 'Z77',
-        'latitude': 62.8926,
-        'longitude': 27.6770,
-        'altitude': 75.0
-    },
-    'PAL': {
-        'station_name': 'Pallas',
-        'station_mapping': '36PALLAS',
-        'sampler_id': 'Z36',
-        'latitude': 67.9674,
-        'longitude': 24.1196,
-        'altitude': 560.0
-    },
-    'VKK': {
-        'station_name': 'Vikki',
-        'station_mapping': 'Vikki',
-        'sampler_id': 'Z01',
-        'latitude': 1.0,
-        'longitude': 1.0,
-        'altitude': 0.0
-    },
-    'ODE': {
-        'station_name': 'ODEN',
-        'station_mapping': 'ODEN',
-        'sampler_id': 'None',
-        'latitude': 1.0,
-        'longitude': 1.0,
-        'altitude': 0.0
-    },
-    'NYA': {
-        'station_name': 'Ny Ålesund',
-        'station_mapping': 'NYÅLESUND',
-        'sampler_id': 'None',
-        'latitude': 78.9067,
-        'longitude': 11.8883,
-        'altitude': 474.0
-    }
-}
-
-
-class ExperimentMetadata:
-    def __init__(self, **kwargs):
-        # Default values for metadata fields
-        self.sampling_time = kwargs.get('sampling_time', None)
-        self.sampling_interval = kwargs.get('sampling_interval', 10)
-        self.storage_temperature = kwargs.get('storage_temperature', -20)
-        self.experiment_type = kwargs.get('experiment_type', None)
-        self.station = kwargs.get('station', None)
-        self.label = kwargs.get('label', None)
-        self.sampler_id = kwargs.get('sampler_id', None)
-        self.sampler_status = kwargs.get('sampler_status', None)
-        self.air_volume = kwargs.get('air_volume', None)
-        self.start_time = kwargs.get('start_time', None)
-        self.end_time = kwargs.get('end_time', None)
-        self.flow = kwargs.get('flow', None)
-        self.temp = kwargs.get('temp', None)
-        self.press = kwargs.get('press', None)
-        self.exp_description = kwargs.get('exp_description', None)
-        self.run = kwargs.get('run', None)
-        self.template_img = kwargs.get('template_img', 'template_image.png')
-        self.rotation = kwargs.get('rotation', cv2.ROTATE_90_CLOCKWISE)
-        self.hough_params = kwargs.get('hough_params', {
-            "min_distance": 24,
-            "param1": 150,
-            "param2": 15,
-            "min_radius": 13,
-            "max_radius": 15
-        })
-        self.del_index = kwargs.get('del_index', [])
-        self.scan_start_timestamp = kwargs.get('scan_start_timestamp', None)
-        self.scan_end_timestamp = kwargs.get('scan_end_timestamp', None)
-        self.v_drop = kwargs.get('v_drop', None)
-        self.v_wash = kwargs.get('v_wash', None)
-        self.dil_factor = kwargs.get('dil_factor', None)
-        self.filter_fraction = kwargs.get('filter_fraction', None)
-        self.filter_position = kwargs.get('filter_position', None)
-        self.chiller_model = kwargs.get('chiller_model', None)
-
-        # adding the background experiment
-        self.background_exp = kwargs.get('background_exp', None)
-        # punchout metadata
-        self.filter_diameter = kwargs.get('filter_diameter', None)
-        self.puncher_diameter = kwargs.get('puncher_diameter', None)
-        self.filter_type = kwargs.get('filter_type', None)
-        self.latitude = kwargs.get('latitude', None)
-        self.longitude = kwargs.get('longitude', None)
-        # adding info on the normalisation factor and resulting units
-        self.normalisation_factor = kwargs.get('normalisation_factor', None)
-        self.units = kwargs.get('units', 'L-1')
-
-
-    def check_required_fields(self):
-        """
-        Checks whether the required fields are present in the metadata.
-
-        Raises
-        ------
-        ValueError
-            If one or more required fields are missing.
-        """
-        try:
-            self.start_time = self.start_time.strftime('%Y-%m-%d %H:%M')
-            self.end_time = self.end_time.strftime('%Y-%m-%d %H:%M')
-        except AttributeError:
-            pass
-
-        required_fields = ["label"]
-        missing_fields = [field for field in required_fields if getattr(self, field) is None]
-        if missing_fields:
-            raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
-
-
-def is_valid_date_format(date_str):
-    try:
-        datetime.strptime(date_str, "%Y-%m-%d")
-        return True
-    except ValueError:
-        return False
-
-
-def is_valid_sampled_vol(sampled_vol):
-    try:
-        sampled_vol_float = float(sampled_vol)
-        return sampled_vol_float != 1
-    except (ValueError, TypeError):
-        return False
+# The stations table now lives in src/stations.py; kept as an alias so that
+# existing imports of experiment.stations_dict keep working.
+stations_dict = STATIONS
 
 
 class FrESHExperiment:
+    """One PCR plate: its directory under ``data/raw``, metadata and analysis."""
+
     def __init__(self, experiment_name):
-        self.exp_name = experiment_name
+        # Callers used to pass a full path here and rely on `raw_data_path / path`
+        # returning the absolute path unchanged. Keep accepting both, but store
+        # the plain directory name so the paths below are unambiguous.
+        self.exp_name = Path(experiment_name).name
         self.metadata = None
         self.bg_metadata = None
         self.is_analyzed = False
@@ -185,21 +42,26 @@ class FrESHExperiment:
         self.t = []
         self.spectra = None
 
-        experiment_path = paths.raw_data_path / experiment_name
-        processed_path = paths.processed_data_path / experiment_name
+        self.experiment_path = paths.raw_data_path / self.exp_name
+        self.pics_path = self.experiment_path / 'pics'
+        self.sensors_file = self.experiment_path / 'sensors_data.csv'
+        processed_path = paths.processed_data_path / self.exp_name
 
-        # Create experiment directory if it doesn't exist
-        if not os.path.exists(experiment_path):
-            logging.info(f"Creating new experiment: {experiment_path}")
-            os.mkdir(experiment_path)
-            os.mkdir(experiment_path / 'pics')
+        is_new = not self.experiment_path.exists()
+
+        # Create the experiment directory (and its pics/ subdirectory) if needed.
+        self.experiment_path.mkdir(parents=True, exist_ok=True)
+        self.pics_path.mkdir(parents=True, exist_ok=True)
+
+        if is_new:
+            logging.info(f"Creating new experiment: {self.experiment_path}")
         else:
-            logging.info(f"Experiment found! Loading experiment: {experiment_path}")
+            logging.info(f"Experiment found! Loading experiment: {self.experiment_path}")
             self.load_metadata()
 
             # Check if experiment has already been processed
             if os.path.exists(processed_path) and os.path.exists(processed_path / 'report.csv'):
-                logging.info(f"Processed data found for experiment: {experiment_name}")
+                logging.info(f"Processed data found for experiment: {self.exp_name}")
                 self.is_analyzed = True
 
                 # Try to load processed data
@@ -210,12 +72,16 @@ class FrESHExperiment:
                         self.freezing_temps = processed_data['freezing_temp']
                     if 'ff' in processed_data.dtype.names:
                         self.ff = processed_data['ff']
-                    logging.info(f"Successfully loaded processed data for {experiment_name}")
+                    logging.info(f"Successfully loaded processed data for {self.exp_name}")
                 except Exception as e:
                     logging.warning(f"Error loading processed data: {e}")
                     self.is_analyzed = False
 
-        self.validate_and_correct_metadata()
+        # A brand new experiment has no metadata yet -- it is attached right
+        # afterwards with set_metadata(). Only validate what we actually have.
+        if self.metadata is not None:
+            self.validate_and_correct_metadata()
+
         self.img_files = self.get_experiment_image_list()
 
         # Validate metadata completeness
@@ -259,14 +125,13 @@ class FrESHExperiment:
         if not self.img_files or len(self.img_files) == 0:
             return False, "No images found"
 
-        sensors_path = paths.raw_data_path / self.exp_name / 'sensors_data.csv'
-        if not os.path.exists(sensors_path):
+        if not self.sensors_file.exists():
             return False, "Missing sensors data"
 
         return True, "Ready for analysis"
 
     def get_experiment_image_list(self):
-        img_dir = paths.raw_data_path / self.exp_name / 'pics'
+        img_dir = self.pics_path
         # get a list of all JPG files in the directory
         img_file_list = [f for f in img_dir.iterdir() if f.is_file() and f.suffix == ".jpg" or f.suffix == ".png"]
         # sort the list of images
@@ -400,33 +265,47 @@ class FrESHExperiment:
 
 
     def calculate_normalisation_factor(self):
+        """Set ``metadata.normalisation_factor`` (X) from the experiment type.
+
+        The type is matched case-insensitively; an unknown or missing type
+        falls back to X = 1.0 with a warning instead of raising.
+        """
         v_drop = self.metadata.v_drop
-        if self.metadata.experiment_type.lower()  in ['filter', 'filter Background']:
+        exp_type = (self.metadata.experiment_type or '').strip().lower()
+
+        wash_types = [t.lower() for t in WASH_NORMALISED_TYPES]
+        area_types = [t.lower() for t in AREA_NORMALISED_TYPES]
+
+        if exp_type in wash_types:
             nu = self.metadata.dil_factor
             v_wash = self.metadata.v_wash
-            #v_air = self.metadata.air_volume # float(self.metadata.air_volume) # NOTE: after bg correction!
-            filter_fraction = float(self.metadata.filter_fraction)
-            # Normalization factor to L^-1
             try:
+                filter_fraction = float(self.metadata.filter_fraction)
                 X = nu * v_wash / (filter_fraction * v_drop)
-            except TypeError:
-                logging.warning("Error calculating normalization factor.")
-                X = 1
-        elif self.metadata.experiment_type in ['Punched filter', 'Punched filter background']:
-            try:
-                d_filter = self.metadata.filter_diameter # 0.135 m
-                d_punchout = self.metadata.puncher_diameter # 0.001  m
-                filter_fraction = (0.5*d_punchout)**2 / (0.5*d_filter)**2
-                #X = v_air * filter_fraction
-                X = 1 / filter_fraction
-            except TypeError:
-                logging.warning("Error calculating normalization factor.")
-                X = 1
+            except (TypeError, ValueError, ZeroDivisionError):
+                logging.warning(f"Could not compute the wash normalisation factor for "
+                                f"{self.exp_name} (dil_factor={nu}, v_wash={v_wash}, "
+                                f"filter_fraction={self.metadata.filter_fraction}, "
+                                f"v_drop={v_drop}); using 1.0")
+                X = 1.0
 
-        elif self.metadata.experiment_type == 'WB':
-            X = v_drop
+        elif exp_type in area_types:
+            try:
+                d_filter = self.metadata.filter_diameter    # e.g. 0.135 m
+                d_punchout = self.metadata.puncher_diameter  # e.g. 0.001 m
+                filter_fraction = (0.5 * d_punchout) ** 2 / (0.5 * d_filter) ** 2
+                X = 1 / filter_fraction
+            except (TypeError, ValueError, ZeroDivisionError):
+                logging.warning(f"Could not compute the punch-out normalisation factor for "
+                                f"{self.exp_name} (filter_diameter={self.metadata.filter_diameter}, "
+                                f"puncher_diameter={self.metadata.puncher_diameter}); using 1.0")
+                X = 1.0
+
         else:
-            print('Normalisation factro is set to 1.0')
+            # See the NOTE in src/experiment/metadata.py: background types land
+            # here today. Kept as-is so results do not silently change.
+            logging.warning(f"No normalisation rule for experiment type "
+                            f"{self.metadata.experiment_type!r}; using X = 1.0")
             X = 1.0
 
         self.metadata.normalisation_factor = X
@@ -524,7 +403,7 @@ class FrESHExperiment:
         #self.metadata.scan_start_timestamp = None
         #self.metadata.scan_end_timestamp = None
         self.metadata.check_required_fields()
-        metadata_path = os.path.join(paths.raw_data_path / self.exp_name, f"metadata.json")
+        metadata_path = self.experiment_path / "metadata.json"
         with open(metadata_path, "w") as metadata_file:
             # Convert specific fields to float before saving
             metadata_dict = self.metadata.__dict__
@@ -540,7 +419,7 @@ class FrESHExperiment:
             json.dump(metadata_dict, metadata_file, indent=4)
 
     def load_metadata(self):
-        metadata_path = os.path.join(paths.raw_data_path, self.exp_name, "metadata.json")
+        metadata_path = self.experiment_path / "metadata.json"
         #print(metadata_path)
         if os.path.exists(metadata_path):
             if os.path.getsize(metadata_path) == 0:  # Check if file is empty
@@ -571,11 +450,20 @@ class FrESHExperiment:
             return None
 
     def validate_and_correct_metadata(self):
-        # Fix station code if needed
-        if self.metadata.station == "JFK" and hasattr(self.metadata, 'label') and self.metadata.label:
-            station_code = self.metadata.label[0:3]
-            if station_code in stations_dict:
-                self.metadata.station = station_code
+        if self.metadata is None:
+            logging.debug(f"No metadata to validate for {self.exp_name}")
+            return
+
+        # The station is encoded in the label; trust the label whenever the
+        # stored station is missing or is not a station we know about.
+        # (This used to test for a hardcoded "JFK" sentinel that no station
+        # ever uses, so in practice a wrong station was never corrected.)
+        code_from_label = station_code(self.metadata.label)
+        if code_from_label and self.metadata.station not in STATIONS:
+            if self.metadata.station is not None:
+                logging.warning(f"Unknown station {self.metadata.station!r}, "
+                                f"using {code_from_label} from the label instead")
+            self.metadata.station = code_from_label
 
         # Set default values for numerical fields
         if self.metadata.dil_factor is None or (
@@ -629,13 +517,15 @@ class FrESHExperiment:
         if not hasattr(self.metadata, 'label') or not self.metadata.label:
             return
 
-        station_code = self.metadata.label[0:3]
+        code = station_code(self.metadata.label)
         date_str = self.metadata.label[3:]
 
-        if station_code not in stations_dict:
+        if code is None:
             return
 
-        station_mapping = stations_dict[station_code]['station_mapping']
+        station_mapping = STATIONS[code]['station_mapping']
+        if not station_mapping:
+            return
         csv_path = os.path.join(paths.external_data_path, 'sampler_raw_data', station_mapping)
 
         if not os.path.exists(csv_path):
@@ -739,13 +629,13 @@ class FrESHExperiment:
             logging.error(f"Invalid label format: {label}")
             return None
 
-        station_code = label[0:3]
+        code = station_code(label)
         date_str = label[3:]
 
         # Get station mapping
-        station = stations_dict.get(station_code)
+        station = STATIONS.get(code) if code else None
         if not station or not station['station_mapping']:
-            logging.error(f"Station mapping not found for {station_code}")
+            logging.error(f"Station mapping not found for {label[0:3]}")
             return None
 
         # Find matching data in CSV
@@ -799,55 +689,12 @@ class FrESHExperiment:
         return exp_name.split('_')[1]
 
     def _retrieve_metadata(self, label):
-        station = stations_dict.get(label[0:3])
-        if not station:
-            logging.error(f"Station not found for label: {label}")
-            return None
-
-        try:
-            date = datetime.strptime(label[3:], "%Y%m%d")
-            directory_path = os.path.join(paths.external_data_path, 'sampler_raw_data', station['station_mapping'])
-            date_str = date.strftime("%-d.%-m.%Y").strip()
-        except ValueError:
-            return None
-
-        for root, dirs, files in os.walk(directory_path):
-            for file_name in files:
-                if file_name.endswith(".CSV"):  # == "SUM.CSV":
-                    sum_path = os.path.join(root, file_name)
-                    with open(sum_path, "r") as file:
-                        lines = file.readlines()
-                        for line in lines[1:]:
-                            fields = line.strip().split(";")
-                            if len(fields) > 2 and fields[2].strip() == date_str.strip():
-                                values = line.strip().split(";")
-                                return self._create_experiment_metadata(values, label, "filter")
-
-        logging.warning(f"No raw data found for label: {label}")
-        return None
+        """Look the label up in the sampler CSV files. See src/experiment/sampler_data.py."""
+        return sampler_data.retrieve_metadata(label)
 
     def _create_experiment_metadata(self, values, label, experiment_type):
-        start_datetime = datetime.strptime(values[2] + ' ' + values[3], "%d.%m.%Y %H:%M")
-        end_datetime = datetime.strptime(values[4] + ' ' + values[5], "%d.%m.%Y %H:%M")
-        metadata_dict = {
-            'station': label[0:3],
-            'experiment_type': experiment_type,
-            'label': label,
-            'sampler_id': f"{stations_dict[label[0:3]]['sampler_id']}",
-            'sampler_status': values[1],
-            'start_time': start_datetime.strftime("%Y-%m-%d %H:%M"),
-            'end_time': end_datetime.strftime("%Y-%m-%d %H:%M"),
-            'filter_position': int(values[7]),
-            'air_volume': float(values[8]),
-            'flow': float(values[9]),
-            'temp': float(values[10]),
-            'press': float(values[11]),
-            'v_drop': 5e-05,
-            'v_wash': 0.01,
-            'dil_factor': 1.0,
-            'filter_fraction': 1.0
-        }
-        return ExperimentMetadata(**metadata_dict)
+        """Build metadata from one sampler CSV row."""
+        return sampler_data.build_metadata(values, label, experiment_type)
 
     def import_metadata(self, import_path):
         # loads metadata from a file
@@ -863,15 +710,20 @@ class FrESHExperiment:
         #self.metadata.scan_start_timestamp = None
         #self.metadata.scan_end_timestamp = None
         if export_format == "json":
-            export_path = os.path.join(paths.raw_data_path / self.exp_name, f"metadata.json")
+            export_path = self.experiment_path / "metadata.json"
             with open(export_path, "w") as export_file:
                 json.dump(self.metadata.__dict__, export_file, indent=4)
         elif export_format == "yaml":
-            export_path = os.path.join(paths.raw_data_path / self.exp_name, f"metadata.yaml")
+            export_path = self.experiment_path / "metadata.yaml"
             with open(export_path, "w") as export_file:
                 yaml.dump(self.metadata.__dict__, export_file, default_flow_style=False)
         else:
             print(f"Unsupported export format: {export_format}")
+
+
+def sensors_file(exp_name):
+    """Path of the sensor readings written during a scan."""
+    return paths.raw_data_path / exp_name / 'sensors_data.csv'
 
 
 def read_sensors_data(file_path):
@@ -933,7 +785,7 @@ def read_sensors_data(file_path):
 
 
 def process_sensors_data(exp_name, freezing_idxs, freezing_times):
-    file_path = paths.raw_data_path / exp_name / 'sensors_data.csv'
+    file_path = sensors_file(exp_name)
     data = read_sensors_data(file_path)
 
     # Filter data
@@ -951,7 +803,7 @@ def process_sensors_data(exp_name, freezing_idxs, freezing_times):
 
 def calculate_frame_temperatures(img_files, exp_name):
     times = [datetime.strptime(img.stem, "%Y%m%d%H%M%S") for img in img_files]
-    file_path = paths.raw_data_path / exp_name / 'sensors_data.csv'
+    file_path = sensors_file(exp_name)
 
     data = read_sensors_data(file_path)
     data = list(takewhile(lambda x: x['BT'] > -45, data))
@@ -969,7 +821,7 @@ def calculate_frame_temperatures(img_files, exp_name):
 
 
 def calculate_freezing_temps(freezing_times, exp_name):
-    file_path = paths.raw_data_path / exp_name / 'sensors_data.csv'
+    file_path = sensors_file(exp_name)
     data = read_sensors_data(file_path)
 
     # Filter data

@@ -1,41 +1,29 @@
 #!/usr/bin/env python3
+"""The scan window: camera, chiller, temperature ramp and data logging."""
 
-import sys
-import time
-import cv2
 import logging
-import os
-import json
+import time
 
+import cv2
 import numpy as np
 import pyqtgraph as pg
 
-import PyQt6
-from PyQt6 import QtGui, QtWidgets, uic, QtCore
+from PyQt6 import QtGui, QtWidgets, uic
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import QTimer, pyqtSlot, Qt
-from PyQt6.QtWidgets import *
 
-from src import paths, __version__
-
-from src.gui.threads import VideoThread, DataWorker, TempThread
+from src import __version__, paths
+from src.gui.threads import DataWorker, TempThread, VideoThread
 from src.gui.video import VideoSettingsUi
-
-#from src.daq import mccdaq
-from src.daq.ADAMlib import ADAMConnection, ADAM4015
-# from src.daq.IniLoader import IniLoader
 
 VIDEO_DISPLAY_WIDTH = 525
 VIDEO_DISPLAY_HEIGHT = 359
 
-if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
-    PyQt6.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
+#: Columns of sensors_data.csv, in order. The header used to list four columns
+#: while five values were written on every row.
+SENSOR_COLUMNS = ('datetime', 'SP', 'BT', 'RTD0', 'RTD1')
 
-if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
-    PyQt6.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
-
-qt_path = os.path.dirname(PyQt6.__file__)
-os.environ['QT_PLUGIN_PATH'] = os.path.join(qt_path, "Qt5/plugins/platforms")
+LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
 
 def convert_cv_qt(cv_img):
@@ -50,6 +38,8 @@ def convert_cv_qt(cv_img):
 
 
 class ExperimentUi(QtWidgets.QMainWindow):
+    """Drives one scan over one or two PCR plates."""
+
     def __init__(self, exp_list, *args, **kwargs):
         super(ExperimentUi, self).__init__(*args, **kwargs)
 
@@ -61,18 +51,17 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.adam0 = []
         self.adam1 = []
 
-        self.new_line1 = None
-        self.line2 = None
-        self.line3 = None
-        #self.line4 = None
-
         self.video_thread = None
-        self.image_frame = None
+        self.data_worker = None
+        self.temp_worker = None
+        self.image_frame = self.findChild(QtWidgets.QLabel, 'videoLabel')
+        self.picture_timer = None
+        self.VideoSettingsUi = None
+        self._file_logging_ready = False
 
         # Connect buttons
-        self.button_set_temp = self.findChild(QtWidgets.QPushButton, 'setTempButton')  # Find the button
-        self.button_set_temp.clicked.connect(lambda: self.set_temp(float(self.targetTemp.text())))
-        #self.button_set_temp.clicked.connect(self.set_temp)
+        self.button_set_temp = self.findChild(QtWidgets.QPushButton, 'setTempButton')
+        self.button_set_temp.clicked.connect(self.set_temp_from_form)
 
         self.btn_connect_video = self.findChild(QtWidgets.QPushButton, 'connectVideoButton')
         self.btn_connect_video.clicked.connect(self.connect_video)
@@ -98,160 +87,225 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.btn_video_settings = self.findChild(QtWidgets.QPushButton, 'videoSettingsButton')
         self.btn_video_settings.clicked.connect(self.video_settings)
 
-        # Change xaxis in GraphWidget yo show time in format HH:MM:SS
+        # Show time as HH:MM:SS on the x axis
         self.graphWidget.setAxisItems(axisItems={'bottom': TimeAxisItem(orientation='bottom')})
 
         self.saveCheckBox.stateChanged.connect(self.setup_saving)
 
-        # Create a custom logging handler
-        self.log_text_edit = self.findChild(QtWidgets.QPlainTextEdit, 'logTextEdit')
-        self.log_handler = QPlainTextEditLogger(self.log_text_edit)
-        logging.getLogger().addHandler(self.log_handler)
+        self._setup_log_widget()
 
-        pen = pg.mkPen(color='red', width=1)
-        pen2 = pg.mkPen(color='green', width=1)
-        pen3 = pg.mkPen(color='blue', width=1)
-        #pen4 = pg.mkPen(color='orange', width=1)
-
-        self.graphWidget.setLabel('left', 'Bath temp [ºC]', color='red', size=30)
-        self.graphWidget.setLabel('right', 'Setpoint temp [ºC]', color='green', size=30)
+        self.graphWidget.setLabel('left', 'Temperature [ºC]', color='red', size=30)
         self.graphWidget.setLabel('bottom', 'Time', size=30)
+        self.graphWidget.addLegend()
 
-        self.new_line1 = self.graphWidget.plot(*zip(*self.bath_temp), name="Bath temp.", pen=pen)
-        self.line2 = self.graphWidget.plot(*zip(*self.setpoint), name="Setpoint temp.", pen=pen2)
-        self.line3 = self.graphWidget.plot(*zip(*self.adam0), name="ADAM_0", pen=pen3)
-        #self.line4 = self.graphWidget.plot(*zip(*self.adam1), name="ADAM_1", pen=pen4)
+        self.line_bath_temp = self.graphWidget.plot([], [], name="Bath temp.", pen=pg.mkPen(color='red', width=1))
+        self.line_setpoint = self.graphWidget.plot([], [], name="Setpoint temp.", pen=pg.mkPen(color='green', width=1))
+        self.line_adam0 = self.graphWidget.plot([], [], name="ADAM_0", pen=pg.mkPen(color='blue', width=1))
+
+        self.setWindowTitle(' - '.join(e.metadata.label for e in self.exp_list if e.metadata))
 
         self.show()
 
-    def start_scan(self):
-        max_temp = float(self.maxTemp.text())
-        min_temp = float(self.minTemp.text())
-        cooling_rate = float(self.coolingRate.text()) / 10
-        heating_rate = float(self.heatingRate.text()) / 10
+    # -- logging -------------------------------------------------------------
 
-        self.temp_worker = TempThread(max_temp, min_temp, cooling_rate, heating_rate)
+    def _setup_log_widget(self):
+        """Mirror the log into the window, if the .ui provides a place for it.
+
+        ``experiment.ui`` currently has no ``logTextEdit`` widget; add a
+        QPlainTextEdit with that name to get the log panel back.
+        """
+        self.log_text_edit = self.findChild(QtWidgets.QPlainTextEdit, 'logTextEdit')
+        self.log_handler = None
+
+        if self.log_text_edit is None:
+            logging.debug("No 'logTextEdit' widget in experiment.ui, skipping the log panel")
+            return
+
+        self.log_handler = QPlainTextEditLogger(self.log_text_edit)
+        self.log_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+        logging.getLogger().addHandler(self.log_handler)
+
+    def _setup_file_logging(self):
+        """Also write the log to a file inside each experiment directory."""
+        if self._file_logging_ready:
+            return
+
+        logger = logging.getLogger()
+        for experiment in self.exp_list:
+            log_file = experiment.experiment_path / f'{experiment.metadata.label}.log'
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setLevel(logging.INFO)
+            file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+            logger.addHandler(file_handler)
+            logging.info(f"Logging to: {log_file}")
+
+        self._file_logging_ready = True
+
+    # -- sensors file --------------------------------------------------------
+
+    @staticmethod
+    def _ensure_sensors_file(experiment):
+        """Create sensors_data.csv with its header, once per experiment."""
+        path = experiment.sensors_file
+        if path.exists() and path.stat().st_size > 0:
+            return path
+
+        with open(path, 'w') as fo:
+            fo.write(','.join(SENSOR_COLUMNS) + '\n')
+        logging.info(f"Sensors data file created: {path}")
+        return path
+
+    def _append_sensors_row(self, timestamp, sp, bt, rtd0, rtd1):
+        row = (f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(timestamp))},'
+               f'{sp:.2f},{bt:.2f},{rtd0:.2f},{rtd1:.2f}\n')
+
+        for experiment in self.exp_list:
+            try:
+                with open(experiment.sensors_file, 'a') as fo:
+                    fo.write(row)
+            except Exception as e:
+                logging.error(f"Error saving data for experiment {experiment.exp_name}: {e}")
+
+    # -- scanning ------------------------------------------------------------
+
+    def start_scan(self):
+        if self.temp_worker is not None and self.temp_worker.isRunning():
+            logging.warning("A scan is already running")
+            return
+
+        if self.data_worker is None or not self.data_worker.connected:
+            self._warn("Connect the chiller before starting a scan.")
+            return
+
+        try:
+            self.temp_worker = TempThread(max_temp=float(self.maxTemp.text()),
+                                          min_temp=float(self.minTemp.text()),
+                                          cooling_rate=float(self.coolingRate.text()),
+                                          heating_rate=float(self.heatingRate.text()))
+        except ValueError as e:
+            self._warn(f"Cannot start the scan: {e}")
+            return
+
         self.temp_worker.temp_signal.connect(self.set_temp)
         self.temp_worker.start()
 
         self.saveCheckBox.setChecked(True)
+        logging.info("Scan started")
+
+    def _stop_ramp(self):
+        if self.temp_worker is None or not self.temp_worker.isRunning():
+            logging.info("No scan is running")
+            return False
+
+        self.temp_worker.stop()
+        return True
+
+    def stop_scan(self):
+        if self._stop_ramp():
+            logging.info("Scan terminated!")
 
     def end_scan(self):
         self.saveCheckBox.setChecked(False)
-
-        self.temp_worker.terminate()
-
+        self._stop_ramp()
         self.set_temp(0)
-
         logging.info("Scan terminated!")
 
-    def stop_scan(self):
-        self.temp_worker.terminate()
-        logging.info("Scan terminated!")
+    def set_temp_from_form(self):
+        try:
+            self.set_temp(float(self.targetTemp.text()))
+        except ValueError:
+            self._warn(f"{self.targetTemp.text()!r} is not a valid temperature.")
 
     @pyqtSlot(object)
     def set_temp(self, t):
         logging.info(f'Setting temperature to: {t}')
-        try:
-            self.data_worker.chiller.set_temperature(t)
-        except AttributeError:
-            logging.error("Error setting temperature!")
+        if self.data_worker is None:
+            logging.error("Error setting temperature: chiller not connected")
+            return
+        self.data_worker.set_temperature(t)
+
+    # -- pictures ------------------------------------------------------------
 
     def video_settings(self):
+        if self.video_thread is None:
+            self._warn("Connect the camera first.")
+            return
         self.VideoSettingsUi = VideoSettingsUi(self.video_thread)
         self.VideoSettingsUi.show()
 
     def save_pic(self):
-        ret, cv_img = self.video_thread.cap.read()
+        """Save the current frame, one picture per experiment.
 
-        if len(self.exp_list) == 1:
-            experiment = self.exp_list[0]
-            fo = experiment.experiment_path / 'pics' / time.strftime("%Y%m%d%H%M%S.jpg", time.localtime())
-            cv_img = cv2.rotate(cv_img, cv2.ROTATE_90_CLOCKWISE)
-            cv2.imwrite(str(fo), cv_img)
-        elif len(self.exp_list) >= 2:
-            # cv_img = cv2.rotate(cv_img, cv2.ROTATE_90_CLOCKWISE)
-            # cv_img = convert_qt_cv(self.image_frame.pixmap().toImage())
+        The frame comes from the video thread's last capture: calling
+        ``cap.read()`` here would race with the thread that is already reading
+        the same camera.
+        """
+        if self.video_thread is None or self.video_thread.last_frame is None:
+            logging.warning("No frame available to save")
+            return
 
-            croped = cv_img  # auto_crop(cv_img)
+        # Saved unrotated, side by side as the camera sees them: the analysis
+        # applies metadata.rotation itself (see FrESHExperiment.process_images),
+        # so rotating here would turn the plates twice.
+        cv_img = self.video_thread.last_frame
+        file_name = time.strftime("%Y%m%d%H%M%S.jpg", time.localtime())
 
-            height, width = croped.shape[:2]
-            split_width = width // len(self.exp_list)
+        width = cv_img.shape[1]
+        split_width = width // len(self.exp_list)
 
-            for i, experiment in enumerate(self.exp_list):
-                fo = paths.raw_data_path / experiment.exp_name / 'pics' / time.strftime(f"%Y%m%d%H%M%S.jpg", time.localtime())
-                segment = croped[:, i * split_width: (i+1) * split_width]
-                cv2.imwrite(str(fo), segment)
+        for i, experiment in enumerate(self.exp_list):
+            segment = cv_img if len(self.exp_list) == 1 else cv_img[:, i * split_width:(i + 1) * split_width]
+            cv2.imwrite(str(experiment.pics_path / file_name), segment)
 
     def setup_saving(self):
-        log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        logger = logging.getLogger('')
-
-        windows_title = ''
-
+        """Start or stop writing pictures and sensor readings to disk."""
         if not self.saveCheckBox.isChecked():
-            self.timer2.stop()
+            if self.picture_timer is not None:
+                self.picture_timer.stop()
             logging.info("Stopped saving data!")
             return
 
-        for handler in logging.root.handlers[:]:
-            logging.root.removeHandler(handler)
-
-        logging.basicConfig(level=logging.INFO,
-                            format=log_fmt,
-                            filemode='w')
+        self._setup_file_logging()
 
         for experiment in self.exp_list:
-            file_handler = logging.FileHandler(paths.raw_data_path / experiment.exp_name / f'{experiment.metadata.label}.log')
-            file_handler.setLevel(logging.INFO)
-            file_handler.setFormatter(logging.Formatter(log_fmt))
-            logger.addHandler(file_handler)
-
-            with open(paths.raw_data_path / experiment.exp_name / "sensors_data.csv", "a") as fo:
-                fo.write(f'datetime, 'f'SP,' f'BT,' f'RTD0\n')
-
-            logging.info(f'Sensors data file created: {paths.raw_data_path / experiment.exp_name / "sensors_data.csv"}')
-
-            windows_title += experiment.metadata.label
-            windows_title += ' - '
-
-        self.setWindowTitle(windows_title)
+            self._ensure_sensors_file(experiment)
 
         logging.info(f"Software version: {__version__}")
 
-        # logging.info(f"Experiment directory created: {self.experiment.experiment_path}")
+        if self.picture_timer is None:
+            self.picture_timer = QTimer()
+            self.picture_timer.timeout.connect(self.save_pic)
 
-        self.timer2 = QTimer()
-        self.timer2.setInterval(self.pictureIntervalSpinBox.value() * 1000)
-        self.timer2.timeout.connect(self.save_pic)
-        self.timer2.start()
+        self.picture_timer.setInterval(self.pictureIntervalSpinBox.value() * 1000)
+        self.picture_timer.start()
+        logging.info(f"Saving a picture every {self.pictureIntervalSpinBox.value()} s")
+
+    # -- connections ---------------------------------------------------------
 
     def connect_video(self):
         logging.info("Connecting Camera")
 
-        # Disconnect and stop the previous video thread if it exists
-        if hasattr(self, 'video_thread') and self.video_thread is not None:
-            # Disconnect the signal
+        if self.video_thread is not None:
             self.video_thread.change_pixmap_signal.disconnect(self.update_image)
-            # Stop the thread
             self.video_thread.stop()
-            # Wait for the thread to finish
-            self.video_thread.wait()
 
-        # Setup video widget
-        self.image_frame = self.findChild(QtWidgets.QLabel, 'videoLabel')
-        # Create a new video thread with the updated camera ID
         self.video_thread = VideoThread(self.cameraID.value())
-        # connect its signal to the update_image slot
         self.video_thread.change_pixmap_signal.connect(self.update_image)
-        # start the thread
         self.video_thread.start()
 
         logging.info("Camera connected")
 
     def connect_chiller(self):
-        # Setup thread for temperature I/O
-        self.data_worker = DataWorker(float(self.targetTemp.text()))
+        if self.data_worker is not None and self.data_worker.isRunning():
+            logging.warning("The chiller is already connected")
+            return
+
+        try:
+            initial_temp = float(self.targetTemp.text())
+        except ValueError:
+            initial_temp = 0.0
+
+        self.data_worker = DataWorker(initial_temp)
         self.data_worker.read_data_signal.connect(self.read_sensors_data)
         self.data_worker.start()
 
@@ -264,88 +318,117 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
             t = time.time()
 
-            # Safely get values with defaults
             BT = data.get('BT', 0.0)
             SP = data.get('SP', 0.0)
             RTD0 = data.get('RTD0', 0.0)
             RTD1 = data.get('RTD1', 0.0)
 
-            # Update the plots
             self.bath_temp.append((t, BT))
             self.setpoint.append((t, SP))
             self.adam0.append((t, RTD0))
             self.adam1.append((t, RTD1))
 
-            # Save data if checkbox is checked
             if self.saveCheckBox.isChecked():
-                for experiment in self.exp_list:
-                    try:
-                        with open(paths.raw_data_path / experiment.exp_name / "sensors_data.csv", "a") as fo:
-                            fo.write(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))},'
-                                     f'{SP:.2f},' f'{BT:.2f},' f'{RTD0:.2f},' f'{RTD1:.2f}\n')
-                    except Exception as e:
-                        logging.error(f"Error saving data for experiment {experiment.exp_name}: {str(e)}")
+                self._append_sensors_row(t, SP, BT, RTD0, RTD1)
 
             self.update_temp_plot()
 
         except Exception as e:
-            logging.error(f"Error processing sensor data: {str(e)}")
+            logging.error(f"Error processing sensor data: {e}")
+
+    # -- plotting ------------------------------------------------------------
 
     def clear_data(self):
         self.bath_temp = []
         self.setpoint = []
         self.adam0 = []
-        #self.adam1 = []
+        self.adam1 = []
 
-    def exit(self):
-
-        try:
-            self.data_worker.daq.daq_device.release()
-        except AttributeError:
-            logging.warning("DAQ device not initialized")
-
-        try:
-            self.video_thread.stop()
-        except AttributeError:
-            logging.warning("Camera not initialized")
-
-        logging.info("Exiting experiment")
-
-        sys.exit()
+        for line in (self.line_bath_temp, self.line_setpoint, self.line_adam0):
+            line.setData([], [])
 
     def update_temp_plot(self):
-        self.new_line1.setData(*zip(*self.bath_temp))
-        self.line2.setData(*zip(*self.setpoint))
-        self.line3.setData(*zip(*self.adam0))
-        #self.line4.setData(*zip(*self.adam1))
+        if not self.bath_temp:
+            return
+
+        self.line_bath_temp.setData(*zip(*self.bath_temp))
+        self.line_setpoint.setData(*zip(*self.setpoint))
+        self.line_adam0.setData(*zip(*self.adam0))
 
         self.lcdBT.display(f"{self.bath_temp[-1][1]:.02f}")
         self.lcdSP.display(f"{self.setpoint[-1][1]:.02f}")
         self.lcdRTD1.display(f"{self.adam0[-1][1]:.02f}")
-        #self.lcdRTD2.display(f"{self.adam1[-1][1]:.02f}")
 
     @pyqtSlot(np.ndarray)
     def update_image(self, cv_img):
         """Updates the image_label with a new opencv image"""
-        #cv_img = cv2.rotate(cv_img, cv2.ROTATE_180)
-        qt_img = convert_cv_qt(cv_img)
+        if self.image_frame is not None:
+            self.image_frame.setPixmap(convert_cv_qt(cv_img))
 
-        self.image_frame.setPixmap(qt_img)
+    # -- shutting down -------------------------------------------------------
+
+    def _warn(self, message):
+        logging.warning(message)
+        QtWidgets.QMessageBox.warning(self, "FrESH", message)
+
+    def shutdown(self):
+        """Stop every worker and release the hardware."""
+        if self.picture_timer is not None:
+            self.picture_timer.stop()
+
+        if self.temp_worker is not None and self.temp_worker.isRunning():
+            self.temp_worker.stop()
+
+        if self.video_thread is not None:
+            self.video_thread.stop()
+            self.video_thread = None
+
+        if self.data_worker is not None:
+            # Closes the serial port / releases the DAQ board too.
+            self.data_worker.stop()
+            self.data_worker = None
+
+        if self.log_handler is not None:
+            logging.getLogger().removeHandler(self.log_handler)
+            self.log_handler = None
+
+    def closeEvent(self, event):
+        """Also clean up when the window is closed with the title bar."""
+        self.shutdown()
+        super().closeEvent(event)
+
+    def exit(self):
+        logging.info("Exiting experiment")
+        self.shutdown()
+        self.close()
+        QtWidgets.QApplication.quit()
 
 
 class QPlainTextEditLogger(logging.Handler):
-    def __init__(self, parent):
+    """A logging handler that appends to a QPlainTextEdit.
+
+    Records arrive from the worker threads, and Qt widgets may only be touched
+    from the GUI thread, so the text is handed over through a signal.
+    """
+
+    class _Bridge(QtWidgets.QWidget):
+        message = pyqtSignal(str)
+
+    def __init__(self, widget):
         super(QPlainTextEditLogger, self).__init__()
 
-        self.widget = QPlainTextEdit(parent)
+        self.widget = widget
         self.widget.setReadOnly(True)
 
-    def emit(self, record):
-        msg = self.format(record)
-        self.widget.appendPlainText(msg)
+        self._bridge = self._Bridge()
+        self._bridge.message.connect(self.widget.appendPlainText)
 
-    def write(self, m):
-        pass
+    def emit(self, record):
+        try:
+            self._bridge.message.emit(self.format(record))
+        except RuntimeError:
+            # The widget is gone (window closed); nothing to do.
+            pass
 
 
 class TimeAxisItem(pg.AxisItem):
@@ -356,16 +439,3 @@ class TimeAxisItem(pg.AxisItem):
 
     def tickStrings(self, values, scale, spacing):
         return [time.strftime("%H:%M:%S", time.localtime(value)) for value in values]
-
-
-def main():
-    app = QtWidgets.QApplication(sys.argv)
-    window = ExperimentUi()
-    window.show()
-    sys.exit(app.exec_())
-
-
-if __name__ == '__main__':
-    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logging.basicConfig(level=logging.INFO, format=log_fmt)
-    main()

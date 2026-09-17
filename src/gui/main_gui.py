@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
-import sys
-import logging
+"""Entry point: python -m src.gui.main_gui"""
 
-from PyQt6 import QtGui, QtWidgets, uic
-from experiment_metadata import ExperimentMetadataUi
-from analysis import ExperimentAnalysisUi
+import logging
+import sys
+
+from PyQt6 import QtWidgets, uic
 
 from src import paths
-
-# Double experiment .ui file path
-DOUBLE_EXPERIMENT_UI_FILE = paths.src_module_dir / 'gui' / 'double_experiment_metadata.ui'
+from src.gui.analysis import ExperimentAnalysisUi
+from src.gui.experiment_metadata import ExperimentMetadataUi
 
 MAIN_UI_FILE = paths.src_module_dir / 'gui' / 'main.ui'
+DOUBLE_EXPERIMENT_UI_FILE = paths.src_module_dir / 'gui' / 'double_experiment_metadata.ui'
+
+LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
 
 class MainUi(QtWidgets.QMainWindow):
@@ -20,19 +22,20 @@ class MainUi(QtWidgets.QMainWindow):
 
         uic.loadUi(MAIN_UI_FILE, self)
 
+        self.ExperimentMetadataUi = None
+        self.ExperimentAnalysisUi = None
+
         self.button_new_double_experiment = self.findChild(QtWidgets.QPushButton, 'newDoubleExperimentButton')
         self.button_new_double_experiment.clicked.connect(self.start_double_experiment)
 
         self.button_view_experiment = self.findChild(QtWidgets.QPushButton, 'viewExperimentButton')
         self.button_view_experiment.clicked.connect(self.view_experiment)
 
-
     def start_double_experiment(self):
         self.hide()
 
         self.ExperimentMetadataUi = ExperimentMetadataUi(DOUBLE_EXPERIMENT_UI_FILE)
         self.ExperimentMetadataUi.show()
-
 
     def view_experiment(self):
         self.hide()
@@ -42,15 +45,13 @@ class MainUi(QtWidgets.QMainWindow):
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+
     app = QtWidgets.QApplication(sys.argv)
     window = MainUi()
     window.show()
     sys.exit(app.exec())
 
-logger = logging.getLogger('dual_logger')
-logger.setLevel(logging.DEBUG)
-if __name__ == '__main__':
 
-    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logging.basicConfig(level=logging.INFO, format=log_fmt)
+if __name__ == '__main__':
     main()

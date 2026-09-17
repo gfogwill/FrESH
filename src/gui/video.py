@@ -1,13 +1,14 @@
 import cv2
-import numpy as np
 from PyQt6 import QtWidgets, uic
+
+from src import paths
 
 
 class VideoSettingsUi(QtWidgets.QMainWindow):
     def __init__(self, video_thread, *args, **kwargs):
         super(VideoSettingsUi, self).__init__(*args, **kwargs)
 
-        uic.loadUi('video_settings.ui', self)
+        uic.loadUi(paths.src_module_dir / 'gui' / 'video_settings.ui', self)
 
         self.video_thread = video_thread
 

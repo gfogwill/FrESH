@@ -1,96 +1,120 @@
-import logging
-import os
-import sys
-import time
-from datetime import datetime
+"""The metadata form (src/gui/experiment_metadata.py)."""
 
-import PyQt5
-from PyQt5 import QtGui, QtWidgets, uic, QtCore
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import QTimer, pyqtSlot, Qt
-from PyQt5.QtWidgets import *
+import pytest
 
-from src.gui.experiment_gui import ExperimentUi
-from src.gui.experiment_metadata import ExperimentMetadataUi
-from src.experiment.experiment import FrESHExperiment, ExperimentMetadata
 from src import paths
+from src.experiment.metadata import ExperimentMetadata
+from src.gui.experiment_metadata import ExperimentMetadataUi, fill_missing
+
+UI_FILE = paths.src_module_dir / 'gui' / 'double_experiment_metadata.ui'
+
+SAMPLER_CSV = (
+    "No;Status;StartDate;StartTime;EndDate;EndTime;Dur;Pos;Volume;Flow;Temp;Press\n"
+    "1;OK;19.06.2024;08:00;20.06.2024;08:00;24;7;21307.4;15.0;5.2;980.1\n"
+    "2;OK;20.06.24;08:00;21.06.24;08:00;24;8;20111.2;15.0;4.8;979.0\n"
+)
 
 
-def test_experiment_metadata_ui_with_one_experiment():
-    app = QtWidgets.QApplication([])
-    window = ExperimentMetadataUi()
-
-    # Simulate UI behavior for experiment A
-    window.findChild(QtWidgets.QPlainTextEdit, 'textLabel_A').setPlainText('PAL20220909')
-    window.button_search_A.clicked.emit()
-
-    # Fill in some values for experiment A
-    window.findChild(QtWidgets.QPlainTextEdit, 'textSamplerID_A').setPlainText('Z01')
-    window.findChild(QtWidgets.QPlainTextEdit, 'textAirVolume_A').setPlainText('100')
-    window.findChild(QtWidgets.QPlainTextEdit, 'textStartTime_A').setPlainText('2023-07-21 08:00')
-    window.findChild(QtWidgets.QPlainTextEdit, 'textEndTime_A').setPlainText('2023-07-21 10:00')
-
-    # Confirm and start the experiment
-    window.button_confirm.accepted.emit()
-
-    # Validate that the metadata_experiments list contains only one experiment
-    assert len(window.metadata_experiments) == 1
-
-    # Validate the experiment metadata in the list
-    experiment_A = window.metadata_experiments[0]
-    assert experiment_A.label == 'PAL20220909'
-    assert experiment_A.sampler_id == 'Z36'
-    assert experiment_A.air_volume == 21307.4
-    assert experiment_A.start_time == '2022-09-09 08:00'
-    assert experiment_A.end_time == '2022-09-10 08:00'
+@pytest.fixture
+def sampler_files(raw_data_dir, monkeypatch):
+    """A sampler summary CSV for the Pallas station."""
+    directory = paths.external_data_path / 'sampler_raw_data' / '36PALLAS'
+    directory.mkdir(parents=True)
+    (directory / 'SUM.CSV').write_text(SAMPLER_CSV, encoding='utf-8')
+    return directory
 
 
-def test_experiment_metadata_ui_with_two_experiments():
-    app = QtWidgets.QApplication([])
-    window = ExperimentMetadataUi()
-
-    # Simulate UI behavior for experiment A
-    window.findChild(QtWidgets.QPlainTextEdit, 'textLabel_A').setPlainText('PAL20220909')
-    window.button_search_A.clicked.emit()
-
-    # Fill in some values for experiment A
-    window.findChild(QtWidgets.QPlainTextEdit, 'textSamplerID_A').setPlainText('Z01')
-    window.findChild(QtWidgets.QPlainTextEdit, 'textAirVolume_A').setPlainText('100')
-    window.findChild(QtWidgets.QPlainTextEdit, 'textStartTime_A').setPlainText('2023-07-21 08:00')
-    window.findChild(QtWidgets.QPlainTextEdit, 'textEndTime_A').setPlainText('2023-07-21 10:00')
-
-    # Simulate UI behavior for experiment B
-    window.findChild(QtWidgets.QPlainTextEdit, 'textLabel_B').setPlainText('HEL20220910')
-    window.button_search_B.clicked.emit()
-
-    # Fill in some values for experiment B
-    window.findChild(QtWidgets.QPlainTextEdit, 'textSamplerID_B').setPlainText('Z09')
-    window.findChild(QtWidgets.QPlainTextEdit, 'textAirVolume_B').setPlainText('200')
-    window.findChild(QtWidgets.QPlainTextEdit, 'textStartTime_B').setPlainText('2023-07-21 09:00')
-    window.findChild(QtWidgets.QPlainTextEdit, 'textEndTime_B').setPlainText('2023-07-21 11:00')
-
-    # Confirm and start the experiments
-    window.button_confirm.accepted.emit()
-
-    # Validate that the metadata_experiments list contains two experiments
-    assert len(window.metadata_experiments) == 2
-
-    # Validate the experiment metadata in the list
-    experiment_A = window.metadata_experiments[0]
-    assert experiment_A.label == 'PAL20220909'
-    assert experiment_A.sampler_id == 'Z01'
-    assert experiment_A.air_volume == 100.0
-    assert experiment_A.start_time == '2023-07-21 08:00'
-    assert experiment_A.end_time == '2023-07-21 10:00'
-
-    experiment_B = window.metadata_experiments[1]
-    assert experiment_B.label == 'HEL20220910'
-    assert experiment_B.sampler_id == 'Z09'
-    assert experiment_B.air_volume == 200.0
-    assert experiment_B.start_time == '2023-07-21 09:00'
-    assert experiment_B.end_time == '2023-07-21 11:00'
+@pytest.fixture
+def form(qapp, sampler_files):
+    return ExperimentMetadataUi(UI_FILE)
 
 
-if __name__ == "__main__":
-    test_experiment_metadata_ui_with_one_experiment()
-    test_experiment_metadata_ui_with_two_experiments()
+def fill(form, key, **fields):
+    for name, value in fields.items():
+        form._set_text(name, key, value)
+
+
+def test_typed_values_survive_a_matching_sampler_record(form):
+    """Regression: the form used to be thrown away whenever the label matched.
+
+    Pressing OK replaced everything the operator had typed with the sampler
+    CSV row, silently losing the description, dilution factor and wash volume.
+    """
+    fill(form, 'A', Label='PAL20240619', Description='muestra rara',
+         DilFactor='2.5', VolWash='0.005')
+
+    form._update_metadata_list()
+    metadata = form.metadata_experiments[0]
+
+    assert metadata.exp_description == 'muestra rara'
+    assert metadata.dil_factor == 2.5
+    assert metadata.v_wash == 0.005
+
+
+def test_sampler_record_fills_the_empty_fields(form):
+    """What the operator leaves blank still comes from the sampler files."""
+    fill(form, 'A', Label='PAL20240619')
+
+    form._update_metadata_list()
+    metadata = form.metadata_experiments[0]
+
+    assert metadata.air_volume == 21307.4
+    assert metadata.start_time == '2024-06-19 08:00'
+    assert metadata.end_time == '2024-06-20 08:00'
+    assert metadata.filter_position == 7   # no widget for this one at all
+    assert metadata.sampler_id == 'Z36'
+
+
+def test_two_digit_years_are_understood(form):
+    """The sampler writes both 19.06.2024 and 20.06.24."""
+    fill(form, 'A', Label='PAL20240620')
+
+    form._update_metadata_list()
+
+    assert form.metadata_experiments[0].air_volume == 20111.2
+
+
+def test_labels_are_upper_cased_and_the_station_comes_from_them(form):
+    fill(form, 'A', Label='pal20240619')
+
+    form._update_metadata_list()
+    metadata = form.metadata_experiments[0]
+
+    assert metadata.label == 'PAL20240619'
+    assert metadata.station == 'PAL'
+
+
+def test_invalid_numbers_do_not_crash_the_form(form):
+    """A typo in a numeric field is ignored instead of raising ValueError."""
+    fill(form, 'A', Label='HEL20240101', AirVolume='no es un numero')
+
+    form._update_metadata_list()
+
+    assert form.metadata_experiments[0].air_volume is None
+
+
+def test_unknown_label_still_produces_metadata(form):
+    """No sampler row: whatever is in the form is used as-is."""
+    fill(form, 'A', Label='HEL20240101', AirVolume='1234.5', Description='a mano')
+
+    form._update_metadata_list()
+    metadata = form.metadata_experiments[0]
+
+    assert metadata.air_volume == 1234.5
+    assert metadata.exp_description == 'a mano'
+
+
+def test_empty_form_yields_no_experiments(form):
+    form._update_metadata_list()
+
+    assert form.metadata_experiments == []
+
+
+def test_fill_missing_never_overwrites_a_value():
+    metadata = ExperimentMetadata(label='X', air_volume=1.0, temp=None)
+    source = ExperimentMetadata(label='X', air_volume=999.0, temp=5.2)
+
+    fill_missing(metadata, source)
+
+    assert metadata.air_volume == 1.0
+    assert metadata.temp == 5.2

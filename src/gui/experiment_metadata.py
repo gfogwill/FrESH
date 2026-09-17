@@ -1,79 +1,84 @@
 import logging
-
-import PyQt6
-from PyQt6 import QtGui, QtWidgets, uic, QtCore
-from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import QTimer, pyqtSlot, Qt
-from PyQt6.QtWidgets import *
-
-import os
-import sys
 import time
-from datetime import datetime
 
+from PyQt6 import QtWidgets, uic
+
+from src.config import get_chiller_model
+from src.experiment import sampler_data
+from src.experiment.experiment import FrESHExperiment
+from src.experiment.metadata import ExperimentMetadata
 from src.gui.experiment_gui import ExperimentUi
-from src.experiment.experiment import FrESHExperiment, ExperimentMetadata
-from src import paths
-from src.daq.IniLoader import IniLoader
+from src.stations import STATIONS, station_code
 
+# Kept as an alias: older code imported this name from here.
+stations_dict = STATIONS
 
-stations_dict = {
-    'WBG': {
-        'station_name': 'Water backgroung',
-        'station_mapping': None,
-        'sampler_id': None,
-        'latitude': 0.0,
-        'longitude': 0.0,
-        'altitude': 0.0
-    },
-    'HEL': {
-        'station_name': 'Helsinki',
-        'station_mapping': '01HELSINKI',
-        'sampler_id': 'Z01',
-        'latitude': 60.1699,
-        'longitude': 24.9384,
-        'altitude': 17.0
-    },
-    'UTO': {
-        'station_name': 'Utö',
-        'station_mapping': '09UTÖ',
-        'sampler_id': 'Z09',
-        'latitude': 59.7763,
-        'longitude': 21.4231,
-        'altitude': 9.0
-    },
-    'KUO': {
-        'station_name': 'Kuopio',
-        'station_mapping': '77KUOPIO',
-        'sampler_id': 'Z77',
-        'latitude': 62.8926,
-        'longitude': 27.6770,
-        'altitude': 75.0
-    },
-    'PAL': {
-        'station_name': 'Pallas',
-        'station_mapping': '36PALLAS',
-        'sampler_id': 'Z36',
-        'latitude': 67.9674,
-        'longitude': 24.1196,
-        'altitude': 560.0
-    }
+# The per-experiment form fields, by the suffix of their widget name.
+FORM_FIELDS = ('Label', 'SamplerID', 'AirVolume', 'StartTime', 'EndTime', 'Temp',
+               'Press', 'Description', 'VolWash', 'DilFactor', 'FilterFraction')
+
+# Which fields each sample type enables. Anything not listed is disabled.
+ENABLED_FIELDS_BY_TYPE = {
+    'Filter': {'SamplerID', 'AirVolume', 'StartTime', 'EndTime', 'Temp', 'Press',
+               'DilFactor', 'FilterFraction'},
+    'Field background': {'SamplerID', 'StartTime', 'EndTime', 'DilFactor', 'FilterFraction'},
+    'Water background': set(),
 }
+
+# Metadata attributes that may be taken from the sampler CSV when the operator
+# left the corresponding form field empty, plus the ones the form has no widget
+# for at all.
+SAMPLER_FILLABLE = ('sampler_id', 'sampler_status', 'air_volume', 'start_time',
+                    'end_time', 'flow', 'temp', 'press', 'filter_position')
+
+
+def _to_float(text, field_name=None):
+    """Parse a form field into a float, returning None when it is empty/invalid."""
+    text = (text or '').strip()
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        logging.warning(f"Ignoring invalid number in field {field_name or '?'}: {text!r}")
+        return None
+
+
+def _is_empty(value):
+    return value is None or (isinstance(value, str) and not value.strip())
+
+
+def fill_missing(metadata, source, attributes=SAMPLER_FILLABLE):
+    """Copy ``attributes`` from ``source`` into ``metadata`` where it has no value.
+
+    The form is the source of truth: whatever the operator typed wins, and the
+    sampler record is only used to fill the gaps.
+    """
+    for attribute in attributes:
+        if _is_empty(getattr(metadata, attribute, None)):
+            value = getattr(source, attribute, None)
+            if not _is_empty(value):
+                setattr(metadata, attribute, value)
+    return metadata
 
 
 class ExperimentMetadataUi(QtWidgets.QMainWindow):
+    """The form where the operator describes the plate(s) before a scan."""
+
     def __init__(self, ui_file, *args, **kwargs):
         super(ExperimentMetadataUi, self).__init__(*args, **kwargs)
 
         uic.loadUi(ui_file, self)
 
         self.metadata_experiments = []
+        self.ExperimentUi = None
 
         self.experiment_type_comboboxA = self.findChild(QtWidgets.QComboBox, 'comboBoxSampleType_A')
         self.experiment_type_comboboxA.currentTextChanged.connect(lambda: self.update_experiment_type('A'))
 
         self.experiment_type_comboboxB = self.findChild(QtWidgets.QComboBox, 'comboBoxSampleType_B')
-        self.experiment_type_comboboxB.currentTextChanged.connect(lambda: self.update_experiment_type('B'))
+        if self.experiment_type_comboboxB is not None:
+            self.experiment_type_comboboxB.currentTextChanged.connect(lambda: self.update_experiment_type('B'))
 
         # Connect the button signals to their respective slots
         self.button_confirm = self.findChild(QtWidgets.QDialogButtonBox, 'ConfirmbuttonBox')
@@ -82,271 +87,162 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
         self.button_search_A = self.findChild(QtWidgets.QToolButton, 'searchByLabel_A')
         self.button_search_A.clicked.connect(lambda: self.search_experiment_metadata('A'))
 
-        try:
-            self.button_search_B = self.findChild(QtWidgets.QToolButton, 'searchByLabel_B')
+        self.button_search_B = self.findChild(QtWidgets.QToolButton, 'searchByLabel_B')
+        if self.button_search_B is not None:
             self.button_search_B.clicked.connect(lambda: self.search_experiment_metadata('B'))
-        except AttributeError:
-            self.button_search_B = None
+
+    # -- widget helpers ------------------------------------------------------
+
+    def _field(self, name, experiment_key):
+        """Return the QPlainTextEdit for e.g. ('AirVolume', 'A')."""
+        return self.findChild(QtWidgets.QPlainTextEdit, f'text{name}_{experiment_key}')
+
+    def _text(self, name, experiment_key):
+        widget = self._field(name, experiment_key)
+        return widget.toPlainText().strip() if widget is not None else ''
+
+    def _set_text(self, name, experiment_key, value):
+        widget = self._field(name, experiment_key)
+        if widget is not None:
+            widget.setPlainText('' if value is None else str(value))
+
+    def experiment_type(self, experiment_key):
+        combobox = self.findChild(QtWidgets.QComboBox, f'comboBoxSampleType_{experiment_key}')
+        return combobox.currentText() if combobox is not None else ''
+
+    # -- form behaviour ------------------------------------------------------
 
     def update_experiment_type(self, experiment_key):
-        experiment_type = self.findChild(QtWidgets.QComboBox, f'comboBoxSampleType_{experiment_key}').currentText()
+        """Enable only the fields that make sense for the selected sample type."""
+        enabled = ENABLED_FIELDS_BY_TYPE.get(self.experiment_type(experiment_key))
+        if enabled is None:
+            return
 
-        if experiment_type == 'Filter':
-            self.findChild(QtWidgets.QPlainTextEdit, f'textSamplerID_{experiment_key}').setEnabled(True)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textAirVolume_{experiment_key}').setEnabled(True)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textStartTime_{experiment_key}').setEnabled(True)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textEndTime_{experiment_key}').setEnabled(True)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textTemp_{experiment_key}').setEnabled(True)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textPress_{experiment_key}').setEnabled(True)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textDilFactor_{experiment_key}').setEnabled(True)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textFilterFraction_{experiment_key}').setEnabled(True)
-        elif experiment_type == 'Field background':
-            self.findChild(QtWidgets.QPlainTextEdit, f'textSamplerID_{experiment_key}').setEnabled(True)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textAirVolume_{experiment_key}').setEnabled(False)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textStartTime_{experiment_key}').setEnabled(True)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textEndTime_{experiment_key}').setEnabled(True)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textTemp_{experiment_key}').setEnabled(False)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textPress_{experiment_key}').setEnabled(False)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textDilFactor_{experiment_key}').setEnabled(True)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textFilterFraction_{experiment_key}').setEnabled(True)
-        elif experiment_type == 'Water background':
-            self.findChild(QtWidgets.QPlainTextEdit, f'textSamplerID_{experiment_key}').setEnabled(False)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textAirVolume_{experiment_key}').setEnabled(False)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textStartTime_{experiment_key}').setEnabled(False)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textEndTime_{experiment_key}').setEnabled(False)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textTemp_{experiment_key}').setEnabled(False)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textPress_{experiment_key}').setEnabled(False)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textDilFactor_{experiment_key}').setEnabled(False)
-            self.findChild(QtWidgets.QPlainTextEdit, f'textFilterFraction_{experiment_key}').setEnabled(False)
+        for name in FORM_FIELDS:
+            if name in ('Label', 'Description', 'VolWash'):
+                continue  # always available
+            widget = self._field(name, experiment_key)
+            if widget is not None:
+                widget.setEnabled(name in enabled)
 
     def search_experiment_metadata(self, experiment_key):
-        text_label = self.findChild(QtWidgets.QPlainTextEdit, f'textLabel_{experiment_key}')
-        text_sampler_id = self.findChild(QtWidgets.QPlainTextEdit, f'textSamplerID_{experiment_key}')
-        text_air_volume = self.findChild(QtWidgets.QPlainTextEdit, f'textAirVolume_{experiment_key}')
-        text_start_time = self.findChild(QtWidgets.QPlainTextEdit, f'textStartTime_{experiment_key}')
-        text_end_time = self.findChild(QtWidgets.QPlainTextEdit, f'textEndTime_{experiment_key}')
-        text_temp = self.findChild(QtWidgets.QPlainTextEdit, f'textTemp_{experiment_key}')
-        text_press = self.findChild(QtWidgets.QPlainTextEdit, f'textPress_{experiment_key}')
-        text_description = self.findChild(QtWidgets.QPlainTextEdit, f'textDescription_{experiment_key}')
-        text_vol_wash = self.findChild(QtWidgets.QPlainTextEdit, f'textVolWash_{experiment_key}')
-        text_dil_factor = self.findChild(QtWidgets.QPlainTextEdit, f'textDilFactor_{experiment_key}')
-        text_filter_fraction = self.findChild(QtWidgets.QPlainTextEdit, f'textFilterFraction_{experiment_key}')
+        """Fill the form from the sampler's raw CSV files, using the label."""
+        label = self._text('Label', experiment_key).upper()
+        metadata = sampler_data.retrieve_metadata(label, self.experiment_type(experiment_key))
 
-        label = text_label.toPlainText().upper()
-        metadata = self._retrieve_metadata(label)
-        if metadata is not None:
-            self._populate_metadata_fields(metadata, text_label, text_sampler_id, text_air_volume, text_start_time,
-                                           text_end_time, text_temp, text_press, text_description, text_vol_wash,
-                                           text_dil_factor, text_filter_fraction)
+        if metadata is None:
+            logging.warning(f"No sampler data found for {label}; fill the form by hand.")
+            return
 
-    def _retrieve_metadata(self, label):
-        station = stations_dict.get(label[0:3])
-        if not station:
-            logging.error(f"Station not found for label: {label}")
-            return None
+        self._populate_metadata_fields(metadata, experiment_key)
 
-        try:
-            date = datetime.strptime(label[3:], "%Y%m%d")
-            directory_path = paths.external_data_path / 'sampler_raw_data' / station['station_mapping']
-            date_str = date.strftime("%d.%m.%Y")
-        except ValueError:
-            return None
+    def _populate_metadata_fields(self, metadata, experiment_key):
+        self._set_text('Label', experiment_key, metadata.label)
+        self._set_text('SamplerID', experiment_key, metadata.sampler_id)
+        self._set_text('AirVolume', experiment_key, metadata.air_volume)
+        self._set_text('StartTime', experiment_key, metadata.start_time)
+        self._set_text('EndTime', experiment_key, metadata.end_time)
+        self._set_text('Temp', experiment_key, metadata.temp)
+        self._set_text('Press', experiment_key, metadata.press)
+        self._set_text('Description', experiment_key, metadata.exp_description)
+        self._set_text('VolWash', experiment_key, metadata.v_wash)
+        self._set_text('DilFactor', experiment_key, metadata.dil_factor)
+        self._set_text('FilterFraction', experiment_key, metadata.filter_fraction)
 
-        for root, dirs, files in os.walk(directory_path):
-            for file_name in files:
-                if file_name.endswith(".CSV"): # == "SUM.CSV":
-                    sum_path = os.path.join(root, file_name)
-                    print(sum_path)
-                    with open(sum_path, "r") as file:
-                        lines = file.readlines()
-                        for line in lines[1:]:
-                            fields = line.strip().split(";")
-                            if len(fields) > 2:
-                                # Attempt to parse the date string with both year formats
-                                formatted_raw_date = None
-                                for fmt in ["%d.%m.%Y", "%d.%m.%y"]:
-                                    try:
-                                        raw_date = datetime.strptime(fields[2].strip(), fmt)
-                                        formatted_raw_date = raw_date.strftime(
-                                            "%d.%m.%Y")  # Standardize to "dd.mm.YYYY"
-                                        break  # Exit the loop if parsing succeeds
-                                    except ValueError:
-                                        continue
-
-                                if formatted_raw_date and formatted_raw_date == date_str:
-                                    values = line.strip().split(";")
-                                    return self._create_experiment_metadata(values, label, "filter")
-
-        logging.warning(f"No raw data found for label: {label}")
-        return None
-
-    def _create_experiment_metadata(self, values, label, experiment_type):
-        # Step 1: Handle the start datetime (values[2] + values[3])
-        start_date_str = values[2].strip()
-        start_time_str = values[3].strip()
-
-        # Dynamically parse the date based on the year format
-        start_date = None
-        for date_fmt in ["%d.%m.%Y", "%d.%m.%y"]:
-            try:
-                start_date = datetime.strptime(start_date_str, date_fmt)
-                break
-            except ValueError:
-                continue
-
-        if not start_date:
-            raise ValueError(f"Invalid start date format found: {start_date_str}")
-
-        # Format start datetime to "%d.%m.%Y %H:%M"
-        start_datetime = datetime.strptime(start_date.strftime("%d.%m.%Y") + ' ' + start_time_str, "%d.%m.%Y %H:%M")
-
-        # Step 2: Handle the end datetime (values[4] + values[5]) in the same way
-        end_date_str = values[4].strip()
-        end_time_str = values[5].strip()
-
-        end_date = None
-        for date_fmt in ["%d.%m.%Y", "%d.%m.%y"]:
-            try:
-                end_date = datetime.strptime(end_date_str, date_fmt)
-                break
-            except ValueError:
-                continue
-
-        if not end_date:
-            raise ValueError(f"Invalid end date format found: {end_date_str}")
-
-        # Format end datetime to "%d.%m.%Y %H:%M"
-        end_datetime = datetime.strptime(end_date.strftime("%d.%m.%Y") + ' ' + end_time_str, "%d.%m.%Y %H:%M")
-
-        # Return the metadata object
-        return ExperimentMetadata(
-            station=label[0:3],
-            experiment_type=experiment_type,
-            label=label,
-            sampler_id=f"{stations_dict[label[0:3]]['sampler_id']}",
-            sampler_status=values[1],
-            start_time=start_datetime.strftime("%Y-%m-%d %H:%M"),
-            end_time=end_datetime.strftime("%Y-%m-%d %H:%M"),
-            filter_position=int(values[7]),
-            air_volume=float(values[8]),
-            flow=float(values[9]),
-            temp=float(values[10]),
-            press=float(values[11]),
-            v_drop=5e-05,
-            v_wash=0.01,
-            dil_factor=1.0,
-            filter_fraction=1.0
-        )
-
-    def _populate_metadata_fields(self, metadata, text_label, text_sampler_id, text_air_volume, text_start_time,
-                                  text_end_time, text_temp, text_press, text_description, text_vol_wash,
-                                  text_dil_factor, text_filter_fraction):
-        text_label.setPlainText(metadata.label)
-        text_sampler_id.setPlainText(metadata.sampler_id)
-        text_air_volume.setPlainText(str(metadata.air_volume))
-        text_start_time.setPlainText(metadata.start_time)
-        text_end_time.setPlainText(metadata.end_time)
-        text_temp.setPlainText(str(metadata.temp))
-        text_press.setPlainText(str(metadata.press))
-        text_description.setPlainText(metadata.exp_description)
-        text_vol_wash.setPlainText(str(metadata.v_wash))
-        text_dil_factor.setPlainText(str(metadata.dil_factor))
-        text_filter_fraction.setPlainText(str(metadata.filter_fraction))
+    # -- building the metadata ----------------------------------------------
 
     def _get_metadata_from_form(self, experiment_key):
-        experiment_type = self.findChild(QtWidgets.QComboBox, f'comboBoxSampleType_{experiment_key}').currentText()
+        """Build an ExperimentMetadata out of what is currently in the form."""
+        label = self._text('Label', experiment_key).upper()
 
-        text_label = self.findChild(QtWidgets.QPlainTextEdit, f'textLabel_{experiment_key}')
-        text_sampler_id = self.findChild(QtWidgets.QPlainTextEdit, f'textSamplerID_{experiment_key}')
-        text_air_volume = self.findChild(QtWidgets.QPlainTextEdit, f'textAirVolume_{experiment_key}')
-        text_start_time = self.findChild(QtWidgets.QPlainTextEdit, f'textStartTime_{experiment_key}')
-        text_end_time = self.findChild(QtWidgets.QPlainTextEdit, f'textEndTime_{experiment_key}')
-        text_temp = self.findChild(QtWidgets.QPlainTextEdit, f'textTemp_{experiment_key}')
-        text_press = self.findChild(QtWidgets.QPlainTextEdit, f'textPress_{experiment_key}')
-        text_description = self.findChild(QtWidgets.QPlainTextEdit, f'textDescription_{experiment_key}')
-        text_vol_wash = self.findChild(QtWidgets.QPlainTextEdit, f'textVolWash_{experiment_key}')
-        text_dil_factor = self.findChild(QtWidgets.QPlainTextEdit, f'textDilFactor_{experiment_key}')
-        text_filter_fraction = self.findChild(QtWidgets.QPlainTextEdit, f'textFilterFraction_{experiment_key}')
-
-        label = text_label.toPlainText().upper()
-        sampler_id = text_sampler_id.toPlainText()
-        air_volume = float(text_air_volume.toPlainText()) if text_air_volume.toPlainText() else None
-        start_time = text_start_time.toPlainText()
-        end_time = text_end_time.toPlainText()
-        temp = float(text_temp.toPlainText()) if text_temp.toPlainText() else None
-        press = float(text_press.toPlainText()) if text_press.toPlainText() else None
-        description = text_description.toPlainText()
-        vol_wash = float(text_vol_wash.toPlainText()) if text_vol_wash.toPlainText() else None
-        dil_factor = float(text_dil_factor.toPlainText()) if text_dil_factor.toPlainText() else None
-        filter_fraction = float(text_filter_fraction.toPlainText()) if text_filter_fraction.toPlainText() else None
-
-        ini = IniLoader.load('perezfo', paths.etc_path / 'test.ini')
+        try:
+            chiller_model = get_chiller_model()
+        except Exception as e:
+            logging.error(f"Could not read the chiller model from the configuration: {e}")
+            chiller_model = None
 
         return ExperimentMetadata(
-            station=label[0:3],
-            experiment_type=experiment_type,
+            station=station_code(label) or label[0:3],
+            experiment_type=self.experiment_type(experiment_key),
             label=label,
-            sampler_id=sampler_id,
-            start_time=start_time,
-            end_time=end_time,
-            air_volume=air_volume,
-            temp=temp,
-            press=press,
-            exp_description=description,
-            v_wash=vol_wash,
-            dil_factor=dil_factor,
-            filter_fraction=filter_fraction,
+            sampler_id=self._text('SamplerID', experiment_key) or None,
+            start_time=self._text('StartTime', experiment_key) or None,
+            end_time=self._text('EndTime', experiment_key) or None,
+            air_volume=_to_float(self._text('AirVolume', experiment_key), 'air volume'),
+            temp=_to_float(self._text('Temp', experiment_key), 'temperature'),
+            press=_to_float(self._text('Press', experiment_key), 'pressure'),
+            exp_description=self._text('Description', experiment_key) or None,
+            v_wash=_to_float(self._text('VolWash', experiment_key), 'wash volume'),
+            dil_factor=_to_float(self._text('DilFactor', experiment_key), 'dilution factor'),
+            filter_fraction=_to_float(self._text('FilterFraction', experiment_key), 'filter fraction'),
             v_drop=5e-05,
-            chiller_model=ini['CHILLER']['MODEL']
+            chiller_model=chiller_model,
         )
+
+    def _collect_metadata(self, experiment_key):
+        """Metadata for one plate: the form wins, the sampler CSV fills the gaps.
+
+        The form used to be discarded entirely whenever the label matched a row
+        in the sampler files, which silently threw away the description,
+        dilution factor, wash volume and sample type the operator had typed.
+        """
+        metadata = self._get_metadata_from_form(experiment_key)
+
+        record = sampler_data.retrieve_metadata(metadata.label, metadata.experiment_type)
+        if record is not None:
+            fill_missing(metadata, record)
+
+        return metadata
 
     def _update_metadata_list(self):
         self.metadata_experiments.clear()
 
-        # Check for experiment A
-        label_A = self.findChild(QtWidgets.QPlainTextEdit, 'textLabel_A').toPlainText()
-        if label_A:
-            metadata_A = self._retrieve_metadata(label_A.upper())
-            if metadata_A is not None:
-                self.metadata_experiments.append(metadata_A)
-            else:
-                metadata_A = self._get_metadata_from_form('A')
-                self.metadata_experiments.append(metadata_A)
+        keys = ['A']
+        if self.button_search_B is not None:
+            keys.append('B')
 
-        # Check for experiment B if the button_search_B exists
-        if self.button_search_B:
-            label_B = self.findChild(QtWidgets.QPlainTextEdit, 'textLabel_B').toPlainText()
-            if label_B:
-                metadata_B = self._retrieve_metadata(label_B.upper())
-                if metadata_B is not None:
-                    self.metadata_experiments.append(metadata_B)
-                else:
-                    metadata_B = self._get_metadata_from_form('B')
-                    self.metadata_experiments.append(metadata_B)
+        for key in keys:
+            if self._text('Label', key):
+                self.metadata_experiments.append(self._collect_metadata(key))
+
+    # -- confirming ----------------------------------------------------------
+
+    def _warn(self, message):
+        logging.warning(message)
+        QtWidgets.QMessageBox.warning(self, "FrESH", message)
 
     def start_experiment(self):
         self._update_metadata_list()
 
-        if len(self.metadata_experiments) > 0:
+        if not self.metadata_experiments:
+            self._warn("No label given -- fill in at least one label before starting.")
+            return
+
+        try:
             for metadata in self.metadata_experiments:
                 metadata.check_required_fields()
+        except ValueError as e:
+            self._warn(str(e))
+            return
 
-            if len(self.metadata_experiments) > 1:
-                if self.metadata_experiments[0].label == self.metadata_experiments[1].label:
-                    logging.warning("Labels are the same!!\n Rename and try again.")
-                    return
+        labels = [metadata.label for metadata in self.metadata_experiments]
+        if len(set(labels)) != len(labels):
+            self._warn("Labels are the same!\nRename and try again.")
+            return
 
-            date_str = time.strftime('%Y%m%d%H%M', time.localtime())
+        date_str = time.strftime('%Y%m%d%H%M', time.localtime())
 
-            exp_list = []
-            for i, metadata in enumerate(self.metadata_experiments, 1):
-                exp_name = paths.raw_data_path / f"{date_str}_{metadata.label}"
-                experiment = FrESHExperiment(exp_name)
+        exp_list = []
+        try:
+            for metadata in self.metadata_experiments:
+                experiment = FrESHExperiment(f"{date_str}_{metadata.label}")
                 experiment.set_metadata(metadata)
                 exp_list.append(experiment)
+        except Exception as e:
+            logging.exception("Could not create the experiment")
+            self._warn(f"Could not create the experiment:\n{e}")
+            return
 
-            self.hide()
-            self.ExperimentUi = ExperimentUi(exp_list)
-            self.ExperimentUi.show()
-        else:
-            logging.error("No valid metadata for the experiments.")
+        self.hide()
+        self.ExperimentUi = ExperimentUi(exp_list)
+        self.ExperimentUi.show()

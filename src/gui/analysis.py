@@ -1,19 +1,14 @@
-import logging
-
-from PyQt6 import QtWidgets, uic, QtGui, QtCore
+from PyQt6 import QtWidgets, uic, QtGui
 from PyQt6.QtWidgets import QComboBox, QLineEdit, QTextEdit
 import pyqtgraph as pg
-from functools import partial
 
 import cv2
 
 from src import paths
-from src.experiment.experiment import FrESHExperiment, process_sensors_data, calculate_frame_temperatures, \
-    calculate_freezing_idxs, calculate_freezing_times, calculate_freezing_temps, ExperimentMetadata
+from src.experiment.experiment import FrESHExperiment, calculate_frame_temperatures
 from src.gui.experiment_gui import convert_cv_qt
 
 import os
-import csv
 import pathlib
 import numpy as np
 import json
@@ -50,7 +45,7 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
 
         self.template_img = None
 
-        uic.loadUi('analysis.ui', self)
+        uic.loadUi(paths.src_module_dir / 'gui' / 'analysis.ui', self)
 
         self.experiment_list_view = self.findChild(QtWidgets.QListView, 'experimentListView')
         self.model = QtGui.QStandardItemModel(self.experiment_list_view)

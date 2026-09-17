@@ -38,6 +38,10 @@ clean:
 lint:
 	flake8 src
 
+## Run the test suite
+test:
+	QT_QPA_PLATFORM=offscreen $(PYTHON_INTERPRETER) -m pytest src/tests
+
 ## Upload Data to S3
 sync_data_to_s3:
 ifeq (default,$(PROFILE))

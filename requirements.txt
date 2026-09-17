@@ -103,3 +103,12 @@ webcolors==24.6.0
 webencodings==0.5.1
 websocket-client==1.8.0
 widgetsnbextension==4.0.11
+
+# Imported by the analysis/batch-processing modules but previously missing
+# from this file, so a fresh install could not run them.
+matplotlib
+pandas
+scipy
+
+# Test suite
+pytest

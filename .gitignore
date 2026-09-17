@@ -79,6 +79,8 @@ target/
 /data/
 /reports/*
 /etc/test.ini
+/etc/fresh.*.ini
+!/etc/fresh.default.ini
 
 # Mac OS-specific storage files
 .DS_Store
