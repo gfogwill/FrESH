@@ -76,8 +76,64 @@ $ python -m src.gui.main_gui
 ```
 
 **New double** opens the metadata form for a pair of PCR plates; confirming it
-opens the scan window, where you connect the camera and the chiller and run the
-temperature ramp. **View experiment** opens the analysis window.
+opens the scan window, where you connect the camera and the chiller.
+**View experiment** opens the analysis window.
+
+### Running a scan
+
+Connect the camera and the chiller, then either:
+
+* **Start ramp** -- the setpoint cycles between the scan start temperature and
+  the minimum until you stop it. Everything is recorded into one folder per
+  plate. Tick **Save** to start recording.
+* **Start series** -- an automated freeze/thaw series (below).
+
+### Freeze/thaw series
+
+A series repeats this cycle as many times as you ask:
+
+| phase | what happens | recording |
+|-------|--------------|-----------|
+| cooling | the setpoint ramps down to the min. setpoint at the cooling rate | **yes** |
+| hold cold | waits for the measured temperature to reach *Hold until*, then dwells | no |
+| thaw | the setpoint ramps up to the thaw temperature | no |
+| hold warm | waits for the bath to get warm, then dwells to melt the sample | no |
+| settle | back to the scan start temperature | no |
+
+The ramps are **open loop**: the setpoint marches at the rate you asked for and
+the bath follows as best it can, so the cooling rate stays comparable with
+earlier measurements. The **holds are closed loop**: because the bath lags the
+setpoint badly at low temperature, the cold hold does not end until the measured
+temperature has actually reached *Hold until*, and only then does the dwell
+start counting. *measured on* picks which sensor decides that -- the bath (BT)
+or the probe (RTD0).
+
+*Hold until* is separate from the min. setpoint on purpose: you can drive the
+setpoint to -45 but only wait for the bath to reach -35, for the case where the
+chiller cannot actually get all the way down.
+
+Each cycle writes its own folder, `<timestamp>_<LABEL>_cNNN`, holding only the
+cooling ramp -- so every cycle is a normal experiment that the analysis window
+opens on its own. Pictures are deliberately not taken during the thaw: melting
+is as big a grayscale jump as freezing, and the freezing detection would latch
+onto the wrong one.
+
+Series-level files go to `data/interim/<timestamp>_series/`:
+
+* `series.json` -- the settings the series ran with
+* `series.log` -- the whole run's log
+* `series_sensors.csv` -- **continuous** readings, holds and thaw included, so
+  you can check afterwards whether the chiller ever reached the temperature it
+  was told to
+
+If the chiller stops answering, the series stops itself and parks the setpoint
+at 0 ºC. That is a backstop, not a licence to leave the rig alone: it is an
+ethanol bath and somebody should be watching it.
+
+> **Watch the analysis cutoff.** `process_sensors_data` and friends trim the
+> record at `SENSOR_TEMPERATURE_FLOOR` (-45 ºC) and drop everything after the
+> first crossing. If you scan that low, pass a lower `floor=` or the coldest
+> part of your own data disappears. A warning is logged when rows are dropped.
 
 ## Running the tests
 

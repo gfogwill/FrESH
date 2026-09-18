@@ -1,11 +1,9 @@
 import logging
-import time
 
 from PyQt6 import QtWidgets, uic
 
 from src.config import get_chiller_model
 from src.experiment import sampler_data
-from src.experiment.experiment import FrESHExperiment
 from src.experiment.metadata import ExperimentMetadata
 from src.gui.experiment_gui import ExperimentUi
 from src.stations import STATIONS, station_code
@@ -230,19 +228,8 @@ class ExperimentMetadataUi(QtWidgets.QMainWindow):
             self._warn("Labels are the same!\nRename and try again.")
             return
 
-        date_str = time.strftime('%Y%m%d%H%M', time.localtime())
-
-        exp_list = []
-        try:
-            for metadata in self.metadata_experiments:
-                experiment = FrESHExperiment(f"{date_str}_{metadata.label}")
-                experiment.set_metadata(metadata)
-                exp_list.append(experiment)
-        except Exception as e:
-            logging.exception("Could not create the experiment")
-            self._warn(f"Could not create the experiment:\n{e}")
-            return
-
         self.hide()
-        self.ExperimentUi = ExperimentUi(exp_list)
+        # The scan window creates the experiment folders itself: with a
+        # freeze/thaw series there is one per cycle, not one per run.
+        self.ExperimentUi = ExperimentUi(self.metadata_experiments)
         self.ExperimentUi.show()

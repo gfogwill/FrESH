@@ -88,3 +88,40 @@ def test_normalisation_survives_missing_numbers(raw_data_dir):
     experiment.calculate_normalisation_factor()
 
     assert experiment.metadata.normalisation_factor == 1.0
+
+
+# -- the sensor temperature floor -------------------------------------------
+
+def rows(*bath_temps):
+    import numpy as np
+    from datetime import datetime, timedelta
+    start = datetime(2024, 6, 19, 8, 0, 0)
+    return np.array(
+        [(start + timedelta(seconds=i), 0.0, bt, bt, bt) for i, bt in enumerate(bath_temps)],
+        dtype=[('datetime', 'O'), ('SP', '<f8'), ('BT', '<f8'), ('RTD0', '<f8'), ('RTD1', '<f8')])
+
+
+def test_the_floor_cuts_the_tail_of_the_record():
+    from src.experiment.experiment import trim_at_floor
+
+    trimmed = trim_at_floor(rows(-40.0, -44.0, -46.0, -20.0), 'BT')
+
+    assert [row['BT'] for row in trimmed] == [-40.0, -44.0]
+
+
+def test_a_lower_floor_keeps_a_scan_that_goes_to_minus_45():
+    """Regression: scanning to -45 with the default floor threw the data away."""
+    from src.experiment.experiment import trim_at_floor
+
+    scan = rows(-40.0, -43.0, -45.0, -45.2)
+
+    assert len(trim_at_floor(scan, 'BT')) == 2, "the default floor still cuts at -45"
+    assert len(trim_at_floor(scan, 'BT', floor=-60.0)) == 4
+
+
+def test_dropping_rows_is_logged(caplog):
+    from src.experiment.experiment import trim_at_floor
+
+    trim_at_floor(rows(-40.0, -46.0, -47.0), 'BT')
+
+    assert 'sensor rows dropped' in caplog.text

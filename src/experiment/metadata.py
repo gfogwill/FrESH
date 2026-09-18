@@ -78,6 +78,11 @@ class ExperimentMetadata:
         self.filter_position = kwargs.get('filter_position', None)
         self.chiller_model = kwargs.get('chiller_model', None)
 
+        # Freeze/thaw series: which series this plate belongs to and which
+        # cycle of it this folder holds. Both None for a plain single scan.
+        self.series_id = kwargs.get('series_id', None)
+        self.cycle_number = kwargs.get('cycle_number', None)
+
         # adding the background experiment
         self.background_exp = kwargs.get('background_exp', None)
         # punchout metadata
