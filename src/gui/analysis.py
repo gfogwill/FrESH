@@ -1,3 +1,5 @@
+import logging
+
 from PyQt6 import QtWidgets, uic, QtGui
 from PyQt6.QtWidgets import QComboBox, QLineEdit, QTextEdit
 import pyqtgraph as pg
@@ -23,6 +25,90 @@ rotation_dict = {'-': None,
 def copy_to_clipboard_linux(text):
     command = 'echo -n "' + text + '" | xclip -selection clipboard'
     os.system(command)
+
+
+# --- metadata <-> widget conversion ----------------------------------------
+#
+# Every value used to be pushed into a widget with str(), so a field that was
+# never filled in showed the literal text "None" -- and reading it back tried to
+# parse "None" as a date, which is why an experiment without a start and end
+# time could not be saved without typing something dummy first. None now means
+# an empty field, in both directions.
+
+#: Experiment types that can be picked as a background for another experiment.
+#: Matched case-insensitively; the set used to contain "Field backgrouund", so
+#: field backgrounds never appeared in the dropdown at all.
+BACKGROUND_TYPES = {'water background', 'filter background',
+                    'punched filter background', 'field background'}
+
+#: Metadata fields holding a timestamp.
+TIME_FIELDS = ('start_time', 'end_time')
+
+#: Accepted spellings when reading a timestamp back out of a widget.
+TIME_FORMATS = ("%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d",
+                "%d.%m.%Y %H:%M", "%d.%m.%Y")
+
+#: How a timestamp is stored in metadata.json.
+TIME_FORMAT = "%Y-%m-%d %H:%M"
+
+#: Fields that must come back as numbers rather than as strings.
+FLOAT_FIELDS = ('air_volume', 'temp', 'press', 'flow', 'v_drop', 'v_wash',
+                'dil_factor', 'filter_fraction', 'normalisation_factor',
+                'filter_diameter', 'puncher_diameter', 'latitude', 'longitude')
+INT_FIELDS = ('filter_position',)
+
+#: Text that means "no value". Older metadata.json files have the string
+#: "None" stored where a real null belongs.
+EMPTY_TEXTS = ('', 'none', 'null', 'nan')
+
+
+def widget_text(value):
+    """Render a metadata value for a widget. None shows as an empty field."""
+    if value is None:
+        return ''
+    if isinstance(value, datetime):
+        return value.strftime(TIME_FORMAT)
+    return str(value)
+
+
+def parse_field(attribute_name, text):
+    """Turn what is in a widget back into a metadata value.
+
+    An empty field is None, not the string "None"; timestamps come back
+    normalised to TIME_FORMAT and numbers come back as numbers. Anything that
+    cannot be parsed is reported and stored as None rather than raising, so one
+    bad field cannot stop the whole form from being saved.
+    """
+    text = (text or '').strip()
+
+    if text.lower() in EMPTY_TEXTS:
+        return None
+
+    if attribute_name in TIME_FIELDS:
+        for fmt in TIME_FORMATS:
+            try:
+                return datetime.strptime(text, fmt).strftime(TIME_FORMAT)
+            except ValueError:
+                continue
+        logging.warning(f"{attribute_name}: {text!r} is not a date "
+                        f"(expected e.g. 2024-06-19 08:00); left empty")
+        return None
+
+    if attribute_name in FLOAT_FIELDS:
+        try:
+            return float(text)
+        except ValueError:
+            logging.warning(f"{attribute_name}: {text!r} is not a number; left empty")
+            return None
+
+    if attribute_name in INT_FIELDS:
+        try:
+            return int(float(text))
+        except ValueError:
+            logging.warning(f"{attribute_name}: {text!r} is not a whole number; left empty")
+            return None
+
+    return text
 
 
 class ExperimentAnalysisUi(QtWidgets.QMainWindow):
@@ -67,17 +153,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         for attribute_name in attribute_names:
             setattr(self, f"{attribute_name}_text_edit", self.findChild(QtWidgets.QLineEdit, f'{attribute_name}_text_edit'))
 
-        # Connect textChanged signals to update_metadata_modified method
-        for attribute_name in attribute_names:
-            widget = getattr(self, f"{attribute_name}_text_edit")
-            # widget.textChanged.connect(lambda value, attr_name=attribute_name: self.update_metadata(attr_name, value))
-            widget.textChanged.connect(lambda: self.show_metadata_alert)
-
         self.type_combobox = self.findChild(QtWidgets.QComboBox, 'comboBox_type')
-        self.type_combobox.currentTextChanged.connect(lambda value, attr_name='experiment_type': self.update_metadata(attr_name, value))
-
         self.exp_description_line_edit = self.findChild(QtWidgets.QTextEdit, "exp_description_text_edit")
-        self.exp_description_line_edit.textChanged.connect(self.show_metadata_alert)
 
         # ToDo: put in another place the code
         self.button_run_analysis = self.findChild(QtWidgets.QPushButton, 'runButton')
@@ -109,7 +186,6 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.punched_page = self.findChild(QtWidgets.QWidget, "punched_filter_page")
         self.water_background_page = self.findChild(QtWidgets.QWidget, "water_background_page")
         self.filter_background_page = self.findChild(QtWidgets.QWidget, "filter_background_page")
-        self.punched_filter_bakcground_page = self.findChild(QtWidgets.QWidget, "punched_filter_background_page")
         
         self.page_mapping = {
             "Water background": self.stackedWidget.indexOf(self.water_background_page),
@@ -198,6 +274,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.attribute_to_widget_mapping = {**self.common_attributes, **self.filter_attributes,
         					**self.punched_filter_attributes}
 
+        self._connect_metadata_widgets()
+
         self.FFwidget.setLabel('left', 'Frozen Fraction', color='red', size=30)
 
         self.image_frame.mousePressEvent = self.mouse_clicked
@@ -220,11 +298,8 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
             else:
                 continue
 
-            # Special handling for date and time attributes
-            if attribute_name.endswith("_time"):
-                value = datetime.strptime(value, "%Y-%m-%d %H:%M") if value else None
-
-            setattr(self.experiment.metadata, attribute_name, value)
+            setattr(self.experiment.metadata, attribute_name,
+                    parse_field(attribute_name, value))
 
         return self.experiment.metadata
 
@@ -246,56 +321,66 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         self.load_experiment()
 
     def load_metadata_into_gui(self, metadata):
+        """Show the metadata in the form.
 
-        # Load metadata into text edits
+        Signals are blocked while filling in: the widgets are being set from
+        the metadata, not edited by anybody, so this must not mark the
+        experiment as modified. The edit signals are connected once, in
+        _connect_metadata_widgets, rather than every time an experiment is
+        loaded -- doing it here stacked one more connection per load, so after
+        opening five experiments every keystroke fired five updates.
+        """
         for attribute_name, widget in self.attribute_to_widget_mapping.items():
             if widget is None:
                 continue
-            if hasattr(metadata, attribute_name):
-                value = getattr(metadata, attribute_name)
 
-                # Special handling for date and time attributes
-                if attribute_name.endswith("_time") and isinstance(value, datetime):
-                    value = value.strftime("%Y-%m-%d %H:%M") if value else ""
+            value = widget_text(getattr(metadata, attribute_name, None))
 
-                # Update the widgets
+            blocked = widget.blockSignals(True)
+            try:
                 if isinstance(widget, QComboBox):
-                    # Check if the value is already in the combo box items
-                    found = False
-                    for index in range(widget.count()):
-                        if widget.itemText(index) == str(value):
-                            widget.setCurrentIndex(index)
-                            found = True
-                            break
-
-                    # If the value is not found, add it as a new item
-                    if not found:
-                        widget.addItem(str(value))
-                        widget.setCurrentText(str(value))
-
-                    # Connect QComboBox signal
-                    widget.currentTextChanged.connect(lambda value=value, attribute_name=attribute_name: self.update_metadata(attribute_name, value))
-
-                #elif isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
+                    index = widget.findText(value)
+                    if index < 0 and value:
+                        widget.addItem(value)
+                        index = widget.findText(value)
+                    widget.setCurrentIndex(index)
                 else:
-                    widget.setText(str(value))
-                    # Connect QLineEdit signal
-                    widget.textChanged.connect(
-                        lambda text=value, attribute_name=attribute_name: self.update_metadata(attribute_name, text))
+                    widget.setText(value)
+            finally:
+                widget.blockSignals(blocked)
+
+    def _connect_metadata_widgets(self):
+        """Wire every metadata widget to update_metadata, exactly once."""
+        for attribute_name, widget in self.attribute_to_widget_mapping.items():
+            if widget is None:
+                continue
+
+            if isinstance(widget, QComboBox):
+                signal = widget.currentTextChanged
+            elif isinstance(widget, QTextEdit):
+                signal = widget.textChanged
+            else:
+                signal = widget.textChanged
+
+            if isinstance(widget, QTextEdit):
+                # QTextEdit.textChanged carries no text.
+                signal.connect(lambda name=attribute_name, w=widget:
+                               self.update_metadata(name, w.toPlainText()))
+            else:
+                signal.connect(lambda text, name=attribute_name:
+                               self.update_metadata(name, text))
 
     def update_metadata(self, attribute_name, new_value):
-        # logging.debug(print("Updating metadata:", attribute_name, new_value))
+        """Store one edited field, converted to its proper type."""
+        if self.experiment is None or self.experiment.metadata is None:
+            return  # nothing loaded yet
 
-        # Update the corresponding attribute in the metadata object
         metadata = self.experiment.metadata
+        if not hasattr(metadata, attribute_name):
+            return
 
-        if hasattr(metadata, attribute_name):
-            # Special handling for date and time attributes
-            # if attribute_name.endswith("_time"):
-            #     new_value = datetime.strptime(new_value, "%Y-%m-%d %H:%M") if new_value else None
-
-            setattr(metadata, attribute_name, new_value)
-            self.show_metadata_alert()
+        setattr(metadata, attribute_name, parse_field(attribute_name, new_value))
+        self.show_metadata_alert()
 
     def populate_combobox_templates(self):
         png_files = [file for file in os.listdir(paths.etc_path) if file.endswith(".png") or file.endswith(".jpg")]
@@ -424,24 +509,32 @@ class ExperimentAnalysisUi(QtWidgets.QMainWindow):
         else:
             print("Page not found in mapping!")
 
-    def filter_background_folders(folder_list):
-        folder_list = os.listdir(paths.processed_data_path)
-        valid_values = {"Water background", "Filter background", "Punched filter background", "Field backgrouund"}
+    def filter_background_folders(self):
+        """Processed experiments that can be used as a background.
+
+        The parameter used to be called ``folder_list`` with no ``self``, so the
+        instance was being passed in as it and then thrown away on the first
+        line -- it only worked because nothing read the argument.
+        """
         filtered_folders = []
 
-        for folder in folder_list:
-            metadata_path = os.path.join(paths.raw_data_path / folder, "metadata.json")
+        for folder in os.listdir(paths.processed_data_path):
+            metadata_path = paths.raw_data_path / folder / "metadata.json"
 
-            if os.path.exists(metadata_path):
-                try:
-                    with open(metadata_path, "r", encoding="utf-8") as file:
-                        data = json.load(file)
-                        if data.get("experiment_type") in valid_values:
-                            filtered_folders.append(folder)
-                except:
-                    print('Error occured while retrieving background experiment', folder)
-                    pass  # Skip if the JSON is invalid or file can't be read
-        return filtered_folders
+            if not metadata_path.exists():
+                continue
+
+            try:
+                with open(metadata_path, "r", encoding="utf-8") as file:
+                    data = json.load(file)
+            except (OSError, json.JSONDecodeError) as e:
+                logging.warning(f"Could not read the metadata of {folder}: {e}")
+                continue
+
+            if str(data.get("experiment_type", '')).strip().lower() in BACKGROUND_TYPES:
+                filtered_folders.append(folder)
+
+        return sorted(filtered_folders)
 
     def get_background(self):
         if self.experiment is not None:

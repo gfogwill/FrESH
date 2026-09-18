@@ -21,14 +21,18 @@ TYPE_WATER_BACKGROUND = 'Water background'
 # exactly what the code did before, so no already-analysed experiment changes
 # its numbers.
 #
-# NOTE (open question, needs a call from the lab): the old code also listed
-# 'filter Background' in the wash branch, but compared it against an
-# already-lower-cased string, so that entry could never match; likewise it had
-# a 'WB' branch that no combo box ever emits. That means 'Filter background',
-# 'Field background' and 'Water background' all silently fall through to
-# X = 1.0 today. If they should use the wash formula (or v_drop for water
-# backgrounds), add them here -- it will change the concentrations of every
-# experiment of those types.
+# NOTE: the old code listed 'filter Background' in the wash branch but compared
+# it against an already-lower-cased string, so that entry could never match, and
+# it had a 'WB' branch that no combo box ever emits. 'Filter background',
+# 'Field background' and 'Water background' therefore all fall through to
+# X = 1.0, which is left as it was.
+#
+# That is on purpose: per the lab, the background types are not normalised per
+# litre of air at all -- they are expressed per mL of suspension. Getting that
+# right means more than adding them to a set here: run_analysis() also divides
+# by air_volume and labels the result L-1 for every type. Until somebody
+# confirms the intended formula, nothing here is changed, because touching it
+# would silently move the numbers of every background already analysed.
 
 # Types normalised with the filter-wash formula X = nu * v_wash / (ff * v_drop).
 WASH_NORMALISED_TYPES = (TYPE_FILTER,)
@@ -100,11 +104,13 @@ class ExperimentMetadata:
         ValueError
             If one or more required fields are missing.
         """
-        try:
-            self.start_time = self.start_time.strftime('%Y-%m-%d %H:%M')
-            self.end_time = self.end_time.strftime('%Y-%m-%d %H:%M')
-        except AttributeError:
-            pass
+        # One try block covered both, so a missing start_time skipped the
+        # conversion of end_time and left a datetime in the metadata, which
+        # json.dump cannot serialise.
+        for field in ('start_time', 'end_time'):
+            value = getattr(self, field)
+            if hasattr(value, 'strftime'):
+                setattr(self, field, value.strftime('%Y-%m-%d %H:%M'))
 
         required_fields = ["label"]
         missing_fields = [field for field in required_fields if getattr(self, field) is None]

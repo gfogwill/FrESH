@@ -429,17 +429,13 @@ class FrESHExperiment:
 
             with open(metadata_path, "r", encoding="utf-8-sig") as metadata_file:
                 try:
-                    content = metadata_file.read()
-                    content = content.replace('"None"', 'null')
-                    content = content.replace('""', 'null')
-                    #print('Check metadata to be loaded', content)
-                    metadata_dict = json.loads(content)
+                    metadata_dict = json.load(metadata_file)
                 except json.JSONDecodeError as e:
-                    print('Error loading metadata ', e)
-                    #self.load_metadata_from_raw_file()
+                    logging.error(f"Could not read {metadata_path}: {e}")
                     return
 
-                metadata_dict = {k.lower(): v for k, v in metadata_dict.items()}
+                metadata_dict = {k.lower(): normalise_empty(v)
+                                 for k, v in metadata_dict.items()}
                 self.metadata = ExperimentMetadata(**metadata_dict)
 
                 # Validate and correct metadata fields
@@ -719,6 +715,24 @@ class FrESHExperiment:
                 yaml.dump(self.metadata.__dict__, export_file, default_flow_style=False)
         else:
             print(f"Unsupported export format: {export_format}")
+
+
+#: Stored values that older files use where a real null belongs. They got there
+#: because the analysis form used to push every value through str(), turning a
+#: missing value into the text "None".
+EMPTY_VALUES = ('', 'none', 'null', 'nan')
+
+
+def normalise_empty(value):
+    """Turn a stored placeholder such as "None" into a real None.
+
+    This used to be done by running str.replace over the raw JSON text before
+    parsing it, which also hit any description that happened to contain those
+    characters. Doing it on the parsed values touches only the values.
+    """
+    if isinstance(value, str) and value.strip().lower() in EMPTY_VALUES:
+        return None
+    return value
 
 
 def sensors_file(exp_name):
