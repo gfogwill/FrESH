@@ -116,25 +116,91 @@ def test_the_setpoint_stays_between_the_limits(qapp, clock):
     assert max(events.setpoints) == pytest.approx(10.0)
 
 
-def test_recording_covers_the_cooling_ramp_only(qapp, clock):
-    """cycle_started/cycle_finished must bracket exactly the cooling phase."""
+def test_recording_follows_the_bath_not_the_setpoint(qapp, clock):
+    """Regression: recording stopped the moment the SETPOINT bottomed out.
+
+    The bath lags, so at that moment the sample is still warmer than asked for
+    and wells are still freezing. Stopping there threw away the coldest part of
+    every scan.
+    """
+    controller = make(clock, hold_cold_minutes=5.0)
+    events = Recorder(controller)
+    controller.start()
+
+    # Cool down with the bath stuck 10 degC behind the setpoint.
+    while controller.phase is Phase.COOLING:
+        controller.update_temperature(controller.setpoint + 10.0)
+        clock.advance(0.1)
+        controller.tick()
+
+    assert controller.phase is Phase.HOLD_COLD
+    assert controller.recording, "stopped recording while the bath was still falling"
+    assert events.finished == []
+
+    # Still on its way down: keep recording.
+    for _ in range(20):
+        controller.update_temperature(-25.0)
+        clock.advance(0.1)
+        controller.tick()
+    assert controller.recording
+    assert events.finished == []
+
+    # The bath arrives at the temperature that was asked for.
+    controller.update_temperature(-30.0)
+    controller.tick()
+
+    assert not controller.recording
+    assert events.finished == [1]
+
+
+def test_recording_stops_before_the_thaw_even_if_the_bath_never_arrives(qapp, clock):
+    """The hold can time out; the folder must still be closed."""
+    controller = make(clock, hold_timeout_minutes=30.0)
+    events = Recorder(controller)
+    controller.start()
+
+    while controller.phase is Phase.COOLING:
+        controller.update_temperature(0.0)
+        clock.advance(0.1)
+        controller.tick()
+
+    controller.update_temperature(-5.0)   # never gets cold
+    clock.advance(31.0)
+    controller.tick()
+
+    assert controller.phase is Phase.THAW
+    assert not controller.recording
+    assert events.finished == [1]
+
+
+def test_nothing_is_recorded_during_the_thaw(qapp, clock):
+    """Melting is as big a grayscale jump as freezing; it must not be filmed."""
     controller = make(clock, cycles=1)
     recorded_phases = set()
 
-    controller.cycle_started.connect(
-        lambda n: recorded_phases.add(controller.phase))
     controller.start()
-
     for _ in range(2000):
         if controller.phase.is_finished:
             break
-        if controller.phase.is_recording:
+        if controller.recording:
             recorded_phases.add(controller.phase)
         controller.update_temperature(controller.setpoint)
         clock.advance(controller.settings.step_interval / 60.0)
         controller.tick()
 
-    assert recorded_phases == {Phase.COOLING}
+    assert recorded_phases <= {Phase.COOLING, Phase.HOLD_COLD}
+    assert Phase.THAW not in recorded_phases
+    assert Phase.HOLD_WARM not in recorded_phases
+
+
+def test_a_cycle_is_closed_exactly_once(qapp, clock):
+    controller = make(clock, cycles=3)
+    events = Recorder(controller)
+
+    controller.start()
+    run(controller, clock)
+
+    assert events.finished == [1, 2, 3]
 
 
 def test_an_unbounded_series_keeps_cycling(qapp, clock):

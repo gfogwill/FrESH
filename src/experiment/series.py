@@ -6,12 +6,17 @@ One *cycle* is five phases:
 phase            what it does                               recording
 ===============  =========================================  =========
 ``COOLING``      ramps the setpoint down to ``min_temp``    yes
-``HOLD_COLD``    waits for the bath to reach                no
-                 ``freeze_temp``, then dwells
+``HOLD_COLD``    waits for the bath to reach                until the
+                 ``freeze_temp``, then dwells               bath gets there
 ``THAW``         ramps the setpoint up to ``thaw_temp``     no
 ``HOLD_WARM``    waits for the bath to get warm, dwells     no
 ``SETTLE``       jumps back to ``scan_start_temp``          no
 ===============  =========================================  =========
+
+Recording follows the **measured** temperature, not the setpoint. The bath lags,
+so when the setpoint bottoms out the sample is still warmer than asked for and
+wells are still freezing; stopping there would throw away the coldest and most
+interesting part of every scan.
 
 Two things are deliberate:
 
@@ -60,11 +65,6 @@ class Phase(enum.Enum):
     SETTLE = 'settle'
     DONE = 'done'
     ABORTED = 'aborted'
-
-    @property
-    def is_recording(self):
-        """Only the cooling ramp is a measurement."""
-        return self is Phase.COOLING
 
     @property
     def is_finished(self):
@@ -194,6 +194,8 @@ class SeriesController(QObject):
 
         self.phase = Phase.IDLE
         self.cycle = 0
+        #: True while this cycle's pictures and readings are being kept.
+        self.recording = False
         #: None until the first setpoint is written, so that the very first
         #: write always reaches the chiller whatever it was set to before.
         self.setpoint = None
@@ -234,8 +236,7 @@ class SeriesController(QObject):
         self.timer.stop()
         self._set_setpoint(SAFE_TEMPERATURE)
 
-        if self.phase.is_recording:
-            self.cycle_finished.emit(self.cycle)
+        self._end_recording()
 
         if reason is None:
             logging.info("Series stopped")
@@ -293,14 +294,22 @@ class SeriesController(QObject):
                                    self.settings.min_temp))
             return
 
-        # The setpoint has bottomed out; stop recording and wait for the bath.
-        self.cycle_finished.emit(self.cycle)
+        # The setpoint has bottomed out, but the bath is still on its way down
+        # and wells are still freezing, so keep recording into the hold.
         self._enter(Phase.HOLD_COLD)
 
     def _tick_hold_cold(self):
-        if self._wait_for_bath(reached=self._bath_at_or_below(self.settings.freeze_temp),
+        reached = self._bath_at_or_below(self.settings.freeze_temp)
+
+        if reached:
+            # The sample is finally at the temperature that was asked for:
+            # whatever was going to freeze on the way down has frozen.
+            self._end_recording()
+
+        if self._wait_for_bath(reached=reached,
                                dwell_minutes=self.settings.hold_cold_minutes,
                                what=f"the bath to reach {self.settings.freeze_temp} degC"):
+            self._end_recording()   # also covers giving up on the timeout
             self._enter(Phase.THAW)
 
     def _tick_thaw(self):
@@ -345,7 +354,18 @@ class SeriesController(QObject):
         self.cycle += 1
         self._set_setpoint(self.settings.scan_start_temp)
         self._enter(Phase.COOLING)
+        self.recording = True
         self.cycle_started.emit(self.cycle)
+
+    def _end_recording(self):
+        """Close this cycle's folder. Safe to call more than once."""
+        if not self.recording:
+            return
+
+        self.recording = False
+        logging.info(f"Cycle {self.cycle}: recording stopped "
+                     f"(measured {self.bath_temp} degC)")
+        self.cycle_finished.emit(self.cycle)
 
     def _enter(self, phase):
         self.phase = phase
