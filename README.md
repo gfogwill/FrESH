@@ -151,6 +151,43 @@ ethanol bath and somebody should be watching it.
 > first crossing. If you scan that low, pass a lower `floor=` or the coldest
 > part of your own data disappears. A warning is logged when rows are dropped.
 
+## Analysing a set of experiments
+
+Instead of opening each one in the analysis window, analyse a whole series at
+once:
+
+```console
+$ python -m src.analysis.batch '202609180800_WBG*' --min-step auto
+$ python -m src.analysis.figures data/processed/202609180800_WBG_wells.csv
+```
+
+The first command finds the wells **once** and reuses those positions for every
+experiment in the set (detecting them per experiment lets the count come out at
+95 or 97, and since wells are ordered by cutting the list into rows of 12, one
+missing circle renumbers every well after it). It writes
+`data/interim/<name>/freezing_temps.csv` per experiment and one combined table
+with a row per well per experiment. The second turns that table into the
+three-panel refreeze figure.
+
+Two knobs decide what counts as a well freezing:
+
+* `--min-step` -- the smallest change in grayscale that counts. **This is the
+  one that matters.** `get_grayscales` subtracts the mean of the whole picture
+  from every well, so each time one well freezes, every other well takes a small
+  step in sympathy. That step is tiny in absolute terms but large compared with
+  a well's own noise, so a purely statistical threshold lets it through. Pass
+  `auto` to read the value off each experiment's data; the batch always prints
+  what it would suggest.
+* `--robust-z` -- how far the step must stand out from that well's own noise.
+
+With neither, the largest step always wins and **every** well is declared
+frozen, which is what the analysis window has always done. That is harmless for
+a filter where all 96 freeze, and wrong for a water background, where most wells
+never freeze and the frozen fraction would run up to 1.0 regardless.
+
+`--t-start` and `--t-end` restrict the search to a temperature window, for the
+spurious events that show up while the plate is still warm or right at the end.
+
 ## Troubleshooting
 
 **"no reply from the chiller on /dev/ttyXXX for: bath temperature, setpoint, ..."**
