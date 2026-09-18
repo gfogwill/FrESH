@@ -62,6 +62,22 @@ PORT      = /dev/ttyUSB1
 MODEL     = RE1050
 ```
 
+On a machine with more than one serial device -- the RE1050 has an ADAM module
+on its own port besides the chiller -- also pin the chiller's port, otherwise it
+is guessed:
+
+```ini
+[CHILLER]
+MODEL     = RE1050
+PORT      = /dev/ttyUSB0
+```
+
+To see what this machine has and which port would be used:
+
+```console
+$ python -m src.daq.ports
+```
+
 The file is looked up in this order, first match wins:
 
 1. `$FRESH_CONFIG`
@@ -134,6 +150,15 @@ ethanol bath and somebody should be watching it.
 > record at `SENSOR_TEMPERATURE_FLOOR` (-45 ºC) and drop everything after the
 > first crossing. If you scan that low, pass a lower `floor=` or the coldest
 > part of your own data disappears. A warning is logged when rows are dropped.
+
+## Troubleshooting
+
+**"no reply from the chiller on /dev/ttyXXX for: bath temperature, setpoint, ..."**
+The port being used is not the chiller's. Run `python -m src.daq.ports` and set
+`[CHILLER] PORT` to the right one. On the RE1050 the ADAM module has its own
+port, and opening it as the chiller's leaves both devices talking over one line:
+the ADAM readings keep working while every chiller command comes back
+unparseable.
 
 ## Running the tests
 

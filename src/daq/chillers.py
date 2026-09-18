@@ -33,6 +33,24 @@ CMD_EXT_TEMP_1 = "IN_PV_03\r"
 CMD_SET_SETPOINT = "OUT_SP_00_{}\r"
 
 
+def open_serial(port, timeout=0.5):
+    """Open the chiller's port, exclusively where the platform supports it.
+
+    Without O_EXCL two devices can end up sharing one line, which shows up as
+    unparseable replies rather than as an error.
+    """
+    try:
+        return serial.Serial(port, timeout=timeout, exclusive=True)
+    except TypeError:
+        # pyserial without the exclusive flag, or a platform that ignores it.
+        return serial.Serial(port, timeout=timeout)
+    except serial.SerialException as e:
+        raise serial.SerialException(
+            f"Could not open {port} for the chiller: {e}. If another device "
+            f"(the ADAM module) is on that port, set [CHILLER] PORT in the "
+            f"configuration to the chiller's own port.") from e
+
+
 def read_command(connection, command: str):
     """Send ``command`` and return the reply as a float, or None if unparsable."""
     connection.write(command.encode('ASCII'))
@@ -43,11 +61,64 @@ def read_command(connection, command: str):
         return None
 
 
-def find_usb_port():
-    """Return the device name of the first USB serial port, or None."""
-    for port in serial.tools.list_ports.comports():
-        if 'USB' in port.description or 'USB' in (port.hwid or ''):
-            return port.device
+def list_serial_ports():
+    """Every serial port on this machine, as (device, description, hwid)."""
+    return [(p.device, p.description or '', p.hwid or '')
+            for p in serial.tools.list_ports.comports()]
+
+
+def configured_port(config, section):
+    """Return ``[section] PORT`` from the configuration, or None if unset."""
+    try:
+        port = config[section]['PORT'].strip()
+    except (KeyError, TypeError, AttributeError):
+        return None
+    return port or None
+
+
+def find_chiller_port(config=None, exclude=()):
+    """Work out which serial port the chiller is on.
+
+    In order:
+
+    1. ``[CHILLER] PORT`` in the configuration. Set it on any machine that has
+       more than one serial device -- it is the only way to be certain.
+    2. the first port whose *description* mentions USB
+    3. the first port whose *hwid* mentions USB
+
+    Ports in ``exclude`` are never auto-selected. On the RE1050 machine the
+    ADAM module sits on its own USB serial port, and picking that one for the
+    chiller leaves two code paths interleaving on one line: the ADAM keeps
+    answering while every LAUDA command comes back unparseable.
+    """
+    pinned = configured_port(config, 'CHILLER')
+    if pinned:
+        logging.info(f"Chiller port from the configuration: {pinned}")
+        return pinned
+
+    ports = list_serial_ports()
+    if not ports:
+        logging.error("No serial ports found at all")
+        return None
+
+    logging.info("Serial ports found: " +
+                 "; ".join(f"{device} ({description})" for device, description, _ in ports))
+
+    exclude = {port for port in exclude if port}
+    candidates = [p for p in ports if p[0] not in exclude]
+
+    if exclude:
+        logging.info(f"Not considering {', '.join(sorted(exclude))} "
+                     f"(in use by another device)")
+
+    for match_on, index in (('description', 1), ('hwid', 2)):
+        for device, description, hwid in candidates:
+            if 'USB' in (description, hwid)[index - 1]:
+                logging.info(f"Using {device} for the chiller (matched on {match_on})")
+                return device
+
+    logging.error("No USB serial port left for the chiller. Set [CHILLER] PORT "
+                  "in the configuration to say which one it is.")
     return None
 
 
@@ -79,11 +150,11 @@ class LaudaSerial:
         try:
             self._connect_extra_hardware()
 
-            self.port = find_usb_port()
+            self.port = find_chiller_port(self.config, exclude=self.reserved_ports())
             if self.port is None:
-                raise serial.SerialException("No USB serial port found")
+                raise serial.SerialException("No serial port found for the chiller")
 
-            self.ser = serial.Serial(self.port, timeout=0.5)
+            self.ser = open_serial(self.port)
             time.sleep(1)
             self.connected = True
             logging.info(f"Connected to {self.MODEL} on port {self.port}")
@@ -97,6 +168,10 @@ class LaudaSerial:
     def _connect_extra_hardware(self):
         """Hook for models that need more than the serial line (e.g. an ADAM)."""
 
+    def reserved_ports(self):
+        """Ports used by this model's other hardware, never the chiller's own."""
+        return ()
+
     def close(self):
         with self._lock:
             if self.ser and self.connected:
@@ -109,6 +184,15 @@ class LaudaSerial:
 
     # -- reading -------------------------------------------------------------
 
+    #: The commands read on every poll, and what each one is, in order.
+    READINGS = ((CMD_BATH_TEMP, 'bath temperature'),
+                (CMD_SETPOINT, 'setpoint'),
+                (CMD_CONTROLLED_TEMP, 'controlled temperature'),
+                (CMD_CUTOFF_POINT, 'cut-off point'),
+                (CMD_BATH_TEMP_MILLI, 'bath temperature in 0.001 degC'),
+                (CMD_SETPOINT_OFFSET, 'setpoint offset'),
+                (CMD_MAX_OUTFLOW, 'max. outflow limit'))
+
     def read_all_temp(self):
         """Return (bt, sp, t1, t2, temp, rh, t5), or a tuple of None on error."""
         if not self.connected:
@@ -116,12 +200,15 @@ class LaudaSerial:
 
         try:
             with self._lock:
-                values = tuple(read_command(self.ser, cmd) for cmd in (
-                    CMD_BATH_TEMP, CMD_SETPOINT, CMD_CONTROLLED_TEMP, CMD_CUTOFF_POINT,
-                    CMD_BATH_TEMP_MILLI, CMD_SETPOINT_OFFSET, CMD_MAX_OUTFLOW))
+                values = tuple(read_command(self.ser, cmd) for cmd, _ in self.READINGS)
 
-            if None in values:
-                raise ValueError("One or more temperature readings returned None")
+            missing = [name for value, (_, name) in zip(values, self.READINGS)
+                       if value is None]
+            if missing:
+                raise ValueError(
+                    f"no reply from the chiller on {self.port} for: "
+                    f"{', '.join(missing)}. Check that this is the chiller's port "
+                    f"and not another device's, and that the baud rate matches.")
 
             return values
 
@@ -219,6 +306,9 @@ class LAUDARE1050(LaudaSerial):
         conn = ADAMConnection(self.config['SERIAL'])
         self.adam = ADAM4015(conn, 0x24, chs_to_enable=[0, 1])
         logging.info("ADAM Connected")
+
+    def reserved_ports(self):
+        return (configured_port(self.config, 'SERIAL'),)
 
     def _read_rtds(self):
         return self.adam.GetAllTemps()
