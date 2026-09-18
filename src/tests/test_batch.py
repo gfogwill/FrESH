@@ -253,7 +253,10 @@ def test_a_big_drift_is_not_cropped_out_of_the_panel():
         {1: [-12.0] + [None] * 95, 2: [-12.0] * 96}, 5e-05)
 
     fig = figures.plot(grid, curves)
-    low, high = fig.axes[1].get_ylim()
+    # Find the panel by what it shows, so a layout change cannot silently
+    # point this test at the wrong axes.
+    drift_panel, = [ax for ax in fig.axes if 'series median' in ax.get_ylabel()]
+    low, high = drift_panel.get_ylim()
     deltas = figures.drift(curves)
 
     assert low <= np.nanmin(deltas) and np.nanmax(deltas) <= high

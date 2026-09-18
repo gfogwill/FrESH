@@ -188,6 +188,22 @@ never freeze and the frozen fraction would run up to 1.0 regardless.
 `--t-start` and `--t-end` restrict the search to a temperature window, for the
 spurious events that show up while the plate is still warm or right at the end.
 
+`--max-simultaneous 0.25` rejects a frame that more than a quarter of the plate
+was assigned to. Freezing is stochastic well by well, so forty wells sharing one
+frame is the picture changing -- the plate moved, the camera re-exposed -- not
+forty wells freezing at the same instant. The frame is blanked and the wells
+that were on it are looked at again, so a well that really froze later is found
+at its real temperature instead of being thrown away. The batch prints the
+largest such group per experiment in its `same frame` column and flags it with
+`!!` when it reaches a quarter of the plate.
+
+Note that a *uniform* brightness change cannot cause this: `get_grayscales`
+subtracts the mean of the picture from every well, so a flat shift cancels out
+exactly. An artefact that survives that is geometric or uneven -- the plate or
+camera moved, auto-exposure or auto-white-balance kicked in, something fogged
+over. Turning off the camera's automatic exposure and white balance in the
+camera settings window is worth doing before a long series.
+
 ## Troubleshooting
 
 **"no reply from the chiller on /dev/ttyXXX for: bath temperature, setpoint, ..."**

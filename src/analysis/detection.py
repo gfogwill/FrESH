@@ -67,6 +67,22 @@ def frame_window(frame_temperatures, t_start=None, t_end=None):
     return mask
 
 
+def simultaneous_groups(freezing_frames):
+    """How many wells were assigned to each frame."""
+    from collections import Counter
+    return Counter(f for f in freezing_frames if f is not None)
+
+
+def largest_simultaneous_group(freezing_frames):
+    """(frame, count) of the frame that most wells were assigned to."""
+    groups = simultaneous_groups(freezing_frames)
+    if not groups:
+        return None, 0
+
+    frame, count = groups.most_common(1)[0]
+    return frame, count
+
+
 def suggest_min_step(grayscales):
     """A min_step read off the data, by finding the gap between the two groups.
 
@@ -94,7 +110,7 @@ def suggest_min_step(grayscales):
 
 def detect_freezing_frames(grayscales, frame_temperatures=None,
                            t_start=None, t_end=None, robust_z=DEFAULT_ROBUST_Z,
-                           min_step=None):
+                           min_step=None, max_simultaneous=None):
     """Return the frame index at which each well froze, or None where it did not.
 
     Parameters
@@ -115,6 +131,14 @@ def detect_freezing_frames(grayscales, frame_temperatures=None,
 
         With both set to None the largest step always wins, which is what the
         analysis window has always done.
+    max_simultaneous : float, optional
+        Largest share of the plate allowed to freeze in one frame, e.g. 0.25.
+        Freezing is stochastic well by well, so a frame that dozens of wells
+        share is an artefact of the picture -- the light changed, the camera
+        re-exposed, somebody knocked the bench -- not forty wells freezing at
+        once. Such a frame is blanked and the wells that were on it are looked
+        at again, so a well that really froze later is found at its real
+        temperature instead of being lost.
 
     Returns
     -------
@@ -179,6 +203,55 @@ def detect_freezing_frames(grayscales, frame_temperatures=None,
             continue
 
         freezing_frames.append(best + 1)
+
+    if max_simultaneous is not None:
+        freezing_frames = _reject_simultaneous(
+            freezing_frames, diffs, usable, sigmas, plate_sigma,
+            robust_z, min_step, max_simultaneous)
+
+    return freezing_frames
+
+
+def _reject_simultaneous(freezing_frames, diffs, usable, sigmas, plate_sigma,
+                         robust_z, min_step, max_simultaneous):
+    """Blank the frames too many wells share, and look at those wells again."""
+    n_wells = len(freezing_frames)
+    limit = max(2, int(round(max_simultaneous * n_wells)))
+    blanked = np.zeros(diffs.shape[0], dtype=bool)
+
+    # Rejecting one frame can expose another, so keep going until it settles.
+    for _ in range(n_wells):
+        frame, count = largest_simultaneous_group(freezing_frames)
+        if frame is None or count < limit:
+            break
+
+        logging.warning(f"{count} of {n_wells} wells were assigned to one frame; "
+                        f"treating it as a picture artefact, not as {count} wells "
+                        f"freezing at the same instant")
+        blanked[frame - 1] = True
+        allowed = usable & ~blanked
+
+        for well in range(n_wells):
+            if freezing_frames[well] != frame:
+                continue
+
+            magnitudes = np.abs(diffs[:, well])
+            candidates = np.where(allowed, magnitudes, -np.inf)
+
+            if not np.isfinite(candidates).any():
+                freezing_frames[well] = None
+                continue
+
+            best = int(np.argmax(candidates))
+
+            if min_step is not None and magnitudes[best] < min_step:
+                freezing_frames[well] = None
+            elif robust_z is not None and not _is_a_step(
+                    magnitudes[best], sigmas[well], plate_sigma,
+                    magnitudes[allowed], robust_z):
+                freezing_frames[well] = None
+            else:
+                freezing_frames[well] = best + 1
 
     return freezing_frames
 

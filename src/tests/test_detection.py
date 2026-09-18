@@ -159,3 +159,79 @@ def test_a_single_picture_cannot_show_freezing(caplog):
 def test_a_wrong_shape_is_rejected():
     with pytest.raises(ValueError, match='n_frames, n_wells'):
         detect_freezing_frames(np.zeros(10))
+
+
+# -- artefacts that hit the whole plate at once ------------------------------
+
+#: Wells 0-9 really freeze, one per frame from 35 on -- stochastic, as real
+#: freezing is. Wells 10-19 never do. The artefact at frame 8 hits all of them
+#: and is bigger than any real step, so without the check it wins everywhere.
+ARTEFACT_FRAME = 8
+REAL_FREEZES = {i: 35 + i for i in range(10)}
+
+
+def plate_with_artefact(n_wells=20):
+    wells = []
+    for i in range(n_wells):
+        trace = well(freezes_at=None, noise=0.3, seed=i)
+        if i in REAL_FREEZES:
+            trace[REAL_FREEZES[i]:] += 25
+        trace[ARTEFACT_FRAME:] += 60       # the whole plate jumps at once
+        wells.append(trace)
+    return plate(*wells)
+
+
+def test_without_the_check_the_artefact_is_read_as_freezing():
+    frames = detect_freezing_frames(plate_with_artefact(), min_step=10)
+
+    assert frames.count(ARTEFACT_FRAME) == 20, "the artefact should win everywhere"
+
+
+def test_a_frame_the_whole_plate_shares_is_rejected(caplog):
+    """Freezing is stochastic well by well; twenty at one instant is the picture."""
+    frames = detect_freezing_frames(plate_with_artefact(), min_step=10,
+                                    max_simultaneous=0.25)
+
+    assert ARTEFACT_FRAME not in frames
+    assert 'picture artefact' in caplog.text
+
+
+def test_the_wells_that_really_froze_are_found_at_their_real_frame():
+    """The point of looking again: a well that froze later is not lost."""
+    frames = detect_freezing_frames(plate_with_artefact(), min_step=10,
+                                    max_simultaneous=0.25)
+
+    assert frames[:10] == list(REAL_FREEZES.values()), \
+        "the real, later freezing was not recovered"
+    assert frames[10:] == [None] * 10, "the rest never froze"
+
+
+def test_genuine_clustering_is_left_alone():
+    """Many wells really do freeze within one frame where the bulk goes."""
+    wells = [well(freezes_at=30, noise=0.3, seed=i) for i in range(8)]
+    wells += [well(freezes_at=None, noise=0.3, seed=100 + i) for i in range(92)]
+
+    frames = detect_freezing_frames(plate(*wells), min_step=10,
+                                    max_simultaneous=0.25)
+
+    assert frames[:8] == [30] * 8, "8 of 100 wells is not an artefact"
+
+
+def test_several_artefact_frames_are_all_rejected():
+    wells = []
+    for i in range(20):
+        trace = well(freezes_at=None, noise=0.3, seed=i)
+        trace[8:] += 30       # first light change
+        trace[20:] += 25      # second one
+        wells.append(trace)
+
+    frames = detect_freezing_frames(plate(*wells), min_step=10, max_simultaneous=0.25)
+
+    assert frames == [None] * 20
+
+
+def test_the_largest_group_is_reported():
+    from src.analysis.detection import largest_simultaneous_group
+
+    assert largest_simultaneous_group([5, 5, 5, 9, None]) == (5, 3)
+    assert largest_simultaneous_group([None, None]) == (None, 0)

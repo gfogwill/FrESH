@@ -3,11 +3,12 @@
 
     python -m src.analysis.figures data/processed/<name>_wells.csv
 
-Three panels:
+Four panels:
 
-1. the spectrum of every cycle, coloured by cycle number;
-2. how far each cycle sits from the series median, in decades;
-3. how much consecutive cycles differ.
+1. the frozen fraction of every cycle, coloured by cycle number;
+2. the same cycles as a spectrum;
+3. how far each cycle sits from the series median, in decades;
+4. how much consecutive cycles differ.
 
 Cycle number is a *sequential* quantity, so the cycles are coloured with a
 sequential, colourblind-safe ramp and identified by a colour bar rather than by
@@ -123,8 +124,9 @@ def consecutive_differences(curves):
     return diffs[np.isfinite(diffs)]
 
 
-def plot(grid, curves, quantity='k', title=None, units='mL$^{-1}$'):
-    fig, axes = plt.subplots(1, 3, figsize=(16, 4.4))
+def plot(grid, curves, title=None, units='mL$^{-1}$'):
+    fig, axes = plt.subplots(2, 2, figsize=(13, 8.5))
+    axes = axes.ravel()
     cycles = list(curves)
     numeric = [c for c in cycles if isinstance(c, (int, float))]
 
@@ -132,20 +134,27 @@ def plot(grid, curves, quantity='k', title=None, units='mL$^{-1}$'):
     lo, hi = (min(numeric), max(numeric)) if numeric else (0, 1)
     norm = matplotlib.colors.Normalize(vmin=lo, vmax=max(hi, lo + 1))
 
-    # 1 -- every cycle's spectrum
+    def colour(cycle):
+        return cmap(norm(cycle)) if isinstance(cycle, (int, float)) else 'grey'
+
+    # 1 -- frozen fraction, the raw measurement before any normalisation
     ax = axes[0]
     for cycle, curve in curves.items():
-        colour = cmap(norm(cycle)) if isinstance(cycle, (int, float)) else 'grey'
-        ax.plot(grid, curve[quantity], color=colour, linewidth=1)
-
-    if quantity == 'k':
-        ax.set_yscale('log')
-        ax.set_ylabel(f'$N_{{INP}}$ [{units}]')
-    else:
-        ax.set_ylabel('frozen fraction')
-
+        ax.plot(grid, curve['ff'], color=colour(cycle), linewidth=1)
     ax.set_xlabel('temperature [°C]')
-    ax.set_title(f'{len(cycles)} consecutive freeze/thaw cycles')
+    ax.set_ylabel('frozen fraction')
+    ax.set_ylim(-0.02, 1.02)
+    ax.set_title(f'Frozen fraction — {len(cycles)} cycles')
+    ax.grid(**GRID)
+
+    # 2 -- the same cycles as a spectrum
+    ax = axes[1]
+    for cycle, curve in curves.items():
+        ax.plot(grid, curve['k'], color=colour(cycle), linewidth=1)
+    ax.set_yscale('log')
+    ax.set_ylabel(f'$N_{{INP}}$ [{units}]')
+    ax.set_xlabel('temperature [°C]')
+    ax.set_title('Cumulative spectrum')
     ax.grid(**GRID)
 
     if numeric:
@@ -154,8 +163,8 @@ def plot(grid, curves, quantity='k', title=None, units='mL$^{-1}$'):
         bar.locator = matplotlib.ticker.MaxNLocator(integer=True)
         bar.update_ticks()
 
-    # 2 -- drift across the series
-    ax = axes[1]
+    # 3 -- drift across the series
+    ax = axes[2]
     deltas = drift(curves)
     ax.plot(cycles, deltas, 'o-', markersize=5, linewidth=1)
     ax.axhline(0, color='black', linestyle=':', linewidth=1)
@@ -173,8 +182,8 @@ def plot(grid, curves, quantity='k', title=None, units='mL$^{-1}$'):
     ax.set_ylim(-reach, reach)
     ax.grid(**GRID)
 
-    # 3 -- how much consecutive cycles differ
-    ax = axes[2]
+    # 4 -- how much consecutive cycles differ
+    ax = axes[3]
     diffs = consecutive_differences(curves)
     if diffs.size:
         ax.hist(diffs, bins=40)
@@ -203,8 +212,6 @@ def main(argv=None):
     parser.add_argument('-o', '--output', default=None, help="PNG to write")
     parser.add_argument('--v-drop', type=float, default=DEFAULT_V_DROP,
                         help="drop volume in mL")
-    parser.add_argument('--quantity', choices=('k', 'ff'), default='k',
-                        help="cumulative concentration, or frozen fraction")
     parser.add_argument('--title', default=None)
     args = parser.parse_args(argv)
 
@@ -221,7 +228,7 @@ def main(argv=None):
     print(f"{len(curves)} cycle(s); wells frozen per cycle: "
           f"{', '.join(f'{c}:{n}' for c, n in frozen.items())}")
 
-    fig = plot(grid, curves, quantity=args.quantity, title=args.title)
+    fig = plot(grid, curves, title=args.title)
 
     out = args.output or str(args.table).rsplit('.', 1)[0] + '.png'
     fig.savefig(out, dpi=140)

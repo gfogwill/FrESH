@@ -28,8 +28,9 @@ import numpy as np
 from src import paths
 from src.analysis import circles
 from src.analysis.circles import auto_crop
-from src.analysis.detection import (detect_freezing_frames, suggest_min_step,
-                                    summarise)
+from src.analysis.detection import (detect_freezing_frames,
+                                    largest_simultaneous_group,
+                                    suggest_min_step, summarise)
 from src.experiment.experiment import FrESHExperiment, calculate_frame_temperatures
 
 import cv2
@@ -101,7 +102,8 @@ def well_grayscales(experiment, positions):
 
 
 def analyse_experiment(name, positions=None, t_start=None, t_end=None,
-                       robust_z=None, min_step=None, floor=None):
+                       robust_z=None, min_step=None, max_simultaneous=None,
+                       floor=None):
     """Analyse one experiment. Returns (result dict, well positions used).
 
     ``min_step`` may be the string 'auto' to read a threshold off this
@@ -127,7 +129,10 @@ def analyse_experiment(name, positions=None, t_start=None, t_end=None,
 
     frames = detect_freezing_frames(grayscales, frame_temps, t_start=t_start,
                                     t_end=t_end, robust_z=robust_z,
-                                    min_step=min_step)
+                                    min_step=min_step,
+                                    max_simultaneous=max_simultaneous)
+
+    busiest_frame, busiest_count = largest_simultaneous_group(frames)
 
     freezing_temps = [None if frame is None else float(frame_temps[frame])
                       for frame in frames]
@@ -141,6 +146,9 @@ def analyse_experiment(name, positions=None, t_start=None, t_end=None,
         'frame_temperatures': frame_temps,
         'suggested_min_step': suggestion,
         'separation': separation,
+        'busiest_count': busiest_count,
+        'busiest_temp': (None if busiest_frame is None
+                         else float(frame_temps[busiest_frame])),
         **summarise(freezing_temps),
     }
     return result, positions
@@ -183,8 +191,8 @@ def write_combined(results, out_path):
 def print_summary(results):
     """A table the operator can scan for cycles that need a second look."""
     print(f"\n{'experiment':<38} {'cyc':>4} {'pics':>5} {'frozen':>8} "
-          f"{'median':>8} {'warmest':>8} {'coldest':>8}")
-    print("-" * 86)
+          f"{'median':>8} {'warmest':>8} {'coldest':>8} {'same frame':>12}")
+    print("-" * 99)
 
     for r in results:
         def t(key):
@@ -192,13 +200,28 @@ def print_summary(results):
 
         cycle = r['cycle'] if r['cycle'] is not None else '-'
         frozen = f"{r['frozen']}/{r['wells']}"
+
+        share = r['busiest_count'] / r['wells'] if r['wells'] else 0
+        busiest = f"{r['busiest_count']}@{r['busiest_temp']:.1f}" \
+            if r['busiest_temp'] is not None else '-'
+        busiest += ' !!' if share >= 0.25 else ''
+
         print(f"{r['name']:<38} {str(cycle):>4} {r['pictures']:>5} {frozen:>8} "
-              f"{t('median_t')} {t('warmest_t')} {t('coldest_t')}")
+              f"{t('median_t')} {t('warmest_t')} {t('coldest_t')} {busiest:>12}")
 
     counts = {r['wells'] for r in results}
     if len(counts) > 1:
         print(f"\n  !! the well count differs between experiments ({sorted(counts)}); "
               f"per-well comparisons across them are not meaningful")
+
+    suspect = [r for r in results
+               if r['wells'] and r['busiest_count'] / r['wells'] >= 0.25]
+    if suspect:
+        print(f"\n  !! {len(suspect)} experiment(s) have a quarter of the plate or "
+              f"more on a single frame. Freezing is stochastic well by well, so "
+              f"that is the picture changing, not the sample. Re-run with "
+              f"--max-simultaneous 0.25 to drop those frames and look at the "
+              f"affected wells again.")
 
     suggestions = [r['suggested_min_step'] for r in results
                    if r['suggested_min_step'] is not None]
@@ -230,6 +253,12 @@ def main(argv=None):
                              "cross-talk between wells. Omit both this and "
                              "--robust-z to keep the old behaviour, where the "
                              "largest step always wins")
+    parser.add_argument('--max-simultaneous', type=float, default=None,
+                        help="largest share of the plate allowed to freeze in one "
+                             "frame, e.g. 0.25. A frame that dozens of wells share "
+                             "is a picture artefact, not dozens of wells freezing "
+                             "at once; it is blanked and those wells are looked at "
+                             "again")
     parser.add_argument('--floor', type=float, default=None,
                         help="sensor temperature floor (see SENSOR_TEMPERATURE_FLOOR)")
     parser.add_argument('--redetect-wells', action='store_true',
@@ -261,7 +290,8 @@ def main(argv=None):
         try:
             result, detected = analyse_experiment(
                 name, positions=positions, t_start=args.t_start, t_end=args.t_end,
-                robust_z=args.robust_z, min_step=min_step, floor=args.floor)
+                robust_z=args.robust_z, min_step=min_step,
+                max_simultaneous=args.max_simultaneous, floor=args.floor)
         except Exception as e:
             logging.error(f"{name}: {e}")
             continue
