@@ -303,9 +303,13 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         per_cycle = settings.estimated_cycle_seconds()
         total = settings.estimated_total_seconds()
-        self.seriesEstimateLabel.setText(
-            f"≈ {format_duration(per_cycle)} per cycle, "
-            f"{format_duration(total)} in total (bath lag not included)")
+        text = (f"≈ {format_duration(per_cycle)} per cycle, "
+                f"{format_duration(total)} in total (bath lag not included)")
+
+        if self.series is not None:
+            text += "  ·  applies from the next cycle"
+
+        self.seriesEstimateLabel.setText(text)
 
     def start_series(self):
         if self.series is not None:
@@ -324,7 +328,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         self.series_id = time.strftime('%Y%m%d%H%M', time.localtime())
         self._open_series_dir(settings)
-        self._start_controller(settings)
+        self._start_controller(settings, follow_form=True)
 
         self.startSeriesButton.setEnabled(False)
         self.startScanButton.setEnabled(False)
@@ -366,8 +370,18 @@ class ExperimentUi(QtWidgets.QMainWindow):
             return False
         return True
 
-    def _start_controller(self, settings):
-        self.series = SeriesController(settings, parent=self)
+    def _start_controller(self, settings, follow_form=False):
+        """Run the chiller from ``settings``.
+
+        With ``follow_form`` the controller re-reads the form between cycles,
+        so watching the first cycle and then shortening the ramp changes the
+        next one. The numbers can be edited at any time; they are picked up in
+        the gap between cycles, never in the middle of one.
+        """
+        provider = self._series_settings if follow_form else None
+        self.series = SeriesController(settings, parent=self,
+                                       settings_provider=provider)
+        self.series.settings_changed.connect(self._on_settings_changed)
         self.series.setpoint_changed.connect(self.set_temp)
         self.series.phase_changed.connect(self._on_phase_changed)
         self.series.cycle_started.connect(self._on_cycle_started)
@@ -393,6 +407,20 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
     def _on_phase_changed(self, phase, cycle):
         self._refresh_status()
+
+    def _on_settings_changed(self, changes):
+        """Tell the operator their edit was taken, and record it in the series."""
+        logging.info(f"Series settings updated: {changes}")
+
+        if self.series_dir is None:
+            return
+
+        try:
+            with open(self.series_dir / 'settings_changes.log', 'a') as fo:
+                fo.write(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} "
+                         f"cycle {self.series.cycle + 1}: {changes}\n")
+        except Exception as e:
+            logging.error(f"Could not record the settings change: {e}")
 
     def _on_series_ended(self):
         self._finish_series()

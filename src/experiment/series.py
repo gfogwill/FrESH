@@ -71,6 +71,11 @@ class Phase(enum.Enum):
         return self in (Phase.DONE, Phase.ABORTED)
 
 
+#: Settings that define the *mode* of a run rather than its numbers. They are
+#: fixed when the series starts and are never taken from a later edit.
+FIXED_SETTINGS = ('folder_per_cycle', 'wait_for_bath')
+
+
 @dataclass
 class SeriesSettings:
     """Everything the operator sets before starting.
@@ -109,6 +114,15 @@ class SeriesSettings:
     #: False for the manual ramp: turn around as soon as the setpoint reaches
     #: the limit, without waiting for the bath to catch up.
     wait_for_bath: bool = True
+
+    def changes_from(self, other):
+        """Describe how this differs from ``other``, for the log."""
+        changes = []
+        for field_name in vars(self):
+            mine, theirs = getattr(self, field_name), getattr(other, field_name, None)
+            if mine != theirs:
+                changes.append(f"{field_name} {theirs} -> {mine}")
+        return ", ".join(changes)
 
     def validate(self):
         """Raise ValueError if the settings could not produce a sane series."""
@@ -182,12 +196,21 @@ class SeriesController(QObject):
     series_finished = pyqtSignal()
     #: Something went wrong; the argument says what.
     aborted = pyqtSignal(str)
+    #: The settings changed between cycles; the argument describes what.
+    settings_changed = pyqtSignal(str)
 
-    def __init__(self, settings, parent=None, clock=time.monotonic):
+    def __init__(self, settings, parent=None, clock=time.monotonic,
+                 settings_provider=None):
         super().__init__(parent)
 
         settings.validate()
         self.settings = settings
+
+        #: Called between cycles to pick up whatever the operator has changed
+        #: in the form. Watching the first cycle and then shortening the ramp
+        #: is the normal way to use this, so a running series must follow the
+        #: form rather than the values it was started with.
+        self._settings_provider = settings_provider
 
         #: Injectable so the tests do not have to wait in real time.
         self._clock = clock
@@ -339,6 +362,8 @@ class SeriesController(QObject):
                                         f"{self.settings.scan_start_temp} degC"):
             return
 
+        self._refresh_settings()
+
         if self.settings.cycles is not None and self.cycle >= self.settings.cycles:
             self.timer.stop()
             self._enter(Phase.DONE)
@@ -356,6 +381,36 @@ class SeriesController(QObject):
         self._enter(Phase.COOLING)
         self.recording = True
         self.cycle_started.emit(self.cycle)
+
+    def _refresh_settings(self):
+        """Adopt the operator's latest settings, if they make sense.
+
+        This runs once per cycle, in the gap between them, so a cycle always
+        runs with one consistent set of numbers. A half-typed or impossible
+        form is reported and ignored rather than stopping the series: a typo
+        in a text box must not end a three-day run.
+        """
+        if self._settings_provider is None:
+            return
+
+        try:
+            fresh = self._settings_provider()
+            for field_name in FIXED_SETTINGS:
+                setattr(fresh, field_name, getattr(self.settings, field_name))
+            fresh.validate()
+        except Exception as e:
+            logging.warning(f"Ignoring the settings currently in the form, "
+                            f"carrying on with the ones in use: {e}")
+            return
+
+        changes = fresh.changes_from(self.settings)
+        if not changes:
+            return
+
+        logging.info(f"Cycle {self.cycle + 1} picks up: {changes}")
+        self.settings = fresh
+        self.timer.setInterval(int(fresh.step_interval * 1000))
+        self.settings_changed.emit(changes)
 
     def _end_recording(self):
         """Close this cycle's folder. Safe to call more than once."""

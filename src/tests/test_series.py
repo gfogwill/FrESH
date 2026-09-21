@@ -426,3 +426,136 @@ def test_the_first_setpoint_is_always_written(qapp, clock):
     controller.start()
 
     assert events.setpoints[0] == pytest.approx(controller.settings.scan_start_temp)
+
+
+# -- changing the settings while the series runs ----------------------------
+
+def following(clock, form, **overrides):
+    """A controller that re-reads `form` (a dict) between cycles."""
+    def provider():
+        return SeriesSettings(**form)
+
+    settings = SeriesSettings(**{**form, **overrides})
+    return SeriesController(settings, clock=clock, settings_provider=provider)
+
+
+BASE_FORM = dict(scan_start_temp=0.0, min_temp=-45.0, freeze_temp=-45.0,
+                 thaw_temp=10.0, cooling_rate=60.0, heating_rate=60.0,
+                 hold_cold_minutes=0.0, hold_warm_minutes=0.0, cycles=3)
+
+
+def test_a_change_made_during_a_cycle_applies_to_the_next_one(qapp, clock):
+    """Watch cycle 1 reach -22, shorten the ramp, and cycle 2 stops earlier."""
+    form = dict(BASE_FORM)
+    controller = following(clock, form)
+    events = Recorder(controller)
+    controller.start()
+
+    # Cycle 1 runs to -45 as configured.
+    while controller.cycle == 1 and not controller.phase.is_finished:
+        controller.update_temperature(controller.setpoint)
+        clock.advance(0.1)
+        controller.tick()
+        if controller.cycle == 1 and controller.phase is Phase.THAW:
+            assert min(events.setpoints) == pytest.approx(-45.0)
+            form['min_temp'] = form['freeze_temp'] = -28.0   # operator edits
+
+    # From cycle 2 on, the ramp stops at -28.
+    cycle2 = []
+    controller.setpoint_changed.connect(cycle2.append)
+    while controller.cycle == 2 and not controller.phase.is_finished:
+        controller.update_temperature(controller.setpoint)
+        clock.advance(0.1)
+        controller.tick()
+
+    assert controller.settings.min_temp == -28.0
+    assert min(cycle2) == pytest.approx(-28.0), "cycle 2 still went past -28"
+
+
+def test_the_change_is_announced(qapp, clock):
+    form = dict(BASE_FORM)
+    controller = following(clock, form)
+    announced = []
+    controller.settings_changed.connect(announced.append)
+    controller.start()
+
+    form['min_temp'] = form['freeze_temp'] = -28.0
+    run(controller, clock, ticks=400)
+
+    assert announced, "the operator got no confirmation"
+    assert 'min_temp -45.0 -> -28.0' in announced[0]
+
+
+def test_a_broken_form_never_stops_the_series(qapp, clock):
+    """A typo in a text box must not end a three-day run."""
+    form = dict(BASE_FORM)
+    controller = following(clock, form)
+    controller.start()
+
+    form['min_temp'] = 5.0      # above the scan start: impossible
+    run(controller, clock, ticks=800)
+
+    assert controller.settings.min_temp == -45.0, "the impossible value was taken"
+    assert not controller.phase is Phase.ABORTED
+
+
+def test_a_provider_that_raises_never_stops_the_series(qapp, clock, caplog):
+    def explode():
+        raise ValueError("Min. setpoint is not a valid number: 'abc'")
+
+    controller = SeriesController(SeriesSettings(**BASE_FORM), clock=clock,
+                                  settings_provider=explode)
+    controller.start()
+    run(controller, clock, ticks=800)
+
+    assert 'carrying on with the ones in use' in caplog.text
+    assert controller.settings.min_temp == -45.0
+
+
+def test_the_mode_cannot_be_changed_mid_series(qapp, clock):
+    """folder_per_cycle and wait_for_bath define the run, not its numbers."""
+    form = dict(BASE_FORM, folder_per_cycle=True, wait_for_bath=True)
+    controller = following(clock, form)
+    controller.start()
+
+    form['folder_per_cycle'] = False
+    form['wait_for_bath'] = False
+    form['min_temp'] = form['freeze_temp'] = -28.0
+    run(controller, clock, ticks=400)
+
+    assert controller.settings.folder_per_cycle is True
+    assert controller.settings.wait_for_bath is True
+    assert controller.settings.min_temp == -28.0, "the numbers should still follow"
+
+
+def test_the_series_can_be_extended_while_it_runs(qapp, clock):
+    form = dict(BASE_FORM, cycles=2)
+    controller = following(clock, form)
+    events = Recorder(controller)
+    controller.start()
+
+    form['cycles'] = 4
+    run(controller, clock)
+
+    assert events.started == [1, 2, 3, 4]
+
+
+def test_the_series_can_be_cut_short_while_it_runs(qapp, clock):
+    form = dict(BASE_FORM, cycles=5)
+    controller = following(clock, form)
+    events = Recorder(controller)
+    controller.start()
+
+    form['cycles'] = 2
+    run(controller, clock)
+
+    assert events.started == [1, 2]
+    assert events.done == [True]
+
+
+def test_without_a_provider_nothing_changes(qapp, clock):
+    controller = make(clock, cycles=2)
+    controller.start()
+    run(controller, clock)
+
+    assert controller.settings.min_temp == -30.0

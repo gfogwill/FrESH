@@ -128,6 +128,24 @@ or the probe (RTD0).
 setpoint to -45 but only wait for the bath to reach -35, for the case where the
 chiller cannot actually get all the way down.
 
+### Changing the settings while a series runs
+
+The numbers in the *Freeze/thaw series* and *Ramp* boxes can be edited at any
+time and are picked up **between cycles** -- never in the middle of one, so
+every cycle runs with one consistent set of values. Watching the first cycle,
+seeing everything freeze by -22 and shortening the minimum setpoint to -28 is
+the normal way to use it; over fifty cycles that is hours saved.
+
+The cycle count follows too, so a series can be extended or cut short while it
+runs. What cannot change is the *mode*: whether each cycle gets its own folder
+and whether the holds wait for the bath are fixed when the series starts.
+
+A half-typed or impossible value is reported in the log and ignored, and the
+series carries on with the settings it already had -- a typo in a text box must
+not end a three-day run. Every change that is taken is logged and appended to
+`settings_changes.log` in the series folder, so the record says which cycles ran
+with which numbers.
+
 Each cycle writes its own folder, `<timestamp>_<LABEL>_cNNN`, holding only the
 cooling ramp -- so every cycle is a normal experiment that the analysis window
 opens on its own. Pictures are deliberately not taken during the thaw: melting

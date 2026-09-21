@@ -231,3 +231,68 @@ def test_a_good_reading_keeps_the_series_running(window, raw_data_dir):
         window.read_sensors_data({'BT': -5.0, 'SP': -5.0, 'RTD0': -4.6, 'RTD1': -4.5})
 
     assert window.series is not None
+
+
+# -- editing the form while a series runs -----------------------------------
+
+def test_a_series_follows_the_form_between_cycles(window, raw_data_dir):
+    """Watch cycle 1, shorten the ramp, and the next cycle picks it up."""
+
+    window.maxTemp.setText('0')
+    window.minTemp.setText('-45')
+    window.freezeTemp.setText('-45')
+    window.thawTemp.setText('10')
+    window.cyclesSpinBox.setValue(3)
+    window.set_temp = lambda t: None
+
+    window._start_controller(window._series_settings(), follow_form=True)
+    assert window.series.settings.min_temp == -45.0
+
+    # The operator sees everything freeze by -22 and shortens the ramp.
+    window.minTemp.setText('-28')
+    window.freezeTemp.setText('-28')
+
+    # Mid-cycle it must not change under the running ramp.
+    assert window.series.settings.min_temp == -45.0
+
+    window.series._refresh_settings()
+
+    assert window.series.settings.min_temp == -28.0
+    assert window.series.settings.freeze_temp == -28.0
+
+
+def test_the_manual_ramp_does_not_follow_the_form(window, raw_data_dir):
+    window.set_temp = lambda t: None
+    window._start_controller(window._ramp_settings(), follow_form=False)
+
+    window.minTemp.setText('-28')
+    window.series._refresh_settings()
+
+    assert window.series.settings.min_temp != -28.0
+
+
+def test_a_half_typed_field_leaves_the_series_alone(window, raw_data_dir):
+    window.maxTemp.setText('0')
+    window.minTemp.setText('-45')
+    window.freezeTemp.setText('-45')
+    window.set_temp = lambda t: None
+    window._start_controller(window._series_settings(), follow_form=True)
+
+    window.minTemp.setText('-')      # mid-keystroke
+    window.series._refresh_settings()
+
+    assert window.series.settings.min_temp == -45.0
+
+
+def test_a_settings_change_is_recorded_in_the_series_folder(window, raw_data_dir):
+    from src import paths
+
+    window.series_dir = paths.interim_data_path / 'test_series'
+    window.series_dir.mkdir(parents=True)
+    window.set_temp = lambda t: None
+    window._start_controller(window._series_settings(), follow_form=True)
+
+    window._on_settings_changed('min_temp -45.0 -> -28.0')
+
+    log = (window.series_dir / 'settings_changes.log').read_text()
+    assert 'min_temp -45.0 -> -28.0' in log
