@@ -559,3 +559,28 @@ def test_without_a_provider_nothing_changes(qapp, clock):
     run(controller, clock)
 
     assert controller.settings.min_temp == -30.0
+
+
+def test_the_tick_timer_is_left_alone_unless_its_own_setting_changed(qapp, clock):
+    """setInterval restarts the countdown; do not do it for unrelated edits."""
+    form = dict(BASE_FORM)
+    controller = following(clock, form)
+    controller.timer.setInterval(30)          # as a caller may have tuned it
+
+    controller.start()
+    form['min_temp'] = form['freeze_temp'] = -28.0
+    controller._refresh_settings()
+
+    assert controller.settings.min_temp == -28.0
+    assert controller.timer.interval() == 30, "an unrelated edit reset the timer"
+
+
+def test_changing_the_step_interval_does_move_the_timer(qapp, clock):
+    form = dict(BASE_FORM)
+    controller = following(clock, form)
+    controller.start()
+
+    form['step_interval'] = 12
+    controller._refresh_settings()
+
+    assert controller.timer.interval() == 12000

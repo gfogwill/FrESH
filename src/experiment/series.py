@@ -408,8 +408,14 @@ class SeriesController(QObject):
             return
 
         logging.info(f"Cycle {self.cycle + 1} picks up: {changes}")
+
+        # Only touch the timer when the thing that governs it actually moved:
+        # setInterval restarts the countdown, so doing it on every accepted
+        # change would delay the next step by up to one interval each cycle.
+        if fresh.step_interval != self.settings.step_interval:
+            self.timer.setInterval(int(fresh.step_interval * 1000))
+
         self.settings = fresh
-        self.timer.setInterval(int(fresh.step_interval * 1000))
         self.settings_changed.emit(changes)
 
     def _end_recording(self):
