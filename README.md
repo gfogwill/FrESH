@@ -99,9 +99,10 @@ opens the scan window, where you connect the camera and the chiller.
 
 Connect the camera and the chiller, then either:
 
-* **Start ramp** -- the setpoint cycles between the scan start temperature and
-  the minimum until you stop it. Everything is recorded into one folder per
-  plate. Tick **Save** to start recording.
+* **Start ramp** -- one scan: the setpoint ramps down to the minimum, back up
+  to the scan start temperature, and stops there. Everything is recorded into
+  one folder per plate. Tick **Save** to start recording, or **Stop ramp** to
+  end it early.
 * **Start series** -- an automated freeze/thaw series (below).
 
 ### Freeze/thaw series

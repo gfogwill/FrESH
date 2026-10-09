@@ -237,7 +237,13 @@ class ExperimentUi(QtWidgets.QMainWindow):
             raise ValueError(f"{name} is not a valid number: {widget.text()!r}")
 
     def _ramp_settings(self):
-        """Settings for the manual ramp: no holds, no per-cycle folders."""
+        """Settings for the manual ramp: one scan, no holds, no per-cycle folders.
+
+        One scan means one scan: cool down, warm back up to the start
+        temperature, and stop there. It used to cycle until somebody pressed
+        Stop -- inherited from the thread this replaced -- so a single scan
+        quietly started ramping again once it finished.
+        """
         return SeriesSettings(
             scan_start_temp=self._float_field(self.maxTemp, 'Scan start temp'),
             min_temp=self._float_field(self.minTemp, 'Min. setpoint'),
@@ -246,7 +252,7 @@ class ExperimentUi(QtWidgets.QMainWindow):
             cooling_rate=self._float_field(self.coolingRate, 'Cooling rate'),
             heating_rate=self._float_field(self.heatingRate, 'Heating rate'),
             hold_cold_minutes=0.0, hold_warm_minutes=0.0,
-            cycles=None, folder_per_cycle=False, wait_for_bath=False)
+            cycles=1, folder_per_cycle=False, wait_for_bath=False)
 
     def start_scan(self):
         if not self._ready_to_run():
@@ -423,8 +429,13 @@ class ExperimentUi(QtWidgets.QMainWindow):
             logging.error(f"Could not record the settings change: {e}")
 
     def _on_series_ended(self):
+        was_a_series = self.series is not None and self.series.settings.folder_per_cycle
+        parked_at = self.series.setpoint if self.series is not None else None
+
         self._finish_series()
-        logging.info("Series finished")
+
+        what = "Series" if was_a_series else "Scan"
+        logging.info(f"{what} finished; the setpoint is parked at {parked_at} degC")
 
     def _on_series_aborted(self, reason):
         self._finish_series()

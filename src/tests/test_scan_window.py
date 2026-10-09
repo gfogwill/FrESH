@@ -124,7 +124,7 @@ def test_the_manual_ramp_settings_have_no_holds_and_no_folders(window):
 
     assert settings.hold_cold_minutes == 0.0
     assert settings.hold_warm_minutes == 0.0
-    assert settings.cycles is None
+    assert settings.cycles == 1          # one scan, then stop
     assert not settings.folder_per_cycle
     assert not settings.wait_for_bath
 
@@ -296,3 +296,58 @@ def test_a_settings_change_is_recorded_in_the_series_folder(window, raw_data_dir
 
     log = (window.series_dir / 'settings_changes.log').read_text()
     assert 'min_temp -45.0 -> -28.0' in log
+
+
+# -- a single scan is a single scan -----------------------------------------
+
+def test_the_manual_ramp_runs_exactly_one_scan(window):
+    """Regression: it cycled forever, so a finished scan started ramping again."""
+    settings = window._ramp_settings()
+
+    assert settings.cycles == 1
+
+
+def test_the_manual_ramp_parks_at_the_start_temperature(window, raw_data_dir):
+    from src.experiment.series import Phase
+
+    window.maxTemp.setText('0')
+    window.minTemp.setText('-30')
+    window.coolingRate.setText('600')
+    window.heatingRate.setText('600')
+
+    written = []
+    window.set_temp = written.append
+    window.start_scan = lambda: None          # drive the controller directly
+    settings = window._ramp_settings()
+    settings.thaw_temp = max(settings.thaw_temp, settings.min_temp + 1)
+    window._start_controller(settings)
+
+    for _ in range(500):
+        if window.series is None or window.series.phase.is_finished:
+            break
+        window.read_sensors_data({'BT': window.series.setpoint, 'SP': 0.0,
+                                  'RTD0': 0.0, 'RTD1': 0.0})
+        window.series.tick()
+
+    assert written[-1] == pytest.approx(0.0), "the scan did not park at the start temp"
+    assert min(written) == pytest.approx(-30.0), "it never reached the minimum"
+
+
+def test_a_finished_scan_stops_recording_and_frees_the_buttons(window, raw_data_dir):
+    window.set_temp = lambda t: None
+    window._start_controller(window._ramp_settings())
+    window.saveCheckBox.setChecked(True)
+
+    window._on_series_ended()
+
+    assert window.series is None
+    assert not window.saveCheckBox.isChecked()
+    assert window.startScanButton.isEnabled()
+    assert window.startSeriesButton.isEnabled()
+
+
+def test_a_series_still_runs_every_cycle_it_was_asked_for(window):
+    """The single-scan change must not leak into the series."""
+    window.cyclesSpinBox.setValue(12)
+
+    assert window._series_settings().cycles == 12
