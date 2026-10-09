@@ -308,7 +308,6 @@ def test_the_manual_ramp_runs_exactly_one_scan(window):
 
 
 def test_the_manual_ramp_parks_at_the_start_temperature(window, raw_data_dir):
-    from src.experiment.series import Phase
 
     window.maxTemp.setText('0')
     window.minTemp.setText('-30')
@@ -351,3 +350,87 @@ def test_a_series_still_runs_every_cycle_it_was_asked_for(window):
     window.cyclesSpinBox.setValue(12)
 
     assert window._series_settings().cycles == 12
+
+
+# -- a cooling rate per cycle ------------------------------------------------
+
+def test_the_rate_list_is_parsed_from_the_form(window):
+    window.coolingRates.setText('1, 0.3, 0.1')
+
+    assert window._series_settings().cooling_rates == (1.0, 0.3, 0.1)
+
+
+@pytest.mark.parametrize('typed, expected', [
+    ('1,0.3,0.1', (1.0, 0.3, 0.1)),
+    ('1; 0.3; 0.1', (1.0, 0.3, 0.1)),      # semicolons too
+    (' 1 , 0.3 ', (1.0, 0.3)),
+    ('', ()),                               # empty: use the single rate
+    ('0.1,', (0.1,)),                       # trailing separator
+])
+def test_the_rate_list_accepts_what_people_type(window, typed, expected):
+    window.coolingRates.setText(typed)
+
+    assert window._series_settings().cooling_rates == expected
+
+
+def test_a_bad_rate_in_the_list_is_reported(window):
+    window.coolingRates.setText('1, rapido, 0.1')
+
+    with pytest.raises(ValueError, match='Cooling rates'):
+        window._series_settings()
+
+
+def test_the_approach_is_optional(window):
+    window.approachTemp.setText('')
+
+    assert window._series_settings().approach_temp is None
+
+
+def test_the_approach_is_read_when_given(window):
+    window.approachTemp.setText('-5')
+    window.approachRate.setText('4')
+
+    settings = window._series_settings()
+
+    assert settings.approach_temp == -5.0
+    assert settings.approach_rate == 4.0
+
+
+def test_each_cycle_records_the_rate_it_ran_at(window, raw_data_dir):
+    """Without this the analysis cannot tell which folder was which rate."""
+    import json
+
+    window.maxTemp.setText('0')
+    window.minTemp.setText('-30')
+    window.freezeTemp.setText('-30')
+    window.coolingRates.setText('1, 0.3, 0.1')
+    window.set_temp = lambda t: None
+    window._start_controller(window._series_settings(), follow_form=True)
+
+    rates = []
+    for cycle in (1, 2, 3):
+        window.series.cycle = cycle - 1
+        window.series._begin_cycle()
+        window._open_cycle(cycle)
+        stored = json.loads(
+            (window.exp_list[0].experiment_path / 'metadata.json').read_text())
+        rates.append(stored['cooling_rate'])
+
+    assert rates == [1.0, 0.3, 0.1]
+
+
+def test_the_estimate_breaks_the_schedule_down(window):
+    window.maxTemp.setText('0')
+    window.minTemp.setText('-30')
+    window.freezeTemp.setText('-30')
+    window.thawTemp.setText('10')
+    window.coolingRates.setText('1, 0.3, 0.1')
+    window.approachTemp.setText('-5')
+    window.cyclesSpinBox.setValue(21)
+
+    window._update_series_estimate()
+    text = window.seriesEstimateLabel.text()
+
+    assert 'cooling ramp' in text
+    assert '0.1:' in text, "the slow rate should be listed"
+    assert 'in total' in text

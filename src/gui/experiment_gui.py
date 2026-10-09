@@ -133,7 +133,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
         self.abortSeriesButton.clicked.connect(self.abort_series)
 
         for widget in (self.maxTemp, self.minTemp, self.coolingRate, self.heatingRate,
-                       self.thawTemp, self.holdColdMinutes, self.holdWarmMinutes):
+                       self.thawTemp, self.holdColdMinutes, self.holdWarmMinutes,
+                       self.coolingRates, self.approachTemp, self.approachRate):
             widget.textChanged.connect(self._update_series_estimate)
         self.cyclesSpinBox.valueChanged.connect(self._update_series_estimate)
 
@@ -184,6 +185,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
             metadata = copy.deepcopy(template)
             metadata.series_id = self.series_id
             metadata.cycle_number = cycle
+            if self.series is not None:
+                metadata.cooling_rate = self.series.cooling_rate
 
             experiment = FrESHExperiment(self._cycle_folder_name(metadata.label, cycle))
             experiment.set_metadata(metadata)
@@ -229,6 +232,28 @@ class ExperimentUi(QtWidgets.QMainWindow):
                 logging.error(f"Error saving data for experiment {experiment.exp_name}: {e}")
 
     # -- the manual ramp -----------------------------------------------------
+
+    def _rate_list_field(self, widget, name):
+        """Parse '1, 0.3, 0.1' into a tuple. Empty means no schedule."""
+        text = widget.text().replace(';', ',').strip()
+        if not text:
+            return ()
+
+        rates = []
+        for part in text.split(','):
+            part = part.strip()
+            if not part:
+                continue
+            try:
+                rates.append(float(part))
+            except ValueError:
+                raise ValueError(f"{name}: {part!r} is not a valid number")
+
+        return tuple(rates)
+
+    def _optional_float_field(self, widget, name):
+        """Like _float_field, but an empty box means 'not set'."""
+        return None if not widget.text().strip() else self._float_field(widget, name)
 
     def _float_field(self, widget, name):
         try:
@@ -293,6 +318,9 @@ class ExperimentUi(QtWidgets.QMainWindow):
         settings.hold_cold_minutes = self._float_field(self.holdColdMinutes, 'Hold time')
         settings.hold_warm_minutes = self._float_field(self.holdWarmMinutes, 'Melt hold time')
         settings.hold_timeout_minutes = self._float_field(self.holdTimeoutMinutes, 'Hold timeout')
+        settings.cooling_rates = self._rate_list_field(self.coolingRates, 'Cooling rates')
+        settings.approach_temp = self._optional_float_field(self.approachTemp, 'Fast approach')
+        settings.approach_rate = self._float_field(self.approachRate, 'Approach rate')
         settings.cycles = self.cyclesSpinBox.value()
         settings.folder_per_cycle = True
         settings.wait_for_bath = True
@@ -307,10 +335,17 @@ class ExperimentUi(QtWidgets.QMainWindow):
             self.seriesEstimateLabel.setText(f"⚠ {e}")
             return
 
-        per_cycle = settings.estimated_cycle_seconds()
         total = settings.estimated_total_seconds()
-        text = (f"≈ {format_duration(per_cycle)} per cycle, "
-                f"{format_duration(total)} in total (bath lag not included)")
+
+        if settings.cooling_rates:
+            per_rate = ", ".join(
+                f"{rate:g}: {format_duration(settings.cooling_seconds_at(rate))}"
+                for rate in settings.cooling_rates)
+            text = (f"cooling ramp — {per_rate}  ·  "
+                    f"{format_duration(total)} in total (bath lag not included)")
+        else:
+            text = (f"≈ {format_duration(settings.estimated_cycle_seconds())} per cycle, "
+                    f"{format_duration(total)} in total (bath lag not included)")
 
         if self.series is not None:
             text += "  ·  applies from the next cycle"

@@ -40,7 +40,8 @@ import cv2
 WELLS_PER_PLATE = 96
 WELLS_PER_ROW = 12
 
-COMBINED_COLUMNS = ('experiment', 'cycle', 'well', 'freezing_temp', 'frozen')
+COMBINED_COLUMNS = ('experiment', 'cycle', 'cooling_rate', 'well',
+                    'freezing_temp', 'frozen')
 
 
 def find_experiments(pattern):
@@ -140,6 +141,7 @@ def analyse_experiment(name, positions=None, t_start=None, t_end=None,
     result = {
         'name': name,
         'cycle': experiment.metadata.cycle_number,
+        'cooling_rate': getattr(experiment.metadata, 'cooling_rate', None),
         'label': experiment.metadata.label,
         'pictures': len(experiment.img_files),
         'freezing_temps': freezing_temps,
@@ -181,6 +183,8 @@ def write_combined(results, out_path):
             for well, temp in enumerate(result['freezing_temps']):
                 writer.writerow([result['name'],
                                  '' if result['cycle'] is None else result['cycle'],
+                                 '' if result.get('cooling_rate') is None
+                                 else result['cooling_rate'],
                                  well,
                                  '' if temp is None else f'{temp:.3f}',
                                  int(temp is not None)])
@@ -190,9 +194,9 @@ def write_combined(results, out_path):
 
 def print_summary(results):
     """A table the operator can scan for cycles that need a second look."""
-    print(f"\n{'experiment':<38} {'cyc':>4} {'pics':>5} {'frozen':>8} "
+    print(f"\n{'experiment':<38} {'cyc':>4} {'K/min':>7} {'pics':>5} {'frozen':>8} "
           f"{'median':>8} {'warmest':>8} {'coldest':>8} {'same frame':>12}")
-    print("-" * 99)
+    print("-" * 107)
 
     for r in results:
         def t(key):
@@ -206,13 +210,26 @@ def print_summary(results):
             if r['busiest_temp'] is not None else '-'
         busiest += ' !!' if share >= 0.25 else ''
 
-        print(f"{r['name']:<38} {str(cycle):>4} {r['pictures']:>5} {frozen:>8} "
+        rate = f"{r['cooling_rate']:g}" if r.get('cooling_rate') else '-'
+
+        print(f"{r['name']:<38} {str(cycle):>4} {rate:>7} {r['pictures']:>5} {frozen:>8} "
               f"{t('median_t')} {t('warmest_t')} {t('coldest_t')} {busiest:>12}")
 
     counts = {r['wells'] for r in results}
     if len(counts) > 1:
         print(f"\n  !! the well count differs between experiments ({sorted(counts)}); "
               f"per-well comparisons across them are not meaningful")
+
+    rates = sorted({r['cooling_rate'] for r in results if r.get('cooling_rate')})
+    if len(rates) > 1:
+        print(f"\n  cooling rates in this set: "
+              f"{', '.join(f'{rate:g}' for rate in rates)} degC/min")
+        for rate in rates:
+            at_rate = [r for r in results if r.get('cooling_rate') == rate]
+            medians = [r['median_t'] for r in at_rate if r['median_t'] is not None]
+            if medians:
+                print(f"    {rate:>6g}: {len(at_rate)} cycle(s), "
+                      f"median freezing temp {np.median(medians):.2f} degC")
 
     suspect = [r for r in results
                if r['wells'] and r['busiest_count'] / r['wells'] >= 0.25]

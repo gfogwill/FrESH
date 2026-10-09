@@ -96,6 +96,20 @@ class SeriesSettings:
     cooling_rate: float = 1.0
     heating_rate: float = 5.0
 
+    #: Cooling rates to run the cycles at, in turn: cycle 1 takes the first,
+    #: cycle 2 the second, and so on, wrapping round. Interleaving the rates
+    #: this way rather than running them in blocks means any drift over the
+    #: run affects all of them equally. Empty means every cycle uses
+    #: ``cooling_rate``.
+    cooling_rates: tuple = ()
+
+    #: Cool quickly down to here before switching to the cycle's own rate.
+    #: None disables it. At 0.1 degC/min a scan from 0 degC would otherwise
+    #: spend five hours getting to where anything can freeze.
+    approach_temp: float = None
+    #: Rate for that first stretch.
+    approach_rate: float = 5.0
+
     hold_cold_minutes: float = 10.0
     hold_warm_minutes: float = 10.0
 
@@ -114,6 +128,16 @@ class SeriesSettings:
     #: False for the manual ramp: turn around as soon as the setpoint reaches
     #: the limit, without waiting for the bath to catch up.
     wait_for_bath: bool = True
+
+    def rate_for_cycle(self, cycle):
+        """Cooling rate for a 1-based cycle number."""
+        if not self.cooling_rates:
+            return self.cooling_rate
+        return self.cooling_rates[(cycle - 1) % len(self.cooling_rates)]
+
+    def cooling_step_at(self, rate):
+        """degC per tick for a given degC/min rate."""
+        return abs(rate) * self.step_interval / 60.0
 
     def changes_from(self, other):
         """Describe how this differs from ``other``, for the log."""
@@ -145,6 +169,18 @@ class SeriesSettings:
         if self.cooling_rate <= 0 or self.heating_rate <= 0:
             raise ValueError("Cooling and heating rates must be greater than zero")
 
+        if any(rate <= 0 for rate in self.cooling_rates):
+            raise ValueError(f"Every cooling rate must be greater than zero, got "
+                             f"{', '.join(str(r) for r in self.cooling_rates)}")
+
+        if self.approach_temp is not None:
+            if not self.min_temp < self.approach_temp < self.scan_start_temp:
+                raise ValueError(f"The fast approach temperature ({self.approach_temp}) "
+                                 f"must lie between the min. setpoint ({self.min_temp}) "
+                                 f"and the scan start ({self.scan_start_temp})")
+            if self.approach_rate <= 0:
+                raise ValueError("The approach rate must be greater than zero")
+
         if self.step_interval <= 0:
             raise ValueError("The step interval must be greater than zero")
 
@@ -163,9 +199,29 @@ class SeriesSettings:
     def heating_step(self):
         return abs(self.heating_rate) * self.step_interval / 60.0
 
-    def estimated_cycle_seconds(self):
-        """Rough duration of one cycle, ignoring how far the bath lags."""
-        cooling = (self.scan_start_temp - self.min_temp) / self.cooling_rate * 60
+    def cooling_seconds_at(self, rate):
+        """How long the cooling ramp takes at one rate, approach included."""
+        if self.approach_temp is None:
+            return (self.scan_start_temp - self.min_temp) / rate * 60
+
+        approach = (self.scan_start_temp - self.approach_temp) / self.approach_rate * 60
+        assay = (self.approach_temp - self.min_temp) / rate * 60
+        return approach + assay
+
+    def estimated_cycle_seconds(self, cycle=None):
+        """Rough duration of a cycle, ignoring how far the bath lags.
+
+        With several cooling rates and no cycle given, this is the average over
+        the schedule -- what a run of whole blocks costs per cycle.
+        """
+        if cycle is not None:
+            rates = [self.rate_for_cycle(cycle)]
+        elif self.cooling_rates:
+            rates = list(self.cooling_rates)
+        else:
+            rates = [self.cooling_rate]
+
+        cooling = sum(self.cooling_seconds_at(rate) for rate in rates) / len(rates)
         thaw = (self.thaw_temp - self.min_temp) / self.heating_rate * 60
         holds = (self.hold_cold_minutes + self.hold_warm_minutes) * 60
         settle = 120  # the setpoint jumps; this is just the bath catching up
@@ -217,11 +273,19 @@ class SeriesController(QObject):
 
         self.phase = Phase.IDLE
         self.cycle = 0
+        #: Cooling rate this cycle is running at, from the schedule.
+        self.cooling_rate = settings.rate_for_cycle(1)
         #: True while this cycle's pictures and readings are being kept.
         self.recording = False
         #: None until the first setpoint is written, so that the very first
         #: write always reaches the chiller whatever it was set to before.
+        #: This is the ROUNDED value the chiller was given.
         self.setpoint = None
+        #: The ramp's own position, at full precision. The chiller only takes
+        #: two decimals, and accumulating from the rounded value quantises the
+        #: step: at 0.07 degC/min the ramp actually ran at 0.1, and at 0.05 the
+        #: step vanished into the rounding and the ramp stopped moving at all.
+        self._exact_setpoint = None
         self.bath_temp = None
 
         self._phase_started_at = None
@@ -305,6 +369,23 @@ class SeriesController(QObject):
 
         handler()
 
+    def cooling_step_now(self, position):
+        """How far the setpoint moves this tick.
+
+        Above ``approach_temp`` the ramp hurries down at ``approach_rate``;
+        below it, it runs at this cycle's own rate, which is what the
+        measurement is made at. The fast step is clipped so the ramp lands
+        exactly on the approach temperature rather than overshooting into the
+        measured stretch at the wrong rate.
+        """
+        approach = self.settings.approach_temp
+
+        if approach is not None and position > approach:
+            return min(self.settings.cooling_step_at(self.settings.approach_rate),
+                       position - approach)
+
+        return self.settings.cooling_step_at(self.cooling_rate)
+
     def _tick_cooling(self):
         # Open loop: the setpoint keeps stepping down whatever the bath does.
         if self.setpoint is None:
@@ -312,8 +393,9 @@ class SeriesController(QObject):
             self._set_setpoint(self.settings.scan_start_temp)
             return
 
-        if self.setpoint > self.settings.min_temp:
-            self._set_setpoint(max(self.setpoint - self.settings.cooling_step,
+        position = self.ramp_position
+        if position > self.settings.min_temp:
+            self._set_setpoint(max(position - self.cooling_step_now(position),
                                    self.settings.min_temp))
             return
 
@@ -336,8 +418,8 @@ class SeriesController(QObject):
             self._enter(Phase.THAW)
 
     def _tick_thaw(self):
-        if self.setpoint < self.settings.thaw_temp:
-            self._set_setpoint(min(self.setpoint + self.settings.heating_step,
+        if self.ramp_position < self.settings.thaw_temp:
+            self._set_setpoint(min(self.ramp_position + self.settings.heating_step,
                                    self.settings.thaw_temp))
             return
 
@@ -377,6 +459,11 @@ class SeriesController(QObject):
 
     def _begin_cycle(self):
         self.cycle += 1
+        self.cooling_rate = self.settings.rate_for_cycle(self.cycle)
+
+        if self.settings.cooling_rates:
+            logging.info(f"Cycle {self.cycle} cools at {self.cooling_rate} degC/min")
+
         self._set_setpoint(self.settings.scan_start_temp)
         self._enter(Phase.COOLING)
         self.recording = True
@@ -439,12 +526,24 @@ class SeriesController(QObject):
         self.phase_changed.emit(phase, self.cycle)
 
     def _set_setpoint(self, value):
-        value = round(value, 2)
-        if value == self.setpoint:
-            return  # the chiller already has it
+        """Move the ramp to ``value`` and tell the chiller, if it moved enough.
 
-        self.setpoint = value
+        The exact position is kept so the next step starts from where the ramp
+        really is, not from the two decimals the chiller was given.
+        """
+        self._exact_setpoint = value
+
+        rounded = round(value, 2)
+        if rounded == self.setpoint:
+            return  # the chiller already has it; the ramp still moved
+
+        self.setpoint = rounded
         self.setpoint_changed.emit(self.setpoint)
+
+    @property
+    def ramp_position(self):
+        """Where the ramp is, at full precision."""
+        return self._exact_setpoint if self._exact_setpoint is not None else self.setpoint
 
     def _bath_at_or_below(self, target):
         return self.bath_temp is not None and self.bath_temp <= target
@@ -496,6 +595,8 @@ class SeriesController(QObject):
 
         total = self.settings.cycles
         counter = f"Cycle {self.cycle}/{total}" if total else f"Cycle {self.cycle}"
+        if self.settings.cooling_rates:
+            counter += f" @ {self.cooling_rate:g} °C/min"
         bath = f"{self.bath_temp:.1f}" if self.bath_temp is not None else "?"
 
         setpoint = f"{self.setpoint:.1f}" if self.setpoint is not None else "?"

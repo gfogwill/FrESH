@@ -584,3 +584,162 @@ def test_changing_the_step_interval_does_move_the_timer(qapp, clock):
     controller._refresh_settings()
 
     assert controller.timer.interval() == 12000
+
+
+# -- the ramp must actually run at the rate it was given ---------------------
+
+def measured_rate(qapp, rate, span=30.0):
+    """Drive a cooling ramp and work out the rate it really ran at."""
+    controller = SeriesController(SeriesSettings(
+        scan_start_temp=0.0, min_temp=-span, freeze_temp=-span, thaw_temp=10.0,
+        cooling_rate=rate, cycles=1))
+    controller.start()
+
+    ticks = 0
+    while controller.phase is Phase.COOLING and ticks < 300_000:
+        controller.tick()
+        ticks += 1
+
+    assert controller.phase is not Phase.COOLING, "the ramp never reached the floor"
+    minutes = ticks * controller.settings.step_interval / 60.0
+    return span / minutes
+
+
+@pytest.mark.parametrize('rate', [1.0, 0.3, 0.25, 0.15, 0.12, 0.1, 0.09, 0.07, 0.05, 0.02])
+def test_the_ramp_runs_at_the_rate_it_was_asked_for(qapp, rate):
+    """Regression: the setpoint was accumulated from its own rounded value.
+
+    The chiller takes two decimals, so the step was being quantised: 0.07
+    degC/min actually ran at 0.1 (+43%), and at 0.05 the step disappeared into
+    the rounding entirely and the ramp stopped moving -- with no timeout on the
+    cooling phase, that hangs a weekend run forever.
+    """
+    assert measured_rate(qapp, rate) == pytest.approx(rate, rel=0.01)
+
+
+def test_the_chiller_still_only_gets_two_decimals(qapp, clock):
+    controller = make(clock, cooling_rate=0.07)
+    written = []
+    controller.setpoint_changed.connect(written.append)
+    controller.start()
+
+    for _ in range(50):
+        controller.tick()
+
+    assert all(value == round(value, 2) for value in written)
+
+
+def test_the_ramp_keeps_its_exact_position_between_steps(qapp, clock):
+    """Otherwise a step smaller than 0.005 degC rounds away to nothing."""
+    controller = make(clock, cooling_rate=0.03)
+    controller.start()
+
+    start = controller.ramp_position
+    for _ in range(10):
+        controller.tick()
+
+    moved = start - controller.ramp_position
+    assert moved == pytest.approx(10 * controller.settings.cooling_step, rel=1e-6)
+
+
+# -- a different cooling rate per cycle --------------------------------------
+
+def test_the_rates_interleave_across_the_cycles(qapp, clock):
+    """1 / 0.3 / 0.1 repeating, so any drift hits all three equally."""
+    settings = SeriesSettings(scan_start_temp=0.0, min_temp=-30.0, freeze_temp=-30.0,
+                              thaw_temp=10.0, cooling_rates=(1.0, 0.3, 0.1))
+
+    assert [settings.rate_for_cycle(n) for n in range(1, 8)] == \
+        [1.0, 0.3, 0.1, 1.0, 0.3, 0.1, 1.0]
+
+
+def test_without_a_schedule_every_cycle_uses_the_single_rate(qapp, clock):
+    settings = SeriesSettings(cooling_rate=0.5)
+
+    assert [settings.rate_for_cycle(n) for n in (1, 2, 9)] == [0.5, 0.5, 0.5]
+
+
+def test_each_cycle_actually_runs_at_its_own_rate(qapp, clock):
+    """Not just bookkeeping: the ramp has to take longer at the slower rate."""
+    controller = SeriesController(SeriesSettings(
+        scan_start_temp=0.0, min_temp=-5.0, freeze_temp=-5.0, thaw_temp=5.0,
+        cooling_rates=(1.0, 0.5), heating_rate=60.0,
+        hold_cold_minutes=0.0, hold_warm_minutes=0.0, cycles=2,
+        wait_for_bath=False), clock=clock)
+
+    ticks_per_cycle = {}
+    controller.start()
+    for _ in range(5000):
+        if controller.phase.is_finished:
+            break
+        if controller.phase is Phase.COOLING:
+            ticks_per_cycle[controller.cycle] = ticks_per_cycle.get(controller.cycle, 0) + 1
+        clock.advance(0.1)
+        controller.tick()
+
+    assert controller.cooling_rate in (1.0, 0.5)
+    assert ticks_per_cycle[2] == pytest.approx(2 * ticks_per_cycle[1], rel=0.05)
+
+
+def test_a_rate_of_zero_in_the_schedule_is_rejected(qapp):
+    with pytest.raises(ValueError, match='greater than zero'):
+        SeriesSettings(cooling_rates=(1.0, 0.0)).validate()
+
+
+# -- the fast approach -------------------------------------------------------
+
+def test_the_approach_is_fast_and_the_assay_stretch_is_not(qapp, clock):
+    controller = SeriesController(SeriesSettings(
+        scan_start_temp=0.0, min_temp=-10.0, freeze_temp=-10.0, thaw_temp=5.0,
+        cooling_rate=0.1, approach_temp=-5.0, approach_rate=5.0), clock=clock)
+    controller.start()
+
+    fast = controller.cooling_step_now(-1.0)
+    slow = controller.cooling_step_now(-6.0)
+
+    assert fast == pytest.approx(5.0 * 6 / 60)
+    assert slow == pytest.approx(0.1 * 6 / 60)
+
+
+def test_the_approach_lands_exactly_on_its_temperature(qapp, clock):
+    """Otherwise a fast step overshoots into the measured stretch."""
+    controller = SeriesController(SeriesSettings(
+        scan_start_temp=0.0, min_temp=-10.0, freeze_temp=-10.0, thaw_temp=5.0,
+        cooling_rate=0.1, approach_temp=-5.0, approach_rate=5.0), clock=clock)
+    controller.start()
+
+    while controller.ramp_position > -5.0:
+        controller.tick()
+
+    assert controller.ramp_position == pytest.approx(-5.0)
+
+
+def test_the_approach_saves_the_time_it_is_there_to_save(qapp, clock):
+    """0 to -30 at 0.1 degC/min is five hours; from -5 it is a lot less."""
+    slow = SeriesSettings(scan_start_temp=0.0, min_temp=-30.0, freeze_temp=-30.0,
+                          thaw_temp=10.0, cooling_rate=0.1)
+    quick = SeriesSettings(scan_start_temp=0.0, min_temp=-30.0, freeze_temp=-30.0,
+                           thaw_temp=10.0, cooling_rate=0.1,
+                           approach_temp=-5.0, approach_rate=5.0)
+
+    assert slow.cooling_seconds_at(0.1) == pytest.approx(5 * 3600)
+    assert quick.cooling_seconds_at(0.1) == pytest.approx(250 * 60 + 60)
+
+
+@pytest.mark.parametrize('approach', [5.0, -40.0])
+def test_an_approach_outside_the_ramp_is_rejected(qapp, approach):
+    with pytest.raises(ValueError, match='must lie between'):
+        SeriesSettings(scan_start_temp=0.0, min_temp=-30.0, freeze_temp=-30.0,
+                       thaw_temp=10.0, approach_temp=approach).validate()
+
+
+def test_the_estimate_averages_over_the_schedule(qapp):
+    settings = SeriesSettings(scan_start_temp=0.0, min_temp=-30.0, freeze_temp=-30.0,
+                              thaw_temp=10.0, cooling_rates=(1.0, 0.3, 0.1),
+                              heating_rate=5.0, hold_cold_minutes=0.0,
+                              hold_warm_minutes=0.0, cycles=21)
+
+    per_cycle = [settings.estimated_cycle_seconds(n) for n in (1, 2, 3)]
+
+    assert settings.estimated_cycle_seconds() == pytest.approx(sum(per_cycle) / 3)
+    assert per_cycle[2] > per_cycle[0], "the slow cycle must take longer"

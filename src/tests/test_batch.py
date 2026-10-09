@@ -171,8 +171,8 @@ def test_the_combined_table_has_one_row_per_well(raw_data_dir):
 
     rows = list(csv.DictReader(open(path)))
     assert len(rows) == 4
-    assert rows[1] == {'experiment': 'c1', 'cycle': '1', 'well': '1',
-                       'freezing_temp': '', 'frozen': '0'}
+    assert rows[1] == {'experiment': 'c1', 'cycle': '1', 'cooling_rate': '',
+                       'well': '1', 'freezing_temp': '', 'frozen': '0'}
 
 
 # -- the figure -------------------------------------------------------------
@@ -260,3 +260,38 @@ def test_a_big_drift_is_not_cropped_out_of_the_panel():
     deltas = figures.drift(curves)
 
     assert low <= np.nanmin(deltas) and np.nanmax(deltas) <= high
+
+
+# -- the cooling rate travels into the analysis ------------------------------
+
+def test_the_combined_table_carries_the_cooling_rate(raw_data_dir):
+    """Comparing rates means the table has to say which cycle ran at which."""
+    results = [{'name': 'c1', 'cycle': 1, 'cooling_rate': 1.0,
+                'freezing_temps': [-12.0]},
+               {'name': 'c2', 'cycle': 2, 'cooling_rate': 0.1,
+                'freezing_temps': [-11.0]}]
+
+    path = write_combined(results, paths.processed_data_path / 'rates.csv')
+
+    rows = list(csv.DictReader(open(path)))
+    assert [r['cooling_rate'] for r in rows] == ['1.0', '0.1']
+
+
+def test_a_table_without_rates_still_writes(raw_data_dir):
+    results = [{'name': 'c1', 'cycle': 1, 'freezing_temps': [-12.0]}]
+
+    path = write_combined(results, paths.processed_data_path / 'norates.csv')
+
+    assert list(csv.DictReader(open(path)))[0]['cooling_rate'] == ''
+
+
+def test_the_rate_is_read_from_the_metadata(experiment):
+    name = experiment()
+    folder = paths.raw_data_path / name
+    meta = json.loads((folder / 'metadata.json').read_text())
+    meta['cooling_rate'] = 0.3
+    (folder / 'metadata.json').write_text(json.dumps(meta))
+
+    result, _ = analyse_experiment(name, positions=well_positions(), min_step=5.0)
+
+    assert result['cooling_rate'] == 0.3

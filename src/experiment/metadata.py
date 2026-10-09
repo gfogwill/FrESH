@@ -82,6 +82,9 @@ class ExperimentMetadata:
         # cycle of it this folder holds. Both None for a plain single scan.
         self.series_id = kwargs.get('series_id', None)
         self.cycle_number = kwargs.get('cycle_number', None)
+        #: degC/min this cycle's cooling ramp actually ran at. With a schedule
+        #: of several rates this is what tells the analysis which is which.
+        self.cooling_rate = kwargs.get('cooling_rate', None)
 
         # adding the background experiment
         self.background_exp = kwargs.get('background_exp', None)

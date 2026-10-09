@@ -129,6 +129,36 @@ or the probe (RTD0).
 setpoint to -45 but only wait for the bath to reach -35, for the case where the
 chiller cannot actually get all the way down.
 
+### A different cooling rate per cycle
+
+**Cooling rates** takes a list — `1, 0.3, 0.1`. Cycle 1 runs at the first, cycle
+2 at the second, and so on, wrapping round, so the rates **interleave** rather
+than running in blocks: any drift over a long run then affects all of them
+equally. Leave it empty and every cycle uses the single cooling rate above.
+
+The rate a cycle ran at is written into that cycle's `metadata.json` as
+`cooling_rate`, which is what lets the analysis group the folders by rate
+afterwards, and it is shown in the status line (`Cycle 8/21 @ 0.3 °C/min`).
+
+**Fast approach to / at** cools quickly down to a temperature just above where
+anything freezes, and only then switches to the cycle's own rate. Without it, a
+0.1 °C/min scan starting at 0 °C spends five hours before the first well can
+freeze; from -5 °C the same scan takes 4 h 11 min. The fast step is clipped so
+the ramp lands exactly on the approach temperature rather than overshooting
+into the measured stretch at the wrong rate.
+
+The estimate line breaks the schedule down, e.g.
+
+    cooling ramp — 1: 26 min, 0.3: 1 h 24 min, 0.1: 4 h 11 min  ·  52 h 39 min in total
+
+> **The ramp runs at the rate you ask for.** The chiller takes two decimals, and
+> the setpoint used to be accumulated from its own rounded value, which
+> quantised the step: 0.07 °C/min actually ran at 0.1 (+43 %), 0.12 ran at 0.1
+> (-17 %), and at 0.05 and below the step vanished into the rounding and the
+> ramp stopped moving at all — with no timeout on the cooling phase, that hangs
+> a run indefinitely. The ramp now keeps its position at full precision and
+> only rounds what it sends.
+
 ### Changing the settings while a series runs
 
 The numbers in the *Freeze/thaw series* and *Ramp* boxes can be edited at any
@@ -179,6 +209,10 @@ once:
 $ python -m src.analysis.batch '202609180800_WBG*' --min-step auto
 $ python -m src.analysis.figures data/processed/202609180800_WBG_wells.csv
 ```
+
+The combined table carries a `cooling_rate` column taken from each cycle's
+metadata, and the summary groups by rate when a set contains more than one, so
+a run with `1, 0.3, 0.1` can be split by rate without joining anything by hand.
 
 The first command finds the wells **once** and reuses those positions for every
 experiment in the set (detecting them per experiment lets the count come out at
