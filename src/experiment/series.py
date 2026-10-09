@@ -5,7 +5,10 @@ One *cycle* is five phases:
 ===============  =========================================  =========
 phase            what it does                               recording
 ===============  =========================================  =========
+``APPROACH``     hurries down to ``approach_temp`` and      yes
+                 waits for the bath to get there
 ``COOLING``      ramps the setpoint down to ``min_temp``    yes
+                 at the cycle's own rate
 ``HOLD_COLD``    waits for the bath to reach                until the
                  ``freeze_temp``, then dwells               bath gets there
 ``THAW``         ramps the setpoint up to ``thaw_temp``     no
@@ -58,6 +61,7 @@ DEFAULT_MAX_MISSED_READINGS = 20
 
 class Phase(enum.Enum):
     IDLE = 'idle'
+    APPROACH = 'approach'
     COOLING = 'cooling'
     HOLD_COLD = 'hold cold'
     THAW = 'thaw'
@@ -109,6 +113,10 @@ class SeriesSettings:
     approach_temp: float = None
     #: Rate for that first stretch.
     approach_rate: float = 5.0
+    #: Once the bath has reached the approach temperature, dwell this long
+    #: before the measured ramp starts. Zero means "as soon as it gets there"
+    #: -- the ramp still waits for the bath, it just does not hold after.
+    approach_settle_minutes: float = 0.0
 
     hold_cold_minutes: float = 10.0
     hold_warm_minutes: float = 10.0
@@ -180,6 +188,8 @@ class SeriesSettings:
                                  f"and the scan start ({self.scan_start_temp})")
             if self.approach_rate <= 0:
                 raise ValueError("The approach rate must be greater than zero")
+            if self.approach_settle_minutes < 0:
+                raise ValueError("The approach settle time cannot be negative")
 
         if self.step_interval <= 0:
             raise ValueError("The step interval must be greater than zero")
@@ -205,8 +215,9 @@ class SeriesSettings:
             return (self.scan_start_temp - self.min_temp) / rate * 60
 
         approach = (self.scan_start_temp - self.approach_temp) / self.approach_rate * 60
+        settle = self.approach_settle_minutes * 60
         assay = (self.approach_temp - self.min_temp) / rate * 60
-        return approach + assay
+        return approach + settle + assay
 
     def estimated_cycle_seconds(self, cycle=None):
         """Rough duration of a cycle, ignoring how far the bath lags.
@@ -360,6 +371,7 @@ class SeriesController(QObject):
             return
 
         handler = {
+            Phase.APPROACH: self._tick_approach,
             Phase.COOLING: self._tick_cooling,
             Phase.HOLD_COLD: self._tick_hold_cold,
             Phase.THAW: self._tick_thaw,
@@ -369,22 +381,33 @@ class SeriesController(QObject):
 
         handler()
 
-    def cooling_step_now(self, position):
-        """How far the setpoint moves this tick.
+    def _tick_approach(self):
+        """Hurry down to the approach temperature, then wait for the bath.
 
-        Above ``approach_temp`` the ramp hurries down at ``approach_rate``;
-        below it, it runs at this cycle's own rate, which is what the
-        measurement is made at. The fast step is clipped so the ramp lands
-        exactly on the approach temperature rather than overshooting into the
-        measured stretch at the wrong rate.
+        The measured ramp must not start with the bath still several degrees
+        behind: the first part of the scan would then be cooling faster than
+        the rate it is supposed to be measuring at.
         """
-        approach = self.settings.approach_temp
+        target = self.settings.approach_temp
+        position = self.ramp_position
 
-        if approach is not None and position > approach:
-            return min(self.settings.cooling_step_at(self.settings.approach_rate),
-                       position - approach)
+        if position > target:
+            # Clipped, so the setpoint lands exactly on the approach
+            # temperature rather than overshooting past it at the fast rate.
+            step = min(self.settings.cooling_step_at(self.settings.approach_rate),
+                       position - target)
+            self._set_setpoint(max(position - step, target))
+            return
 
-        return self.settings.cooling_step_at(self.cooling_rate)
+        reached = self._bath_at_or_below(target + self.settings.tolerance)
+
+        if self._wait_for_bath(reached=reached,
+                               dwell_minutes=self.settings.approach_settle_minutes,
+                               what=f"the bath to settle at {target} degC before the "
+                                    f"measured ramp"):
+            logging.info(f"Cycle {self.cycle}: starting the measured ramp at "
+                         f"{self.cooling_rate} degC/min (bath at {self.bath_temp})")
+            self._enter(Phase.COOLING)
 
     def _tick_cooling(self):
         # Open loop: the setpoint keeps stepping down whatever the bath does.
@@ -395,8 +418,8 @@ class SeriesController(QObject):
 
         position = self.ramp_position
         if position > self.settings.min_temp:
-            self._set_setpoint(max(position - self.cooling_step_now(position),
-                                   self.settings.min_temp))
+            step = self.settings.cooling_step_at(self.cooling_rate)
+            self._set_setpoint(max(position - step, self.settings.min_temp))
             return
 
         # The setpoint has bottomed out, but the bath is still on its way down
@@ -465,7 +488,8 @@ class SeriesController(QObject):
             logging.info(f"Cycle {self.cycle} cools at {self.cooling_rate} degC/min")
 
         self._set_setpoint(self.settings.scan_start_temp)
-        self._enter(Phase.COOLING)
+        self._enter(Phase.APPROACH if self.settings.approach_temp is not None
+                    else Phase.COOLING)
         self.recording = True
         self.cycle_started.emit(self.cycle)
 

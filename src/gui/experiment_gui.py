@@ -134,7 +134,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
 
         for widget in (self.maxTemp, self.minTemp, self.coolingRate, self.heatingRate,
                        self.thawTemp, self.holdColdMinutes, self.holdWarmMinutes,
-                       self.coolingRates, self.approachTemp, self.approachRate):
+                       self.coolingRates, self.approachTemp, self.approachRate,
+                       self.approachSettleMinutes):
             widget.textChanged.connect(self._update_series_estimate)
         self.cyclesSpinBox.valueChanged.connect(self._update_series_estimate)
 
@@ -321,6 +322,8 @@ class ExperimentUi(QtWidgets.QMainWindow):
         settings.cooling_rates = self._rate_list_field(self.coolingRates, 'Cooling rates')
         settings.approach_temp = self._optional_float_field(self.approachTemp, 'Fast approach')
         settings.approach_rate = self._float_field(self.approachRate, 'Approach rate')
+        settings.approach_settle_minutes = self._float_field(
+            self.approachSettleMinutes, 'Approach settle time')
         settings.cycles = self.cyclesSpinBox.value()
         settings.folder_per_cycle = True
         settings.wait_for_bath = True

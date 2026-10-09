@@ -203,38 +203,47 @@
             <widget class="QLineEdit" name="approachRate"><property name="text"><string>5</string></property></widget>
            </item>
            <item row="8" column="0">
-            <widget class="QLabel" name="labelCycles"><property name="text"><string>Cycles</string></property></widget>
+            <widget class="QLabel" name="labelApproachSettle"><property name="text"><string>settle there [min]</string></property></widget>
            </item>
            <item row="8" column="1">
+            <widget class="QLineEdit" name="approachSettleMinutes">
+             <property name="text"><string>0</string></property>
+             <property name="toolTip"><string>The measured ramp always waits for the bath to reach the approach temperature before it starts. This is how long to dwell after it gets there; 0 means start as soon as it arrives.</string></property>
+            </widget>
+           </item>
+           <item row="9" column="0">
+            <widget class="QLabel" name="labelCycles"><property name="text"><string>Cycles</string></property></widget>
+           </item>
+           <item row="9" column="1">
             <widget class="QSpinBox" name="cyclesSpinBox">
              <property name="minimum"><number>1</number></property>
              <property name="maximum"><number>9999</number></property>
              <property name="value"><number>50</number></property>
             </widget>
            </item>
-           <item row="9" column="0">
+           <item row="10" column="0">
             <widget class="QLabel" name="labelHoldTimeout"><property name="text"><string>Hold timeout [min]</string></property></widget>
            </item>
-           <item row="9" column="1">
+           <item row="10" column="1">
             <widget class="QLineEdit" name="holdTimeoutMinutes">
              <property name="text"><string>60</string></property>
              <property name="toolTip"><string>Give up waiting for the bath after this long and move on to the next phase.</string></property>
             </widget>
            </item>
-           <item row="10" column="0" colspan="2">
+           <item row="11" column="0" colspan="2">
             <layout class="QHBoxLayout" name="startSeriesButtonRow">
              <item><widget class="QPushButton" name="startSeriesButton"><property name="text"><string>Start series</string></property></widget></item>
              <item><widget class="QPushButton" name="abortSeriesButton"><property name="text"><string>Abort series</string></property><property name="enabled"><bool>false</bool></property></widget></item>
             </layout>
            </item>
-           <item row="11" column="0" colspan="2">
+           <item row="12" column="0" colspan="2">
             <widget class="QLabel" name="seriesStatusLabel">
              <property name="styleSheet"><string>font-weight: bold;</string></property>
              <property name="text"><string>Idle</string></property>
              <property name="wordWrap"><bool>true</bool></property>
             </widget>
            </item>
-           <item row="12" column="0" colspan="2">
+           <item row="13" column="0" colspan="2">
             <widget class="QLabel" name="seriesEstimateLabel">
              <property name="text"><string/></property>
              <property name="wordWrap"><bool>true</bool></property>

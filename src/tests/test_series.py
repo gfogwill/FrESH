@@ -688,30 +688,140 @@ def test_a_rate_of_zero_in_the_schedule_is_rejected(qapp):
 
 # -- the fast approach -------------------------------------------------------
 
-def test_the_approach_is_fast_and_the_assay_stretch_is_not(qapp, clock):
-    controller = SeriesController(SeriesSettings(
-        scan_start_temp=0.0, min_temp=-10.0, freeze_temp=-10.0, thaw_temp=5.0,
-        cooling_rate=0.1, approach_temp=-5.0, approach_rate=5.0), clock=clock)
+def approaching(clock, **overrides):
+    settings = SeriesSettings(**{
+        'scan_start_temp': 0.0, 'min_temp': -10.0, 'freeze_temp': -10.0,
+        'thaw_temp': 5.0, 'cooling_rate': 0.1, 'approach_temp': -5.0,
+        'approach_rate': 5.0, 'cycles': 1, **overrides})
+    return SeriesController(settings, clock=clock)
+
+
+def test_a_cycle_with_an_approach_starts_in_the_approach_phase(qapp, clock):
+    controller = approaching(clock)
     controller.start()
 
-    fast = controller.cooling_step_now(-1.0)
-    slow = controller.cooling_step_now(-6.0)
+    assert controller.phase is Phase.APPROACH
 
-    assert fast == pytest.approx(5.0 * 6 / 60)
-    assert slow == pytest.approx(0.1 * 6 / 60)
+
+def test_a_cycle_without_an_approach_goes_straight_to_cooling(qapp, clock):
+    controller = approaching(clock, approach_temp=None)
+    controller.start()
+
+    assert controller.phase is Phase.COOLING
+
+
+def test_the_approach_is_fast_and_the_assay_stretch_is_not(qapp, clock):
+    """Two rates, one per phase."""
+    controller = approaching(clock)
+    controller.start()
+
+    ticks_down = 0
+    while controller.ramp_position > -5.0:
+        controller.tick()
+        ticks_down += 1
+
+    # 5 degC at 5 degC/min in 6 s steps is 10 ticks; at 0.1 it would be 500.
+    assert ticks_down == 10
+
+    controller.update_temperature(-5.0)
+    controller.tick()
+    assert controller.phase is Phase.COOLING
+
+    before = controller.ramp_position
+    controller.tick()
+    assert before - controller.ramp_position == pytest.approx(0.1 * 6 / 60)
 
 
 def test_the_approach_lands_exactly_on_its_temperature(qapp, clock):
     """Otherwise a fast step overshoots into the measured stretch."""
-    controller = SeriesController(SeriesSettings(
-        scan_start_temp=0.0, min_temp=-10.0, freeze_temp=-10.0, thaw_temp=5.0,
-        cooling_rate=0.1, approach_temp=-5.0, approach_rate=5.0), clock=clock)
+    controller = approaching(clock, approach_rate=3.7)   # does not divide evenly
     controller.start()
 
     while controller.ramp_position > -5.0:
         controller.tick()
 
     assert controller.ramp_position == pytest.approx(-5.0)
+
+
+def test_the_measured_ramp_waits_for_the_bath_to_arrive(qapp, clock):
+    """Otherwise the first degrees of the scan are cooling faster than the rate
+    they are supposed to be measuring at."""
+    controller = approaching(clock)
+    controller.start()
+
+    while controller.ramp_position > -5.0:
+        controller.update_temperature(0.0)   # the bath is far behind
+        controller.tick()
+
+    assert controller.phase is Phase.APPROACH
+
+    for _ in range(50):
+        controller.update_temperature(-1.0)  # still catching up
+        clock.advance(0.5)
+        controller.tick()
+    assert controller.phase is Phase.APPROACH, "started measuring with a cold-lagging bath"
+
+    controller.update_temperature(-4.5)      # within tolerance of -5
+    controller.tick()
+    assert controller.phase is Phase.COOLING
+
+
+def test_the_approach_can_dwell_once_the_bath_arrives(qapp, clock):
+    controller = approaching(clock, approach_settle_minutes=10.0)
+    controller.start()
+    while controller.ramp_position > -5.0:
+        controller.tick()
+
+    controller.update_temperature(-5.0)
+    controller.tick()
+    assert controller.phase is Phase.APPROACH, "left without dwelling"
+
+    clock.advance(11.0)
+    controller.update_temperature(-5.0)
+    controller.tick()
+    assert controller.phase is Phase.COOLING
+
+
+def test_the_approach_gives_up_if_the_bath_never_arrives(qapp, clock):
+    controller = approaching(clock, hold_timeout_minutes=30.0)
+    controller.start()
+    while controller.ramp_position > -5.0:
+        controller.tick()
+
+    controller.update_temperature(10.0)
+    clock.advance(31.0)
+    controller.tick()
+
+    assert controller.phase is Phase.COOLING
+
+
+def test_the_manual_ramp_does_not_wait_at_the_approach(qapp, clock):
+    """wait_for_bath is off there, so nothing should block."""
+    controller = approaching(clock, wait_for_bath=False)
+    controller.start()
+
+    while controller.phase is Phase.APPROACH:
+        controller.tick()
+
+    assert controller.phase is Phase.COOLING
+
+
+def test_the_settle_time_counts_towards_the_estimate(qapp):
+    without = SeriesSettings(scan_start_temp=0.0, min_temp=-30.0, freeze_temp=-30.0,
+                             thaw_temp=10.0, approach_temp=-5.0, approach_rate=5.0)
+    with_settle = SeriesSettings(scan_start_temp=0.0, min_temp=-30.0, freeze_temp=-30.0,
+                                 thaw_temp=10.0, approach_temp=-5.0, approach_rate=5.0,
+                                 approach_settle_minutes=10.0)
+
+    assert (with_settle.cooling_seconds_at(1.0)
+            - without.cooling_seconds_at(1.0)) == pytest.approx(600)
+
+
+def test_a_negative_settle_time_is_rejected(qapp):
+    with pytest.raises(ValueError, match='settle time cannot be negative'):
+        SeriesSettings(scan_start_temp=0.0, min_temp=-30.0, freeze_temp=-30.0,
+                       thaw_temp=10.0, approach_temp=-5.0,
+                       approach_settle_minutes=-1).validate()
 
 
 def test_the_approach_saves_the_time_it_is_there_to_save(qapp, clock):

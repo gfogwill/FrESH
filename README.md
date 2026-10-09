@@ -140,12 +140,21 @@ The rate a cycle ran at is written into that cycle's `metadata.json` as
 `cooling_rate`, which is what lets the analysis group the folders by rate
 afterwards, and it is shown in the status line (`Cycle 8/21 @ 0.3 °C/min`).
 
-**Fast approach to / at** cools quickly down to a temperature just above where
-anything freezes, and only then switches to the cycle's own rate. Without it, a
+**Fast approach to / at / settle there** cools quickly down to a temperature
+just above where anything freezes, **waits for the bath to get there**, and only
+then switches to the cycle's own rate. Without it, a
 0.1 °C/min scan starting at 0 °C spends five hours before the first well can
 freeze; from -5 °C the same scan takes 4 h 11 min. The fast step is clipped so
 the ramp lands exactly on the approach temperature rather than overshooting
 into the measured stretch at the wrong rate.
+
+The wait matters as much as the speed: after hurrying down, the bath is several
+degrees behind the setpoint, and starting the measured ramp there means its
+first degrees are cooling faster than the rate being measured. The approach
+phase therefore does not end until the measured temperature is within
+`tolerance` of the approach temperature. **settle there** is how long to dwell
+*after* it arrives -- 0 means start as soon as it does. If the bath never gets
+there, the hold timeout moves on anyway rather than stalling the run.
 
 The estimate line breaks the schedule down, e.g.
 
