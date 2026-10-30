@@ -1,0 +1,436 @@
+"""The scan window's per-cycle bookkeeping (src/gui/experiment_gui.py)."""
+
+import json
+import logging
+
+import pytest
+
+from src.experiment.metadata import ExperimentMetadata
+from src.gui.experiment_gui import ExperimentUi, format_duration
+
+
+@pytest.fixture
+def window(qapp, raw_data_dir):
+    templates = [ExperimentMetadata(label='PAL20240619', experiment_type='Filter'),
+                 ExperimentMetadata(label='HEL20240619', experiment_type='Filter')]
+    ui = ExperimentUi(templates)
+    yield ui
+    ui.shutdown()
+
+
+def file_handlers():
+    return [h for h in logging.getLogger().handlers if isinstance(h, logging.FileHandler)]
+
+
+# -- folders ----------------------------------------------------------------
+
+def test_no_folders_are_created_until_something_is_recorded(window, raw_data_dir):
+    """Opening the window and closing it should leave nothing behind."""
+    assert list(raw_data_dir.iterdir()) == []
+    assert window.exp_list == []
+
+
+def test_a_manual_scan_uses_one_folder_without_a_cycle_suffix(window, raw_data_dir):
+    window._open_cycle(None)
+
+    names = sorted(p.name for p in raw_data_dir.iterdir())
+    assert names == [f'{window.series_id}_HEL20240619',
+                     f'{window.series_id}_PAL20240619']
+
+
+def test_each_cycle_gets_its_own_folder(window, raw_data_dir):
+    for cycle in (1, 2, 12):
+        window._open_cycle(cycle)
+
+    names = sorted(p.name for p in raw_data_dir.iterdir())
+    assert names == [f'{window.series_id}_HEL20240619_c001',
+                     f'{window.series_id}_HEL20240619_c002',
+                     f'{window.series_id}_HEL20240619_c012',
+                     f'{window.series_id}_PAL20240619_c001',
+                     f'{window.series_id}_PAL20240619_c002',
+                     f'{window.series_id}_PAL20240619_c012']
+
+
+def test_every_cycle_records_which_cycle_it_is(window, raw_data_dir):
+    window._open_cycle(7)
+
+    for experiment in window.exp_list:
+        stored = json.loads((experiment.experiment_path / 'metadata.json').read_text())
+        assert stored['cycle_number'] == 7
+        assert stored['series_id'] == window.series_id
+
+
+def test_the_metadata_templates_are_not_mutated(window):
+    """Each cycle gets a copy; the templates must stay reusable."""
+    window._open_cycle(3)
+
+    assert [m.cycle_number for m in window.metadata_list] == [None, None]
+
+
+def test_each_cycle_starts_a_sensors_file_with_the_right_header(window):
+    window._open_cycle(1)
+
+    for experiment in window.exp_list:
+        assert experiment.sensors_file.read_text() == 'datetime,SP,BT,RTD0,RTD1\n'
+
+
+# -- logging ----------------------------------------------------------------
+
+def test_cycle_log_handlers_do_not_pile_up(window):
+    """A 50-cycle series must not leave 100 open files on the root logger."""
+    before = len(file_handlers())
+
+    for cycle in range(1, 21):
+        window._open_cycle(cycle)
+
+    assert len(file_handlers()) == before + len(window.metadata_list)
+
+
+def test_shutdown_removes_the_cycle_handlers(window):
+    before = len(file_handlers())
+    window._open_cycle(1)
+    assert len(file_handlers()) > before
+
+    window.shutdown()
+
+    assert len(file_handlers()) == before
+
+
+# -- the form ---------------------------------------------------------------
+
+def test_the_series_settings_come_from_the_form(window):
+    window.maxTemp.setText('0')
+    window.minTemp.setText('-45')
+    window.freezeTemp.setText('-35')
+    window.thawTemp.setText('12')
+    window.holdColdMinutes.setText('8')
+    window.holdWarmMinutes.setText('6')
+    window.coolingRate.setText('1')
+    window.heatingRate.setText('5')
+    window.cyclesSpinBox.setValue(49)
+
+    settings = window._series_settings()
+    settings.validate()
+
+    assert (settings.scan_start_temp, settings.min_temp, settings.freeze_temp,
+            settings.thaw_temp) == (0.0, -45.0, -35.0, 12.0)
+    assert (settings.hold_cold_minutes, settings.hold_warm_minutes) == (8.0, 6.0)
+    assert settings.cycles == 49
+    assert settings.folder_per_cycle and settings.wait_for_bath
+
+
+def test_the_manual_ramp_settings_have_no_holds_and_no_folders(window):
+    settings = window._ramp_settings()
+
+    assert settings.hold_cold_minutes == 0.0
+    assert settings.hold_warm_minutes == 0.0
+    assert settings.cycles == 1          # one scan, then stop
+    assert not settings.folder_per_cycle
+    assert not settings.wait_for_bath
+
+
+def test_a_bad_number_in_the_form_is_reported_not_raised(window):
+    window.freezeTemp.setText('muy frio')
+
+    with pytest.raises(ValueError, match='Hold until'):
+        window._series_settings()
+
+
+def test_the_estimate_line_warns_instead_of_showing_a_duration(window):
+    window.minTemp.setText('10')  # above the scan start temp: impossible
+
+    window._update_series_estimate()
+
+    assert window.seriesEstimateLabel.text().startswith('⚠')
+
+
+def test_the_estimate_line_shows_the_total(window):
+    window.maxTemp.setText('0')
+    window.minTemp.setText('-45')
+    window.freezeTemp.setText('-45')
+    window.thawTemp.setText('10')
+    window.coolingRate.setText('1')
+    window.heatingRate.setText('5')
+    window.holdColdMinutes.setText('10')
+    window.holdWarmMinutes.setText('10')
+    window.cyclesSpinBox.setValue(50)
+
+    window._update_series_estimate()
+
+    assert '65 h' in window.seriesEstimateLabel.text()
+
+
+# -- which sensor the hold watches ------------------------------------------
+
+@pytest.mark.parametrize('choice, expected', [
+    ('Bath (BT)', -30.0),
+    ('Probe (RTD0)', -28.0),
+])
+def test_the_hold_watches_the_selected_sensor(window, choice, expected):
+    window.holdSourceComboBox.setCurrentText(choice)
+
+    assert window.hold_temperature({'BT': -30.0, 'RTD0': -28.0}) == expected
+
+
+# -- odds and ends ----------------------------------------------------------
+
+@pytest.mark.parametrize('seconds, text', [
+    (0, '0 min'), (90, '2 min'), (3600, '1 h 00 min'),
+    (234000, '65 h 00 min'), (None, 'unbounded'),
+])
+def test_durations_read_like_a_person_wrote_them(seconds, text):
+    assert format_duration(seconds) == text
+
+
+def test_a_finished_series_lets_go_of_the_last_cycle(window):
+    """Otherwise switching Save on afterwards appends to cycle N's folder."""
+    window._open_cycle(3)
+    assert window.exp_list
+
+    window._finish_series()
+
+    assert window.exp_list == []
+    assert window.current_cycle is None
+
+
+# -- the watchdog reaches the series ----------------------------------------
+
+def test_a_dead_chiller_aborts_the_running_series(window, raw_data_dir):
+    """The whole chain: no reading -> watchdog -> abort -> safe setpoint."""
+    from src.experiment.series import SAFE_TEMPERATURE, SeriesSettings
+
+    window.series = None
+    settings = SeriesSettings(scan_start_temp=0.0, min_temp=-30.0, freeze_temp=-30.0,
+                              thaw_temp=10.0, cycles=2, max_missed_readings=3)
+    written = []
+    window.set_temp = written.append          # no chiller attached here
+    window._start_controller(settings)
+
+    for _ in range(3):
+        window.read_sensors_data(None)
+
+    assert window.series is None, "the series was not torn down"
+    assert written[-1] == SAFE_TEMPERATURE
+    # The label keeps saying so, rather than resetting to Idle: whoever walks
+    # in the next morning needs to see that it stopped and where.
+    assert 'ABORTED' in window.seriesStatusLabel.text()
+    assert 'ABORTED' in window.statusBar().currentMessage()
+    assert window.startSeriesButton.isEnabled()
+    assert not window.abortSeriesButton.isEnabled()
+
+
+def test_a_good_reading_keeps_the_series_running(window, raw_data_dir):
+    from src.experiment.series import SeriesSettings
+
+    settings = SeriesSettings(scan_start_temp=0.0, min_temp=-30.0, freeze_temp=-30.0,
+                              thaw_temp=10.0, cycles=2, max_missed_readings=3)
+    window.set_temp = lambda t: None
+    window._start_controller(settings)
+
+    for _ in range(10):
+        window.read_sensors_data({'BT': -5.0, 'SP': -5.0, 'RTD0': -4.6, 'RTD1': -4.5})
+
+    assert window.series is not None
+
+
+# -- editing the form while a series runs -----------------------------------
+
+def test_a_series_follows_the_form_between_cycles(window, raw_data_dir):
+    """Watch cycle 1, shorten the ramp, and the next cycle picks it up."""
+
+    window.maxTemp.setText('0')
+    window.minTemp.setText('-45')
+    window.freezeTemp.setText('-45')
+    window.thawTemp.setText('10')
+    window.cyclesSpinBox.setValue(3)
+    window.set_temp = lambda t: None
+
+    window._start_controller(window._series_settings(), follow_form=True)
+    assert window.series.settings.min_temp == -45.0
+
+    # The operator sees everything freeze by -22 and shortens the ramp.
+    window.minTemp.setText('-28')
+    window.freezeTemp.setText('-28')
+
+    # Mid-cycle it must not change under the running ramp.
+    assert window.series.settings.min_temp == -45.0
+
+    window.series._refresh_settings()
+
+    assert window.series.settings.min_temp == -28.0
+    assert window.series.settings.freeze_temp == -28.0
+
+
+def test_the_manual_ramp_does_not_follow_the_form(window, raw_data_dir):
+    window.set_temp = lambda t: None
+    window._start_controller(window._ramp_settings(), follow_form=False)
+
+    window.minTemp.setText('-28')
+    window.series._refresh_settings()
+
+    assert window.series.settings.min_temp != -28.0
+
+
+def test_a_half_typed_field_leaves_the_series_alone(window, raw_data_dir):
+    window.maxTemp.setText('0')
+    window.minTemp.setText('-45')
+    window.freezeTemp.setText('-45')
+    window.set_temp = lambda t: None
+    window._start_controller(window._series_settings(), follow_form=True)
+
+    window.minTemp.setText('-')      # mid-keystroke
+    window.series._refresh_settings()
+
+    assert window.series.settings.min_temp == -45.0
+
+
+def test_a_settings_change_is_recorded_in_the_series_folder(window, raw_data_dir):
+    from src import paths
+
+    window.series_dir = paths.interim_data_path / 'test_series'
+    window.series_dir.mkdir(parents=True)
+    window.set_temp = lambda t: None
+    window._start_controller(window._series_settings(), follow_form=True)
+
+    window._on_settings_changed('min_temp -45.0 -> -28.0')
+
+    log = (window.series_dir / 'settings_changes.log').read_text()
+    assert 'min_temp -45.0 -> -28.0' in log
+
+
+# -- a single scan is a single scan -----------------------------------------
+
+def test_the_manual_ramp_runs_exactly_one_scan(window):
+    """Regression: it cycled forever, so a finished scan started ramping again."""
+    settings = window._ramp_settings()
+
+    assert settings.cycles == 1
+
+
+def test_the_manual_ramp_parks_at_the_start_temperature(window, raw_data_dir):
+
+    window.maxTemp.setText('0')
+    window.minTemp.setText('-30')
+    window.coolingRate.setText('600')
+    window.heatingRate.setText('600')
+
+    written = []
+    window.set_temp = written.append
+    window.start_scan = lambda: None          # drive the controller directly
+    settings = window._ramp_settings()
+    settings.thaw_temp = max(settings.thaw_temp, settings.min_temp + 1)
+    window._start_controller(settings)
+
+    for _ in range(500):
+        if window.series is None or window.series.phase.is_finished:
+            break
+        window.read_sensors_data({'BT': window.series.setpoint, 'SP': 0.0,
+                                  'RTD0': 0.0, 'RTD1': 0.0})
+        window.series.tick()
+
+    assert written[-1] == pytest.approx(0.0), "the scan did not park at the start temp"
+    assert min(written) == pytest.approx(-30.0), "it never reached the minimum"
+
+
+def test_a_finished_scan_stops_recording_and_frees_the_buttons(window, raw_data_dir):
+    window.set_temp = lambda t: None
+    window._start_controller(window._ramp_settings())
+    window.saveCheckBox.setChecked(True)
+
+    window._on_series_ended()
+
+    assert window.series is None
+    assert not window.saveCheckBox.isChecked()
+    assert window.startScanButton.isEnabled()
+    assert window.startSeriesButton.isEnabled()
+
+
+def test_a_series_still_runs_every_cycle_it_was_asked_for(window):
+    """The single-scan change must not leak into the series."""
+    window.cyclesSpinBox.setValue(12)
+
+    assert window._series_settings().cycles == 12
+
+
+# -- a cooling rate per cycle ------------------------------------------------
+
+def test_the_rate_list_is_parsed_from_the_form(window):
+    window.coolingRates.setText('1, 0.3, 0.1')
+
+    assert window._series_settings().cooling_rates == (1.0, 0.3, 0.1)
+
+
+@pytest.mark.parametrize('typed, expected', [
+    ('1,0.3,0.1', (1.0, 0.3, 0.1)),
+    ('1; 0.3; 0.1', (1.0, 0.3, 0.1)),      # semicolons too
+    (' 1 , 0.3 ', (1.0, 0.3)),
+    ('', ()),                               # empty: use the single rate
+    ('0.1,', (0.1,)),                       # trailing separator
+])
+def test_the_rate_list_accepts_what_people_type(window, typed, expected):
+    window.coolingRates.setText(typed)
+
+    assert window._series_settings().cooling_rates == expected
+
+
+def test_a_bad_rate_in_the_list_is_reported(window):
+    window.coolingRates.setText('1, rapido, 0.1')
+
+    with pytest.raises(ValueError, match='Cooling rates'):
+        window._series_settings()
+
+
+def test_the_approach_is_optional(window):
+    window.approachTemp.setText('')
+
+    assert window._series_settings().approach_temp is None
+
+
+def test_the_approach_is_read_when_given(window):
+    window.approachTemp.setText('-5')
+    window.approachRate.setText('4')
+
+    settings = window._series_settings()
+
+    assert settings.approach_temp == -5.0
+    assert settings.approach_rate == 4.0
+
+
+def test_each_cycle_records_the_rate_it_ran_at(window, raw_data_dir):
+    """Without this the analysis cannot tell which folder was which rate."""
+    import json
+
+    window.maxTemp.setText('0')
+    window.minTemp.setText('-30')
+    window.freezeTemp.setText('-30')
+    window.coolingRates.setText('1, 0.3, 0.1')
+    window.set_temp = lambda t: None
+    window._start_controller(window._series_settings(), follow_form=True)
+
+    rates = []
+    for cycle in (1, 2, 3):
+        window.series.cycle = cycle - 1
+        window.series._begin_cycle()
+        window._open_cycle(cycle)
+        stored = json.loads(
+            (window.exp_list[0].experiment_path / 'metadata.json').read_text())
+        rates.append(stored['cooling_rate'])
+
+    assert rates == [1.0, 0.3, 0.1]
+
+
+def test_the_estimate_breaks_the_schedule_down(window):
+    window.maxTemp.setText('0')
+    window.minTemp.setText('-30')
+    window.freezeTemp.setText('-30')
+    window.thawTemp.setText('10')
+    window.coolingRates.setText('1, 0.3, 0.1')
+    window.approachTemp.setText('-5')
+    window.cyclesSpinBox.setValue(21)
+
+    window._update_series_estimate()
+    text = window.seriesEstimateLabel.text()
+
+    assert 'cooling ramp' in text
+    assert '0.1:' in text, "the slow rate should be listed"
+    assert 'in total' in text

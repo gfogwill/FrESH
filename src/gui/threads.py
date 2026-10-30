@@ -1,4 +1,10 @@
-"""Background workers: chiller I/O, the temperature ramp and the camera."""
+"""Background workers: chiller I/O and the camera.
+
+The temperature ramp used to live here as a QThread. It is now
+:class:`src.experiment.series.SeriesController`, which runs on the GUI
+thread: it only does arithmetic, and keeping it out of a thread means it
+can read the latest chiller reading without any locking.
+"""
 
 import logging
 import time
@@ -64,22 +70,27 @@ class DataWorker(QThread):
             self.dataCollectionTimer.stop()
 
     def read_temps(self):
+        """Poll the chiller and emit the readings.
+
+        A failed read emits ``None`` rather than emitting nothing: a running
+        freeze/thaw series counts those to decide the chiller has stopped
+        answering, and it can only count what it is told about.
+        """
         if not self.threadactive:
             return
 
+        data = None
         try:
             if not self.connected:
                 logging.error("Cannot read temperatures - device not connected")
-                return
-
-            data = self.chiller.get_data()
-            if data is not None:
-                self.read_data_signal.emit(data)
             else:
-                logging.warning("No valid data received from chiller")
-
+                data = self.chiller.get_data()
+                if data is None:
+                    logging.warning("No valid data received from chiller")
         except Exception as e:
             logging.error(f"Error reading temperatures: {e}")
+
+        self.read_data_signal.emit(data)
 
     def set_temperature(self, t_target):
         """Write a setpoint, if the chiller is up."""
@@ -101,89 +112,6 @@ class DataWorker(QThread):
                 self.chiller.close()
             except Exception as e:
                 logging.error(f"Error closing chiller connection: {e}")
-
-
-class TempThread(QThread):
-    """Ramps the chiller setpoint down to ``min_temp`` and back up again.
-
-    The rates are given in degC/min, as they are labelled in the GUI; the ramp
-    itself moves in steps of ``step_interval`` seconds.
-    """
-
-    temp_signal = pyqtSignal(object)
-
-    #: Seconds between setpoint steps.
-    STEP_INTERVAL = 6
-
-    def __init__(self, max_temp, min_temp, cooling_rate, heating_rate,
-                 cycles=None, step_interval=STEP_INTERVAL):
-        super().__init__()
-
-        if max_temp <= min_temp:
-            raise ValueError(f"Max. temp ({max_temp}) must be above min. temp ({min_temp})")
-
-        self.max_temp = max_temp
-        self.min_temp = min_temp
-        self.step_interval = step_interval
-
-        # degC per step, from the degC/min entered in the GUI.
-        self.chill_temp_step = abs(cooling_rate) * step_interval / 60.0
-        self.heat_temp_step = abs(heating_rate) * step_interval / 60.0
-
-        if not self.chill_temp_step or not self.heat_temp_step:
-            raise ValueError("Cooling and heating rates must be greater than zero")
-
-        #: None means "keep cycling until the operator stops the scan".
-        self.cycles = cycles
-        self.completed_cycles = 0
-
-        self.chilling = True
-        self.last_sp = max_temp
-
-        self.tempRampTimer = QTimer()
-        self.tempRampTimer.moveToThread(self)
-        self.tempRampTimer.timeout.connect(self.update_temp)
-
-    def run(self):
-        self.tempRampTimer.start(int(self.step_interval * 1000))
-        self.exec()
-        self.tempRampTimer.stop()
-
-    def update_temp(self):
-        """Advance the setpoint one step, turning around at the limits.
-
-        The limits used to end the scan: overshooting min_temp by any amount
-        emitted a setpoint of 0 and killed the thread, so unless the span was an
-        exact multiple of the step the heating ramp never ran at all. Now the
-        setpoint is clamped to the limit and the ramp reverses.
-        """
-        if self.chilling:
-            next_sp = self.last_sp - self.chill_temp_step
-            if next_sp <= self.min_temp:
-                next_sp = self.min_temp
-                self.chilling = False
-                logging.info(f"Minimum temperature ({self.min_temp} degC) reached, heating up")
-        else:
-            next_sp = self.last_sp + self.heat_temp_step
-            if next_sp >= self.max_temp:
-                next_sp = self.max_temp
-                self.chilling = True
-                self.completed_cycles += 1
-                logging.info(f"Maximum temperature ({self.max_temp} degC) reached, "
-                             f"cycle {self.completed_cycles} complete")
-
-        self.last_sp = round(next_sp, 2)
-        self.temp_signal.emit(self.last_sp)
-
-        if self.cycles is not None and self.completed_cycles >= self.cycles:
-            logging.info(f"Requested {self.cycles} cycle(s) done, stopping the ramp")
-            self.quit()
-
-    def stop(self):
-        """Ask the ramp to stop and wait for the thread to finish."""
-        self.quit()
-        if not self.wait(3000):
-            logging.warning("Temperature ramp thread did not stop in time")
 
 
 class VideoThread(QThread):

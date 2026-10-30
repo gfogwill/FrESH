@@ -81,6 +81,28 @@ def test_a_bad_reading_does_not_raise():
     assert chiller.get_data() is None
 
 
+def test_a_failed_read_is_reported_to_the_gui(qapp):
+    """Regression: the series watchdog can only count what it hears about.
+
+    read_temps used to emit nothing when the chiller stopped answering, so a
+    running series never learned it had lost the hardware.
+    """
+    from PyQt6.QtCore import QObject
+
+    from src.gui.threads import DataWorker
+
+    worker = DataWorker.__new__(DataWorker)   # no chiller, no thread started
+    QObject.__init__(worker)
+    worker.threadactive = True
+    worker.connected = True
+    worker.chiller = type('DeadChiller', (), {'get_data': lambda self: None})()
+
+    received = []
+    worker.read_data_signal.connect(received.append)
+    worker.read_temps()
+
+    assert received == [None]
+
 # -- which serial port the chiller is on ------------------------------------
 
 class FakePort:

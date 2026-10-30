@@ -53,6 +53,7 @@ class FrESHExperiment:
         self.experiment_path.mkdir(parents=True, exist_ok=True)
         self.pics_path.mkdir(parents=True, exist_ok=True)
 
+        self.is_new = is_new
         if is_new:
             logging.info(f"Creating new experiment: {self.experiment_path}")
         else:
@@ -137,8 +138,13 @@ class FrESHExperiment:
         # sort the list of images
         img_file_list.sort()
 
-        if img_file_list.__len__() == 0:
-            logging.error(f"No pictures found in dir: {img_dir}")
+        if not img_file_list:
+            # A cycle that has just been created has no pictures yet; only an
+            # experiment that was expected to hold some is worth an error.
+            if getattr(self, 'is_new', False):
+                logging.debug(f"No pictures yet in: {img_dir}")
+            else:
+                logging.error(f"No pictures found in dir: {img_dir}")
 
         # Return the complete list if start_timestamp or end_timestamp are not defined
         if not (hasattr(self.metadata, 'scan_start_timestamp') and hasattr(self.metadata, 'scan_end_timestamp')):
@@ -721,6 +727,31 @@ class FrESHExperiment:
             print(f"Unsupported export format: {export_format}")
 
 
+#: Sensor rows are cut off once this temperature is crossed.
+#:
+#: The cut is a ``takewhile``, so it drops the whole tail of the record from the
+#: first crossing onwards -- not just the rows below the floor. That is fine for
+#: throwing away what happens after the bath bottoms out, but it means the floor
+#: must stay BELOW the coldest setpoint of the scan. A scan that goes to -45
+#: with the floor at -45 loses the most interesting part of its own data.
+SENSOR_TEMPERATURE_FLOOR = -45.0
+
+
+def trim_at_floor(data, column, floor=None):
+    """Cut the sensor record at the first row where ``column`` reaches the floor."""
+    floor = SENSOR_TEMPERATURE_FLOOR if floor is None else floor
+
+    trimmed = list(takewhile(lambda row: row[column] > floor, data))
+
+    dropped = len(data) - len(trimmed)
+    if dropped:
+        logging.warning(f"{dropped} of {len(data)} sensor rows dropped: {column} "
+                        f"reached the {floor} degC floor. If the scan was meant to go "
+                        f"that low, pass a lower floor.")
+
+    return trimmed
+
+
 def sensors_file(exp_name):
     """Path of the sensor readings written during a scan."""
     return paths.raw_data_path / exp_name / 'sensors_data.csv'
@@ -784,12 +815,11 @@ def read_sensors_data(file_path):
             return np.array([(datetime.now(), 0.0, 0.0, 0.0, 0.0)], dtype=dtype)
 
 
-def process_sensors_data(exp_name, freezing_idxs, freezing_times):
+def process_sensors_data(exp_name, freezing_idxs, freezing_times, floor=None):
     file_path = sensors_file(exp_name)
     data = read_sensors_data(file_path)
 
-    # Filter data
-    data = list(takewhile(lambda x: x['BT'] > -45, data))
+    data = trim_at_floor(data, 'BT', floor)
 
     t = []
     ff = []
@@ -801,12 +831,12 @@ def process_sensors_data(exp_name, freezing_idxs, freezing_times):
     return t, ff
 
 
-def calculate_frame_temperatures(img_files, exp_name):
+def calculate_frame_temperatures(img_files, exp_name, floor=None):
     times = [datetime.strptime(img.stem, "%Y%m%d%H%M%S") for img in img_files]
     file_path = sensors_file(exp_name)
 
     data = read_sensors_data(file_path)
-    data = list(takewhile(lambda x: x['BT'] > -45, data))
+    data = trim_at_floor(data, 'BT', floor)
 
     t = []
     for time in times:
@@ -820,12 +850,11 @@ def calculate_frame_temperatures(img_files, exp_name):
     return t
 
 
-def calculate_freezing_temps(freezing_times, exp_name):
+def calculate_freezing_temps(freezing_times, exp_name, floor=None):
     file_path = sensors_file(exp_name)
     data = read_sensors_data(file_path)
 
-    # Filter data
-    data = list(takewhile(lambda x: x['SP'] > -45, data))
+    data = trim_at_floor(data, 'SP', floor)
 
     t = []
     for index, time in enumerate(freezing_times):

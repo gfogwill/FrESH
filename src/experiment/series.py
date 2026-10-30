@@ -1,0 +1,628 @@
+"""The freeze/thaw series: a state machine that drives the chiller setpoint.
+
+One *cycle* is five phases:
+
+===============  =========================================  =========
+phase            what it does                               recording
+===============  =========================================  =========
+``APPROACH``     hurries down to ``approach_temp`` and      yes
+                 waits for the bath to get there
+``COOLING``      ramps the setpoint down to ``min_temp``    yes
+                 at the cycle's own rate
+``HOLD_COLD``    waits for the bath to reach                until the
+                 ``freeze_temp``, then dwells               bath gets there
+``THAW``         ramps the setpoint up to ``thaw_temp``     no
+``HOLD_WARM``    waits for the bath to get warm, dwells     no
+``SETTLE``       jumps back to ``scan_start_temp``          no
+===============  =========================================  =========
+
+Recording follows the **measured** temperature, not the setpoint. The bath lags,
+so when the setpoint bottoms out the sample is still warmer than asked for and
+wells are still freezing; stopping there would throw away the coldest and most
+interesting part of every scan.
+
+Two things are deliberate:
+
+* The ramps are **open loop**. The setpoint marches at the requested rate and
+  the bath follows as well as it can; the setpoint is never held back. That is
+  how the existing measurements were taken, so the cooling rate stays
+  comparable with them.
+* The **holds are closed loop**. The bath lags the setpoint badly at low
+  temperature, so waiting a fixed time would not guarantee the sample is
+  actually cold. HOLD_COLD does not end until the measured bath temperature has
+  reached ``freeze_temp``, and only then does the dwell start counting.
+
+The controller owns no hardware and no thread. It is ticked by a timer and fed
+temperature readings, and it answers with signals; :class:`ExperimentUi` is
+what actually talks to the chiller. That keeps the whole sequence testable
+without a chiller attached.
+"""
+
+import enum
+import logging
+import time
+from dataclasses import dataclass
+
+from PyQt6.QtCore import QObject, QTimer, pyqtSignal
+
+#: Where the setpoint is parked when a series is aborted. The bath is ethanol,
+#: so the safe state is "not cold", not "off".
+SAFE_TEMPERATURE = 0.0
+
+#: How close to a target the bath must get for it to count as reached.
+DEFAULT_TOLERANCE = 1.0
+
+#: Seconds between setpoint steps.
+DEFAULT_STEP_INTERVAL = 6
+
+#: Consecutive failed readings before the watchdog gives up.
+DEFAULT_MAX_MISSED_READINGS = 20
+
+
+class Phase(enum.Enum):
+    IDLE = 'idle'
+    APPROACH = 'approach'
+    COOLING = 'cooling'
+    HOLD_COLD = 'hold cold'
+    THAW = 'thaw'
+    HOLD_WARM = 'hold warm'
+    SETTLE = 'settle'
+    DONE = 'done'
+    ABORTED = 'aborted'
+
+    @property
+    def is_finished(self):
+        return self in (Phase.DONE, Phase.ABORTED)
+
+
+#: Settings that define the *mode* of a run rather than its numbers. They are
+#: fixed when the series starts and are never taken from a later edit.
+FIXED_SETTINGS = ('folder_per_cycle', 'wait_for_bath')
+
+
+@dataclass
+class SeriesSettings:
+    """Everything the operator sets before starting.
+
+    Temperatures are degC, rates degC/min and holds minutes.
+    """
+
+    #: Where each scan starts, and where the bath returns between cycles.
+    scan_start_temp: float = 0.0
+    #: Lowest setpoint of the cooling ramp.
+    min_temp: float = -35.0
+    #: Bath temperature HOLD_COLD waits for. Usually equal to min_temp, but it
+    #: can be set higher when the chiller cannot actually reach min_temp.
+    freeze_temp: float = -35.0
+    #: Setpoint the thaw ramps up to, to melt the sample.
+    thaw_temp: float = 10.0
+
+    cooling_rate: float = 1.0
+    heating_rate: float = 5.0
+
+    #: Cooling rates to run the cycles at, in turn: cycle 1 takes the first,
+    #: cycle 2 the second, and so on, wrapping round. Interleaving the rates
+    #: this way rather than running them in blocks means any drift over the
+    #: run affects all of them equally. Empty means every cycle uses
+    #: ``cooling_rate``.
+    cooling_rates: tuple = ()
+
+    #: Cool quickly down to here before switching to the cycle's own rate.
+    #: None disables it. At 0.1 degC/min a scan from 0 degC would otherwise
+    #: spend five hours getting to where anything can freeze.
+    approach_temp: float = None
+    #: Rate for that first stretch.
+    approach_rate: float = 5.0
+    #: Once the bath has reached the approach temperature, dwell this long
+    #: before the measured ramp starts. Zero means "as soon as it gets there"
+    #: -- the ramp still waits for the bath, it just does not hold after.
+    approach_settle_minutes: float = 0.0
+
+    hold_cold_minutes: float = 10.0
+    hold_warm_minutes: float = 10.0
+
+    #: Number of cycles, or None to keep cycling until stopped.
+    cycles: int = 50
+
+    #: Give up waiting for the bath after this long and move on anyway.
+    hold_timeout_minutes: float = 60.0
+
+    tolerance: float = DEFAULT_TOLERANCE
+    step_interval: float = DEFAULT_STEP_INTERVAL
+    max_missed_readings: int = DEFAULT_MAX_MISSED_READINGS
+
+    #: False for the manual ramp: keep cycling in one folder, recording always.
+    folder_per_cycle: bool = True
+    #: False for the manual ramp: turn around as soon as the setpoint reaches
+    #: the limit, without waiting for the bath to catch up.
+    wait_for_bath: bool = True
+
+    def rate_for_cycle(self, cycle):
+        """Cooling rate for a 1-based cycle number."""
+        if not self.cooling_rates:
+            return self.cooling_rate
+        return self.cooling_rates[(cycle - 1) % len(self.cooling_rates)]
+
+    def cooling_step_at(self, rate):
+        """degC per tick for a given degC/min rate."""
+        return abs(rate) * self.step_interval / 60.0
+
+    def changes_from(self, other):
+        """Describe how this differs from ``other``, for the log."""
+        changes = []
+        for field_name in vars(self):
+            mine, theirs = getattr(self, field_name), getattr(other, field_name, None)
+            if mine != theirs:
+                changes.append(f"{field_name} {theirs} -> {mine}")
+        return ", ".join(changes)
+
+    def validate(self):
+        """Raise ValueError if the settings could not produce a sane series."""
+        if self.min_temp >= self.scan_start_temp:
+            raise ValueError(f"Min. temp ({self.min_temp}) must be below the scan "
+                             f"start temp ({self.scan_start_temp})")
+
+        if self.thaw_temp <= self.min_temp:
+            raise ValueError(f"Thaw temp ({self.thaw_temp}) must be above the "
+                             f"min. temp ({self.min_temp})")
+
+        if self.freeze_temp < self.min_temp - self.tolerance:
+            raise ValueError(f"The bath cannot be asked to reach {self.freeze_temp} degC "
+                             f"when the setpoint only goes down to {self.min_temp} degC")
+
+        if self.freeze_temp >= self.scan_start_temp:
+            raise ValueError(f"Freeze temp ({self.freeze_temp}) must be below the "
+                             f"scan start temp ({self.scan_start_temp})")
+
+        if self.cooling_rate <= 0 or self.heating_rate <= 0:
+            raise ValueError("Cooling and heating rates must be greater than zero")
+
+        if any(rate <= 0 for rate in self.cooling_rates):
+            raise ValueError(f"Every cooling rate must be greater than zero, got "
+                             f"{', '.join(str(r) for r in self.cooling_rates)}")
+
+        if self.approach_temp is not None:
+            if not self.min_temp < self.approach_temp < self.scan_start_temp:
+                raise ValueError(f"The fast approach temperature ({self.approach_temp}) "
+                                 f"must lie between the min. setpoint ({self.min_temp}) "
+                                 f"and the scan start ({self.scan_start_temp})")
+            if self.approach_rate <= 0:
+                raise ValueError("The approach rate must be greater than zero")
+            if self.approach_settle_minutes < 0:
+                raise ValueError("The approach settle time cannot be negative")
+
+        if self.step_interval <= 0:
+            raise ValueError("The step interval must be greater than zero")
+
+        if self.cycles is not None and self.cycles < 1:
+            raise ValueError("A series needs at least one cycle")
+
+        if self.hold_cold_minutes < 0 or self.hold_warm_minutes < 0:
+            raise ValueError("Hold times cannot be negative")
+
+    @property
+    def cooling_step(self):
+        """degC per tick, from the degC/min the operator entered."""
+        return abs(self.cooling_rate) * self.step_interval / 60.0
+
+    @property
+    def heating_step(self):
+        return abs(self.heating_rate) * self.step_interval / 60.0
+
+    def cooling_seconds_at(self, rate):
+        """How long the cooling ramp takes at one rate, approach included."""
+        if self.approach_temp is None:
+            return (self.scan_start_temp - self.min_temp) / rate * 60
+
+        approach = (self.scan_start_temp - self.approach_temp) / self.approach_rate * 60
+        settle = self.approach_settle_minutes * 60
+        assay = (self.approach_temp - self.min_temp) / rate * 60
+        return approach + settle + assay
+
+    def estimated_cycle_seconds(self, cycle=None):
+        """Rough duration of a cycle, ignoring how far the bath lags.
+
+        With several cooling rates and no cycle given, this is the average over
+        the schedule -- what a run of whole blocks costs per cycle.
+        """
+        if cycle is not None:
+            rates = [self.rate_for_cycle(cycle)]
+        elif self.cooling_rates:
+            rates = list(self.cooling_rates)
+        else:
+            rates = [self.cooling_rate]
+
+        cooling = sum(self.cooling_seconds_at(rate) for rate in rates) / len(rates)
+        thaw = (self.thaw_temp - self.min_temp) / self.heating_rate * 60
+        holds = (self.hold_cold_minutes + self.hold_warm_minutes) * 60
+        settle = 120  # the setpoint jumps; this is just the bath catching up
+        return cooling + thaw + holds + settle
+
+    def estimated_total_seconds(self):
+        if self.cycles is None:
+            return None
+        return self.estimated_cycle_seconds() * self.cycles
+
+
+class SeriesController(QObject):
+    """Sequences the phases of a freeze/thaw series.
+
+    The controller never touches the chiller. It emits :attr:`setpoint_changed`
+    and whoever owns the hardware writes it.
+    """
+
+    #: A new setpoint should be written to the chiller.
+    setpoint_changed = pyqtSignal(float)
+    #: (phase, cycle number) -- the cycle number is 1-based.
+    phase_changed = pyqtSignal(object, int)
+    #: A cycle's cooling ramp is about to start; open its folder.
+    cycle_started = pyqtSignal(int)
+    #: A cycle's cooling ramp has ended; stop recording into its folder.
+    cycle_finished = pyqtSignal(int)
+    #: Every cycle requested has been run.
+    series_finished = pyqtSignal()
+    #: Something went wrong; the argument says what.
+    aborted = pyqtSignal(str)
+    #: The settings changed between cycles; the argument describes what.
+    settings_changed = pyqtSignal(str)
+
+    def __init__(self, settings, parent=None, clock=time.monotonic,
+                 settings_provider=None):
+        super().__init__(parent)
+
+        settings.validate()
+        self.settings = settings
+
+        #: Called between cycles to pick up whatever the operator has changed
+        #: in the form. Watching the first cycle and then shortening the ramp
+        #: is the normal way to use this, so a running series must follow the
+        #: form rather than the values it was started with.
+        self._settings_provider = settings_provider
+
+        #: Injectable so the tests do not have to wait in real time.
+        self._clock = clock
+
+        self.phase = Phase.IDLE
+        self.cycle = 0
+        #: Cooling rate this cycle is running at, from the schedule.
+        self.cooling_rate = settings.rate_for_cycle(1)
+        #: True while this cycle's pictures and readings are being kept.
+        self.recording = False
+        #: None until the first setpoint is written, so that the very first
+        #: write always reaches the chiller whatever it was set to before.
+        #: This is the ROUNDED value the chiller was given.
+        self.setpoint = None
+        #: The ramp's own position, at full precision. The chiller only takes
+        #: two decimals, and accumulating from the rounded value quantises the
+        #: step: at 0.07 degC/min the ramp actually ran at 0.1, and at 0.05 the
+        #: step vanished into the rounding and the ramp stopped moving at all.
+        self._exact_setpoint = None
+        self.bath_temp = None
+
+        self._phase_started_at = None
+        self._target_reached_at = None
+        self._missed_readings = 0
+
+        self.timer = QTimer(self)
+        self.timer.setInterval(int(settings.step_interval * 1000))
+        self.timer.timeout.connect(self.tick)
+
+    # -- lifecycle -----------------------------------------------------------
+
+    def start(self):
+        """Begin the first cycle."""
+        if self.phase is not Phase.IDLE:
+            logging.warning("The series is already running")
+            return
+
+        total = self.settings.estimated_total_seconds()
+        if total is not None:
+            logging.info(f"Starting a series of {self.settings.cycles} cycle(s), "
+                         f"about {total / 3600:.1f} h in total")
+        else:
+            logging.info("Starting a continuous ramp; it runs until stopped")
+
+        self.cycle = 0
+        self._begin_cycle()
+        self.timer.start()
+
+    def stop(self, reason=None):
+        """End the series early. The setpoint is parked at a safe temperature."""
+        if self.phase.is_finished:
+            return
+
+        self.timer.stop()
+        self._set_setpoint(SAFE_TEMPERATURE)
+
+        self._end_recording()
+
+        if reason is None:
+            logging.info("Series stopped")
+            self._enter(Phase.DONE)
+            self.series_finished.emit()
+        else:
+            logging.error(f"Series aborted: {reason}")
+            self._enter(Phase.ABORTED)
+            self.aborted.emit(reason)
+
+    # -- input ---------------------------------------------------------------
+
+    def update_temperature(self, bath_temp):
+        """Feed the controller the latest bath reading.
+
+        Passing ``None`` counts as a missed reading; enough of them in a row
+        abort the series.
+        """
+        if bath_temp is None:
+            self._missed_readings += 1
+            if self._missed_readings >= self.settings.max_missed_readings:
+                self.stop(f"no valid chiller reading for "
+                          f"{self._missed_readings} consecutive polls")
+            return
+
+        self._missed_readings = 0
+        self.bath_temp = bath_temp
+
+    # -- the state machine ---------------------------------------------------
+
+    def tick(self):
+        """Advance one step. Called by the timer, or by the tests directly."""
+        if self.phase.is_finished or self.phase is Phase.IDLE:
+            return
+
+        handler = {
+            Phase.APPROACH: self._tick_approach,
+            Phase.COOLING: self._tick_cooling,
+            Phase.HOLD_COLD: self._tick_hold_cold,
+            Phase.THAW: self._tick_thaw,
+            Phase.HOLD_WARM: self._tick_hold_warm,
+            Phase.SETTLE: self._tick_settle,
+        }[self.phase]
+
+        handler()
+
+    def _tick_approach(self):
+        """Hurry down to the approach temperature, then wait for the bath.
+
+        The measured ramp must not start with the bath still several degrees
+        behind: the first part of the scan would then be cooling faster than
+        the rate it is supposed to be measuring at.
+        """
+        target = self.settings.approach_temp
+        position = self.ramp_position
+
+        if position > target:
+            # Clipped, so the setpoint lands exactly on the approach
+            # temperature rather than overshooting past it at the fast rate.
+            step = min(self.settings.cooling_step_at(self.settings.approach_rate),
+                       position - target)
+            self._set_setpoint(max(position - step, target))
+            return
+
+        reached = self._bath_at_or_below(target + self.settings.tolerance)
+
+        if self._wait_for_bath(reached=reached,
+                               dwell_minutes=self.settings.approach_settle_minutes,
+                               what=f"the bath to settle at {target} degC before the "
+                                    f"measured ramp"):
+            logging.info(f"Cycle {self.cycle}: starting the measured ramp at "
+                         f"{self.cooling_rate} degC/min (bath at {self.bath_temp})")
+            self._enter(Phase.COOLING)
+
+    def _tick_cooling(self):
+        # Open loop: the setpoint keeps stepping down whatever the bath does.
+        if self.setpoint is None:
+            # _begin_cycle always writes it first; this is just belt and braces.
+            self._set_setpoint(self.settings.scan_start_temp)
+            return
+
+        position = self.ramp_position
+        if position > self.settings.min_temp:
+            step = self.settings.cooling_step_at(self.cooling_rate)
+            self._set_setpoint(max(position - step, self.settings.min_temp))
+            return
+
+        # The setpoint has bottomed out, but the bath is still on its way down
+        # and wells are still freezing, so keep recording into the hold.
+        self._enter(Phase.HOLD_COLD)
+
+    def _tick_hold_cold(self):
+        reached = self._bath_at_or_below(self.settings.freeze_temp)
+
+        if reached:
+            # The sample is finally at the temperature that was asked for:
+            # whatever was going to freeze on the way down has frozen.
+            self._end_recording()
+
+        if self._wait_for_bath(reached=reached,
+                               dwell_minutes=self.settings.hold_cold_minutes,
+                               what=f"the bath to reach {self.settings.freeze_temp} degC"):
+            self._end_recording()   # also covers giving up on the timeout
+            self._enter(Phase.THAW)
+
+    def _tick_thaw(self):
+        if self.ramp_position < self.settings.thaw_temp:
+            self._set_setpoint(min(self.ramp_position + self.settings.heating_step,
+                                   self.settings.thaw_temp))
+            return
+
+        self._enter(Phase.HOLD_WARM)
+
+    def _tick_hold_warm(self):
+        warm_enough = self.settings.thaw_temp - self.settings.tolerance
+        if self._wait_for_bath(reached=self._bath_at_or_above(warm_enough),
+                               dwell_minutes=self.settings.hold_warm_minutes,
+                               what=f"the bath to reach {warm_enough:.1f} degC"):
+            # Not a measurement phase, so jump rather than ramp: the chiller
+            # gets back to the starting temperature as fast as it can.
+            self._set_setpoint(self.settings.scan_start_temp)
+            self._enter(Phase.SETTLE)
+
+    def _tick_settle(self):
+        back_at_start = self._bath_at_or_below(self.settings.scan_start_temp
+                                               + self.settings.tolerance)
+
+        if not self._wait_for_bath(reached=back_at_start, dwell_minutes=0,
+                                   what=f"the bath to return to "
+                                        f"{self.settings.scan_start_temp} degC"):
+            return
+
+        self._refresh_settings()
+
+        if self.settings.cycles is not None and self.cycle >= self.settings.cycles:
+            self.timer.stop()
+            self._enter(Phase.DONE)
+            logging.info(f"Series finished: {self.cycle} cycle(s) completed")
+            self.series_finished.emit()
+            return
+
+        self._begin_cycle()
+
+    # -- helpers -------------------------------------------------------------
+
+    def _begin_cycle(self):
+        self.cycle += 1
+        self.cooling_rate = self.settings.rate_for_cycle(self.cycle)
+
+        if self.settings.cooling_rates:
+            logging.info(f"Cycle {self.cycle} cools at {self.cooling_rate} degC/min")
+
+        self._set_setpoint(self.settings.scan_start_temp)
+        self._enter(Phase.APPROACH if self.settings.approach_temp is not None
+                    else Phase.COOLING)
+        self.recording = True
+        self.cycle_started.emit(self.cycle)
+
+    def _refresh_settings(self):
+        """Adopt the operator's latest settings, if they make sense.
+
+        This runs once per cycle, in the gap between them, so a cycle always
+        runs with one consistent set of numbers. A half-typed or impossible
+        form is reported and ignored rather than stopping the series: a typo
+        in a text box must not end a three-day run.
+        """
+        if self._settings_provider is None:
+            return
+
+        try:
+            fresh = self._settings_provider()
+            for field_name in FIXED_SETTINGS:
+                setattr(fresh, field_name, getattr(self.settings, field_name))
+            fresh.validate()
+        except Exception as e:
+            logging.warning(f"Ignoring the settings currently in the form, "
+                            f"carrying on with the ones in use: {e}")
+            return
+
+        changes = fresh.changes_from(self.settings)
+        if not changes:
+            return
+
+        logging.info(f"Cycle {self.cycle + 1} picks up: {changes}")
+
+        # Only touch the timer when the thing that governs it actually moved:
+        # setInterval restarts the countdown, so doing it on every accepted
+        # change would delay the next step by up to one interval each cycle.
+        if fresh.step_interval != self.settings.step_interval:
+            self.timer.setInterval(int(fresh.step_interval * 1000))
+
+        self.settings = fresh
+        self.settings_changed.emit(changes)
+
+    def _end_recording(self):
+        """Close this cycle's folder. Safe to call more than once."""
+        if not self.recording:
+            return
+
+        self.recording = False
+        logging.info(f"Cycle {self.cycle}: recording stopped "
+                     f"(measured {self.bath_temp} degC)")
+        self.cycle_finished.emit(self.cycle)
+
+    def _enter(self, phase):
+        self.phase = phase
+        self._phase_started_at = self._clock()
+        self._target_reached_at = None
+
+        if not phase.is_finished:
+            logging.info(f"Cycle {self.cycle}: {phase.value}")
+
+        self.phase_changed.emit(phase, self.cycle)
+
+    def _set_setpoint(self, value):
+        """Move the ramp to ``value`` and tell the chiller, if it moved enough.
+
+        The exact position is kept so the next step starts from where the ramp
+        really is, not from the two decimals the chiller was given.
+        """
+        self._exact_setpoint = value
+
+        rounded = round(value, 2)
+        if rounded == self.setpoint:
+            return  # the chiller already has it; the ramp still moved
+
+        self.setpoint = rounded
+        self.setpoint_changed.emit(self.setpoint)
+
+    @property
+    def ramp_position(self):
+        """Where the ramp is, at full precision."""
+        return self._exact_setpoint if self._exact_setpoint is not None else self.setpoint
+
+    def _bath_at_or_below(self, target):
+        return self.bath_temp is not None and self.bath_temp <= target
+
+    def _bath_at_or_above(self, target):
+        return self.bath_temp is not None and self.bath_temp >= target
+
+    def _wait_for_bath(self, reached, dwell_minutes, what):
+        """Return True once the bath got there and the dwell has elapsed.
+
+        Gives up (and returns True) after ``hold_timeout_minutes``, because
+        moving on is safer than sitting at the bottom of the ramp forever.
+        """
+        now = self._clock()
+
+        if not self.settings.wait_for_bath:
+            reached = True
+
+        if reached:
+            if self._target_reached_at is None:
+                self._target_reached_at = now
+                if dwell_minutes:
+                    logging.info(f"Cycle {self.cycle}: target reached, "
+                                 f"holding for {dwell_minutes:g} min")
+
+            if now - self._target_reached_at >= dwell_minutes * 60:
+                return True
+            return False
+
+        waited = now - self._phase_started_at
+        if waited >= self.settings.hold_timeout_minutes * 60:
+            logging.warning(f"Cycle {self.cycle}: gave up waiting for {what} after "
+                            f"{waited / 60:.0f} min (bath is at {self.bath_temp}); "
+                            f"moving on")
+            return True
+
+        return False
+
+    # -- for the GUI ---------------------------------------------------------
+
+    def status_text(self):
+        """One line describing where the series is, for the status label."""
+        if self.phase is Phase.IDLE:
+            return "Idle"
+        if self.phase is Phase.DONE:
+            return f"Finished — {self.cycle} cycle(s)"
+        if self.phase is Phase.ABORTED:
+            return f"ABORTED at cycle {self.cycle}"
+
+        total = self.settings.cycles
+        counter = f"Cycle {self.cycle}/{total}" if total else f"Cycle {self.cycle}"
+        if self.settings.cooling_rates:
+            counter += f" @ {self.cooling_rate:g} °C/min"
+        bath = f"{self.bath_temp:.1f}" if self.bath_temp is not None else "?"
+
+        setpoint = f"{self.setpoint:.1f}" if self.setpoint is not None else "?"
+
+        return f"{counter} · {self.phase.value} · SP {setpoint} / bath {bath} °C"
